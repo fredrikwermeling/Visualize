@@ -90,6 +90,18 @@ class App {
             this.graphRenderer.setDimensions(this.graphRenderer.width, height);
             this.updateGraph();
         });
+
+        document.getElementById('yAxisMin').addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            this.graphRenderer.updateSettings({ yAxisMin: val === '' ? null : parseFloat(val) });
+            this.updateGraph();
+        });
+
+        document.getElementById('yAxisMax').addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            this.graphRenderer.updateSettings({ yAxisMax: val === '' ? null : parseFloat(val) });
+            this.updateGraph();
+        });
     }
 
     _bindStatisticsControls() {

@@ -63,12 +63,26 @@
                 <div class="graph-type-selector">
                     <label>Graph Type:</label>
                     <select id="graphType">
-                        <option value="column-points-mean">Column: Points with Mean</option>
-                        <option value="column-points-median">Column: Points with Median</option>
-                        <option value="column-bar-mean">Column: Bar with Mean ± SD</option>
-                        <option value="column-bar-sem">Column: Bar with Mean ± SEM</option>
-                        <option value="box-plot">Box Plot</option>
-                        <option value="violin-plot">Violin Plot</option>
+                        <optgroup label="Scatter / Points">
+                            <option value="scatter-only">Scatter (points only)</option>
+                            <option value="column-points-mean">Points with Mean line</option>
+                            <option value="column-points-median">Points with Median line</option>
+                        </optgroup>
+                        <optgroup label="Bar Charts">
+                            <option value="column-bar-mean">Bar + Mean ± SD</option>
+                            <option value="column-bar-sem">Bar + Mean ± SEM</option>
+                            <option value="column-bar-median">Bar + Median ± IQR</option>
+                            <option value="scatter-bar-mean-sd">Scatter + Bar + SD</option>
+                            <option value="scatter-bar-mean-sem">Scatter + Bar + SEM</option>
+                        </optgroup>
+                        <optgroup label="Distribution">
+                            <option value="box-plot">Box Plot</option>
+                            <option value="violin-plot">Violin Plot</option>
+                            <option value="violin-box">Violin + Box Plot</option>
+                        </optgroup>
+                        <optgroup label="Paired Data">
+                            <option value="before-after">Before–After (connected dots)</option>
+                        </optgroup>
                     </select>
                 </div>
                 
@@ -129,6 +143,14 @@
                         <div class="control-group">
                             <label>Height:</label>
                             <input type="number" id="graphHeight" value="400" min="200" max="800" step="50">
+                        </div>
+                        <div class="control-group">
+                            <label>Y-Axis Min:</label>
+                            <input type="number" id="yAxisMin" placeholder="Auto" step="any">
+                        </div>
+                        <div class="control-group">
+                            <label>Y-Axis Max:</label>
+                            <input type="number" id="yAxisMax" placeholder="Auto" step="any">
                         </div>
                     </div>
                     

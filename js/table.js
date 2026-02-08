@@ -12,16 +12,19 @@ class DataTable {
     initialize() {
         // Generate initial rows
         this.generateRows(this.numRows);
-        
+
         // Add event listeners for live data changes
         this.table.addEventListener('input', () => {
             if (window.app) {
                 window.app.updateGraph();
             }
         });
-        
+
         // Allow header editing
         this.setupHeaderEditing();
+
+        // Keyboard navigation
+        this.setupKeyboardNavigation();
     }
 
     generateRows(count) {
@@ -68,6 +71,88 @@ class DataTable {
                     window.app.updateGraph();
                 }
             });
+        });
+    }
+
+    setupKeyboardNavigation() {
+        this.table.addEventListener('keydown', (e) => {
+            const cell = e.target;
+            if (!cell.matches('td[contenteditable], th[contenteditable]')) return;
+
+            const row = cell.parentElement;
+            const isHeader = cell.tagName === 'TH';
+            const colIndex = Array.from(row.children).indexOf(cell);
+            const numCols = row.children.length;
+
+            // Build navigable grid: header row + body rows
+            const allRows = [this.headerRow, ...this.tbody.querySelectorAll('tr')];
+            const rowIndex = allRows.indexOf(row);
+
+            const focusCell = (r, c) => {
+                if (r < 0 || r >= allRows.length) return;
+                const targetRow = allRows[r];
+                const targetCell = targetRow.children[c];
+                if (targetCell) {
+                    targetCell.focus();
+                    // Select all content for easy overwriting
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(targetCell);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            };
+
+            switch (e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    focusCell(rowIndex - 1, colIndex);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    focusCell(rowIndex + 1, colIndex);
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    focusCell(rowIndex + 1, colIndex);
+                    break;
+                case 'ArrowLeft': {
+                    const sel = window.getSelection();
+                    if (sel.rangeCount && sel.getRangeAt(0).startOffset === 0 && sel.isCollapsed) {
+                        e.preventDefault();
+                        focusCell(rowIndex, colIndex - 1);
+                    }
+                    break;
+                }
+                case 'ArrowRight': {
+                    const sel = window.getSelection();
+                    const textLen = cell.textContent.length;
+                    if (sel.rangeCount && sel.getRangeAt(0).endOffset >= textLen && sel.isCollapsed) {
+                        e.preventDefault();
+                        focusCell(rowIndex, colIndex + 1);
+                    }
+                    break;
+                }
+                case 'Tab': {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        // Move left, wrap to previous row
+                        if (colIndex > 0) {
+                            focusCell(rowIndex, colIndex - 1);
+                        } else if (rowIndex > 0) {
+                            focusCell(rowIndex - 1, numCols - 1);
+                        }
+                    } else {
+                        // Move right, wrap to next row
+                        if (colIndex < numCols - 1) {
+                            focusCell(rowIndex, colIndex + 1);
+                        } else if (rowIndex < allRows.length - 1) {
+                            focusCell(rowIndex + 1, 0);
+                        }
+                    }
+                    break;
+                }
+            }
         });
     }
 

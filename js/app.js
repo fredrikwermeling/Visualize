@@ -331,12 +331,25 @@ class App {
             });
         });
 
+        document.getElementById('drawUndo').addEventListener('click', () => {
+            this.annotationManager.undo();
+        });
+
         document.getElementById('drawDeleteSelected').addEventListener('click', () => {
             this.annotationManager.deleteSelected();
         });
 
         document.getElementById('drawClearAll').addEventListener('click', () => {
             this.annotationManager.clearAll();
+        });
+
+        // Ctrl+Z / Cmd+Z for undo
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+                e.preventDefault();
+                this.annotationManager.undo();
+            }
         });
     }
 

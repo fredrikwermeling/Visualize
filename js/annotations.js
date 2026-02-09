@@ -12,6 +12,20 @@ class AnnotationManager {
         this._marginRef = null;
         this._boundHandlers = {};
         this._nextId = 1;
+        this._undoStack = []; // stores snapshots for undo
+    }
+
+    _saveUndoState() {
+        this._undoStack.push(JSON.parse(JSON.stringify(this.annotations)));
+        if (this._undoStack.length > 50) this._undoStack.shift();
+    }
+
+    undo() {
+        if (this._undoStack.length === 0) return;
+        this.annotations = this._undoStack.pop();
+        this.selectedIndex = -1;
+        this._selectedBracketIdx = -1;
+        if (window.app) window.app.updateGraph();
     }
 
     setTool(name) {
@@ -33,6 +47,7 @@ class AnnotationManager {
     }
 
     clearAll() {
+        this._saveUndoState();
         this.annotations = [];
         this.selectedIndex = -1;
         this._selectedBracketIdx = -1;
@@ -42,6 +57,7 @@ class AnnotationManager {
 
     deleteSelected() {
         if (this.selectedIndex >= 0 && this.selectedIndex < this.annotations.length) {
+            this._saveUndoState();
             this.annotations.splice(this.selectedIndex, 1);
             this.selectedIndex = -1;
             if (window.app) window.app.updateGraph();
@@ -375,6 +391,7 @@ class AnnotationManager {
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist > 5) {
+                    this._saveUndoState();
                     const tool = this._dragState.tool;
                     if (tool === 'line') {
                         this.annotations.push({
@@ -503,6 +520,7 @@ class AnnotationManager {
             if (!document.body.contains(popup)) return;
             const text = input.value.trim();
             if (text) {
+                this._saveUndoState();
                 this.annotations.push({
                     type: 'text',
                     text: text,

@@ -598,6 +598,11 @@ class GraphRenderer {
             } else if (activeTool === 'none') {
                 el.style('cursor', 'grab');
                 this._makeLabelDrag(el, offsetKey);
+                // Click to select for arrow-key nudging
+                el.on('click', (event) => {
+                    event.stopPropagation();
+                    this._selectLabelForNudge(el, offsetKey);
+                });
             }
         };
 
@@ -706,6 +711,46 @@ class GraphRenderer {
         );
     }
 
+    _selectLabelForNudge(el, offsetKey) {
+        // Remove previous selection highlight
+        this.svg.selectAll('.label-selected').classed('label-selected', false)
+            .style('outline', null);
+        // Highlight selected label
+        el.classed('label-selected', true);
+
+        // Remove previous key handler if any
+        if (this._labelNudgeHandler) {
+            document.removeEventListener('keydown', this._labelNudgeHandler);
+        }
+
+        this._labelNudgeHandler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : 2;
+            const off = this.settings[offsetKey];
+            if (e.key === 'ArrowUp') off.y -= step;
+            else if (e.key === 'ArrowDown') off.y += step;
+            else if (e.key === 'ArrowLeft') off.x -= step;
+            else if (e.key === 'ArrowRight') off.x += step;
+
+            if (window.app) window.app.updateGraph();
+        };
+
+        document.addEventListener('keydown', this._labelNudgeHandler);
+
+        // Deselect when clicking elsewhere on SVG
+        this.svg.on('click.labelnudge', () => {
+            this.svg.selectAll('.label-selected').classed('label-selected', false);
+            if (this._labelNudgeHandler) {
+                document.removeEventListener('keydown', this._labelNudgeHandler);
+                this._labelNudgeHandler = null;
+            }
+            this.svg.on('click.labelnudge', null);
+        });
+    }
+
     _createFontToolbar(fontObj) {
         const toolbar = document.createElement('div');
         toolbar.className = 'svg-edit-toolbar';
@@ -733,6 +778,7 @@ class GraphRenderer {
         boldBtn.className = 'svg-edit-btn' + (fontObj.bold ? ' active' : '');
         boldBtn.innerHTML = '<b>B</b>';
         boldBtn.title = 'Bold';
+        boldBtn.addEventListener('mousedown', (e) => e.preventDefault());
         boldBtn.addEventListener('click', (e) => {
             e.preventDefault();
             boldBtn.classList.toggle('active');
@@ -743,11 +789,16 @@ class GraphRenderer {
         italicBtn.className = 'svg-edit-btn' + (fontObj.italic ? ' active' : '');
         italicBtn.innerHTML = '<i>I</i>';
         italicBtn.title = 'Italic';
+        italicBtn.addEventListener('mousedown', (e) => e.preventDefault());
         italicBtn.addEventListener('click', (e) => {
             e.preventDefault();
             italicBtn.classList.toggle('active');
         });
         toolbar.appendChild(italicBtn);
+
+        // Prevent focus loss when interacting with toolbar controls
+        familySelect.addEventListener('mousedown', (e) => e.stopPropagation());
+        sizeInput.addEventListener('mousedown', (e) => e.stopPropagation());
 
         return { toolbar, familySelect, sizeInput, boldBtn, italicBtn };
     }
@@ -820,6 +871,7 @@ class GraphRenderer {
         hideBtn.textContent = '\u{1F6AB}';
         hideBtn.title = 'Hide this label';
         hideBtn.style.marginLeft = '4px';
+        hideBtn.addEventListener('mousedown', (e) => e.preventDefault());
         hideBtn.addEventListener('click', (e) => {
             e.preventDefault();
             this.settings[visKey] = false;
@@ -2013,6 +2065,10 @@ class GraphRenderer {
             .attr('fill', 'transparent');
         if (activeTool === 'none') {
             dragRect.style('cursor', 'grab').call(this._makeLegendDrag('whole'));
+            dragRect.on('click', (event) => {
+                event.stopPropagation();
+                this._selectLabelForNudge(dragRect, 'groupLegendOffset');
+            });
         }
 
         data.forEach((group, i) => {
@@ -2155,13 +2211,18 @@ class GraphRenderer {
         boldBtn.className = 'svg-edit-btn' + (lf.bold ? ' active' : '');
         boldBtn.innerHTML = '<b>B</b>';
         boldBtn.title = 'Bold';
+        boldBtn.addEventListener('mousedown', (e) => e.preventDefault());
         boldBtn.addEventListener('click', (e) => { e.preventDefault(); boldBtn.classList.toggle('active'); });
 
         const italicBtn = document.createElement('button');
         italicBtn.className = 'svg-edit-btn' + (lf.italic ? ' active' : '');
         italicBtn.innerHTML = '<i>I</i>';
         italicBtn.title = 'Italic';
+        italicBtn.addEventListener('mousedown', (e) => e.preventDefault());
         italicBtn.addEventListener('click', (e) => { e.preventDefault(); italicBtn.classList.toggle('active'); });
+
+        familySelect.addEventListener('mousedown', (e) => e.stopPropagation());
+        sizeInput.addEventListener('mousedown', (e) => e.stopPropagation());
 
         row.appendChild(familySelect);
         row.appendChild(sizeInput);

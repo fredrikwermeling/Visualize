@@ -428,7 +428,7 @@ class App {
             colorScheme: document.getElementById('heatmapColorScheme')?.value || 'RdBu',
             showValues: document.getElementById('heatmapShowValues')?.checked || false,
             showInfo: document.getElementById('heatmapShowInfo')?.checked ?? true,
-            title: this.graphRenderer.settings.title || 'Heatmap'
+            title: this.heatmapRenderer.settings.title || 'Heatmap'
         };
     }
 

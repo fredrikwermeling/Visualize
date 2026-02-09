@@ -392,14 +392,55 @@ class HeatmapRenderer {
     }
 
     _drawTitle(svg, width, title) {
-        svg.append('text')
+        const titleEl = svg.append('text')
             .attr('x', width / 2)
             .attr('y', 18)
             .attr('text-anchor', 'middle')
             .attr('font-size', '16px')
             .attr('font-weight', 'bold')
             .attr('fill', '#333')
+            .attr('cursor', 'pointer')
             .text(title);
+
+        titleEl.on('click', () => {
+            const bbox = titleEl.node().getBoundingClientRect();
+            const containerRect = this.container.getBoundingClientRect();
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = this.settings.title;
+            input.className = 'svg-inline-edit';
+            input.style.position = 'absolute';
+            input.style.left = (bbox.left - containerRect.left) + 'px';
+            input.style.top = (bbox.top - containerRect.top - 4) + 'px';
+            input.style.width = Math.max(bbox.width + 40, 120) + 'px';
+            input.style.fontSize = '16px';
+            input.style.fontWeight = 'bold';
+            input.style.textAlign = 'center';
+
+            this.container.style.position = 'relative';
+            this.container.appendChild(input);
+            input.focus();
+            input.select();
+
+            const finish = () => {
+                const newTitle = input.value.trim() || 'Heatmap';
+                this.settings.title = newTitle;
+                input.remove();
+                if (window.app) window.app.updateGraph();
+            };
+
+            input.addEventListener('blur', finish);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') input.blur();
+                if (e.key === 'Escape') {
+                    input.value = this.settings.title;
+                    input.blur();
+                }
+            });
+        });
+
+        titleEl.append('title').text('Click to edit title');
     }
 
     _transpose(matrix) {

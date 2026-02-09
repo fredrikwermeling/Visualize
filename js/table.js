@@ -25,6 +25,9 @@ class DataTable {
 
         // Keyboard navigation
         this.setupKeyboardNavigation();
+
+        // Excel paste support
+        this.setupPasteHandler();
     }
 
     generateRows(count) {
@@ -274,6 +277,89 @@ class DataTable {
                     break;
                 }
             }
+        });
+    }
+
+    setupPasteHandler() {
+        this.table.addEventListener('paste', (e) => {
+            const clipText = (e.clipboardData || window.clipboardData).getData('text');
+            if (!clipText) return;
+
+            // Parse tab/newline separated data (Excel format)
+            const rows = clipText.split(/\r?\n/).filter(r => r.trim() !== '');
+            if (rows.length === 0) return;
+
+            const parsed = rows.map(r => r.split('\t').map(c => c.trim()));
+            // Need at least 2 cells to treat as a table paste
+            if (parsed.length === 1 && parsed[0].length <= 1) return;
+
+            e.preventDefault();
+
+            const numCols = Math.max(...parsed.map(r => r.length));
+
+            // Detect if first row is a header (contains mostly non-numeric text)
+            const firstRow = parsed[0];
+            const numericCount = firstRow.filter(c => c !== '' && !isNaN(parseFloat(c))).length;
+            const hasHeader = numericCount < firstRow.length / 2;
+
+            let headerLabels;
+            let dataRows;
+            if (hasHeader) {
+                headerLabels = firstRow;
+                dataRows = parsed.slice(1);
+            } else {
+                headerLabels = Array.from({ length: numCols }, (_, i) => `Group ${i + 1}`);
+                dataRows = parsed;
+            }
+
+            // Resize table to match pasted data
+            // Set headers
+            const existingHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+            const delColHeader = this.headerRow.querySelector('.delete-col-header');
+
+            // Remove existing data headers
+            existingHeaders.forEach(h => h.remove());
+
+            // Create new headers
+            for (let c = 0; c < numCols; c++) {
+                const th = document.createElement('th');
+                th.contentEditable = true;
+                th.textContent = headerLabels[c] || `Group ${c + 1}`;
+                if (delColHeader) {
+                    this.headerRow.insertBefore(th, delColHeader);
+                } else {
+                    this.headerRow.appendChild(th);
+                }
+            }
+
+            // Ensure we have enough rows
+            const neededRows = Math.max(dataRows.length, 1);
+            this.numRows = neededRows;
+            this.tbody.innerHTML = '';
+            for (let r = 0; r < neededRows; r++) {
+                const row = this._createRow(numCols);
+                this.tbody.appendChild(row);
+            }
+
+            // Fill in data
+            const bodyRows = this.tbody.querySelectorAll('tr');
+            dataRows.forEach((rowData, r) => {
+                if (r >= bodyRows.length) return;
+                const cells = bodyRows[r].querySelectorAll('td:not(.row-delete-cell)');
+                rowData.forEach((val, c) => {
+                    if (c < cells.length) {
+                        cells[c].textContent = val;
+                    }
+                });
+            });
+
+            // Rebuild delete buttons and update
+            this.headerRow.querySelectorAll('th:not(.delete-col-header) .th-delete-btn').forEach(b => b.remove());
+            this._addDeleteColumnHeaders();
+            this._updateDeleteButtonVisibility();
+            this.setupHeaderEditing();
+
+            if (window.app) window.app.updateGraph();
         });
     }
 

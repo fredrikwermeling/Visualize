@@ -124,6 +124,33 @@ class App {
             }
             this.updateGraph();
         });
+
+        // Title / axis label visibility
+        ['showTitle', 'showXLabel', 'showYLabel'].forEach(id => {
+            document.getElementById(id).addEventListener('change', (e) => {
+                this.graphRenderer.updateSettings({ [id]: e.target.checked });
+                this.updateGraph();
+            });
+        });
+
+        // X-axis tick angle
+        document.getElementById('xTickAngle').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ xTickAngle: parseInt(e.target.value) || 0 });
+            this.updateGraph();
+        });
+
+        // Point size
+        document.getElementById('pointSize').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value) || 4;
+            this.graphRenderer.updateSettings({ pointSize: val });
+            this.updateGraph();
+        });
+
+        // Point shape
+        document.getElementById('pointShape').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ pointShape: e.target.value });
+            this.updateGraph();
+        });
     }
 
     _bindStatisticsControls() {
@@ -319,6 +346,14 @@ class App {
         this.graphRenderer.render(data);
         this._updateManualColorSwatches(data);
         this._updateGroupManager(data);
+        // Sync label visibility checkboxes
+        const s = this.graphRenderer.settings;
+        const titleCb = document.getElementById('showTitle');
+        const xCb = document.getElementById('showXLabel');
+        const yCb = document.getElementById('showYLabel');
+        if (titleCb) titleCb.checked = s.showTitle;
+        if (xCb) xCb.checked = s.showXLabel;
+        if (yCb) yCb.checked = s.showYLabel;
     }
 
     _updateManualColorSwatches(data) {

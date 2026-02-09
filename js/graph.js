@@ -50,6 +50,18 @@ class GraphRenderer {
             groupLegendFont: { family: 'Arial', size: 12, bold: false, italic: false },
             // Group label display
             showAxisGroupLabels: true,
+            // Label visibility & position offsets
+            showTitle: true,
+            showXLabel: true,
+            showYLabel: true,
+            titleOffset: { x: 0, y: 0 },
+            xLabelOffset: { x: 0, y: 0 },
+            yLabelOffset: { x: 0, y: 0 },
+            // X-axis tick angle
+            xTickAngle: 0,
+            // Point appearance
+            pointSize: 4,
+            pointShape: 'circle',
             // Group ordering & visibility
             groupOrder: [],      // array of group labels in display order; empty = use data order
             hiddenGroups: []     // array of group labels to hide from graph
@@ -107,6 +119,52 @@ class GraphRenderer {
         }
         const palette = this.colorThemes[this.settings.colorTheme] || this.colorThemes.default;
         return palette[index % palette.length];
+    }
+
+    // Returns the D3 symbol type for the current pointShape setting
+    _getSymbolType() {
+        const map = {
+            circle: d3.symbolCircle,
+            square: d3.symbolSquare,
+            triangle: d3.symbolTriangle,
+            diamond: d3.symbolDiamond,
+            cross: d3.symbolCross
+        };
+        return map[this.settings.pointShape] || d3.symbolCircle;
+    }
+
+    // Draws data points on g for a values array using current pointShape/pointSize settings
+    // xFn(d) and yFn(d) return pixel coordinates for each value d
+    _drawDataPoints(g, values, xFn, yFn, color, opts = {}) {
+        const r = opts.r || this.settings.pointSize;
+        const shape = this.settings.pointShape;
+        const opacity = opts.opacity !== undefined ? opts.opacity : 0.8;
+        const stroke = opts.stroke || '#333';
+        const strokeWidth = opts.strokeWidth !== undefined ? opts.strokeWidth : 0.5;
+        const cssClass = opts.cssClass || '';
+
+        if (shape === 'circle') {
+            const sel = g.selectAll(cssClass ? `.${cssClass}` : null)
+                .data(values).enter().append('circle');
+            if (cssClass) sel.attr('class', cssClass);
+            sel.attr('cx', (d, j) => xFn(d, j))
+                .attr('cy', (d, j) => yFn(d, j))
+                .attr('r', r)
+                .attr('fill', color).attr('stroke', stroke)
+                .attr('stroke-width', strokeWidth).attr('opacity', opacity);
+            return sel;
+        } else {
+            const area = Math.PI * r * r;
+            const symbolPath = d3.symbol().type(this._getSymbolType()).size(area * 2)();
+            const sel = g.selectAll(cssClass ? `.${cssClass}` : null)
+                .data(values).enter().append('path');
+            if (cssClass) sel.attr('class', cssClass);
+            sel.attr('d', symbolPath)
+                .attr('transform', (d, j) => `translate(${xFn(d, j)},${yFn(d, j)})`)
+                .attr('fill', color).attr('stroke', stroke)
+                .attr('stroke-width', strokeWidth).attr('opacity', opacity);
+            return sel;
+        }
     }
 
     // Returns color for a group at display position i, using the original data index for stable colors
@@ -172,6 +230,11 @@ class GraphRenderer {
             this.margin = { top: 60, right: 40, bottom: 50, left: 100 };
         } else {
             this.margin = { top: 60, right: 30, bottom: 80, left: 70 };
+        }
+
+        // Extra bottom margin for angled x-axis labels
+        if (!isHorizontal && this.settings.xTickAngle > 0) {
+            this.margin.bottom += this.settings.xTickAngle === 90 ? 40 : 20;
         }
 
         // Extra bottom margin for stats legend below graph
@@ -427,12 +490,25 @@ class GraphRenderer {
             if (!this.settings.showAxisGroupLabels) {
                 xAxis.selectAll('.tick text').remove();
             } else {
-                xAxis.selectAll('text')
+                const angle = this.settings.xTickAngle || 0;
+                const xTicks = xAxis.selectAll('text')
                     .style('font-family', tf.family)
                     .style('font-size', `${tf.size}px`)
                     .style('font-weight', tf.bold ? 'bold' : 'normal')
                     .style('font-style', tf.italic ? 'italic' : 'normal')
                     .on('click', (event) => this._openTickFontPopup(event));
+
+                if (angle === 45) {
+                    xTicks.attr('transform', 'rotate(-45)')
+                        .style('text-anchor', 'end')
+                        .attr('dx', '-0.5em')
+                        .attr('dy', '0.25em');
+                } else if (angle === 90) {
+                    xTicks.attr('transform', 'rotate(-90)')
+                        .style('text-anchor', 'end')
+                        .attr('dx', '-0.5em')
+                        .attr('dy', '-0.25em');
+                }
             }
 
             // Y axis = value axis (left)
@@ -504,79 +580,122 @@ class GraphRenderer {
         const tf = this.settings.titleFont;
         const xf = this.settings.xLabelFont;
         const yf = this.settings.yLabelFont;
+        const tOff = this.settings.titleOffset;
+        const xOff = this.settings.xLabelOffset;
+        const yOff = this.settings.yLabelOffset;
 
         // Center on the plot area (not full SVG width)
         const plotCenterX = this.margin.left + this.innerWidth / 2;
         const plotCenterY = this.margin.top + this.innerHeight / 2;
 
         // Graph title
-        this.svg.append('text')
-            .attr('class', 'graph-title')
-            .attr('x', plotCenterX)
-            .attr('y', this.margin.top / 2)
-            .attr('text-anchor', 'middle')
-            .style('font-family', tf.family)
-            .style('font-size', `${tf.size}px`)
-            .style('font-weight', tf.bold ? 'bold' : 'normal')
-            .style('font-style', tf.italic ? 'italic' : 'normal')
-            .text(this.settings.title)
-            .on('click', (event) => this._startInlineEdit(event, 'title'));
+        if (this.settings.showTitle) {
+            const titleEl = this.svg.append('text')
+                .attr('class', 'graph-title')
+                .attr('x', plotCenterX + tOff.x)
+                .attr('y', this.margin.top / 2 + tOff.y)
+                .attr('text-anchor', 'middle')
+                .style('font-family', tf.family)
+                .style('font-size', `${tf.size}px`)
+                .style('font-weight', tf.bold ? 'bold' : 'normal')
+                .style('font-style', tf.italic ? 'italic' : 'normal')
+                .text(this.settings.title)
+                .on('click', (event) => this._startInlineEdit(event, 'title'));
+            this._makeLabelDrag(titleEl, 'titleOffset');
+        }
 
         if (isHorizontal) {
-            // X label goes below (value axis)
-            this.svg.append('text')
-                .attr('class', 'axis-label x-label')
-                .attr('x', plotCenterX)
-                .attr('y', this.height - 10)
-                .attr('text-anchor', 'middle')
-                .style('font-family', yf.family)
-                .style('font-size', `${yf.size}px`)
-                .style('font-weight', yf.bold ? 'bold' : 'normal')
-                .style('font-style', yf.italic ? 'italic' : 'normal')
-                .text(this.settings.yLabel)
-                .on('click', (event) => this._startInlineEdit(event, 'yLabel'));
+            if (this.settings.showXLabel) {
+                const xLabelEl = this.svg.append('text')
+                    .attr('class', 'axis-label x-label')
+                    .attr('x', plotCenterX + xOff.x)
+                    .attr('y', this.height - 10 + xOff.y)
+                    .attr('text-anchor', 'middle')
+                    .style('font-family', yf.family)
+                    .style('font-size', `${yf.size}px`)
+                    .style('font-weight', yf.bold ? 'bold' : 'normal')
+                    .style('font-style', yf.italic ? 'italic' : 'normal')
+                    .text(this.settings.yLabel)
+                    .on('click', (event) => this._startInlineEdit(event, 'yLabel'));
+                this._makeLabelDrag(xLabelEl, 'xLabelOffset');
+            }
 
-            // Y label goes to the left (group axis)
-            this.svg.append('text')
-                .attr('class', 'axis-label y-label')
-                .attr('x', -plotCenterY)
-                .attr('y', 18)
-                .attr('text-anchor', 'middle')
-                .attr('transform', 'rotate(-90)')
-                .style('font-family', xf.family)
-                .style('font-size', `${xf.size}px`)
-                .style('font-weight', xf.bold ? 'bold' : 'normal')
-                .style('font-style', xf.italic ? 'italic' : 'normal')
-                .text(this.settings.xLabel)
-                .on('click', (event) => this._startInlineEdit(event, 'xLabel'));
+            if (this.settings.showYLabel) {
+                const yLabelEl = this.svg.append('text')
+                    .attr('class', 'axis-label y-label')
+                    .attr('x', -plotCenterY + yOff.x)
+                    .attr('y', 18 + yOff.y)
+                    .attr('text-anchor', 'middle')
+                    .attr('transform', 'rotate(-90)')
+                    .style('font-family', xf.family)
+                    .style('font-size', `${xf.size}px`)
+                    .style('font-weight', xf.bold ? 'bold' : 'normal')
+                    .style('font-style', xf.italic ? 'italic' : 'normal')
+                    .text(this.settings.xLabel)
+                    .on('click', (event) => this._startInlineEdit(event, 'xLabel'));
+                this._makeLabelDrag(yLabelEl, 'yLabelOffset');
+            }
         } else {
-            // X axis label
-            this.svg.append('text')
-                .attr('class', 'axis-label x-label')
-                .attr('x', plotCenterX)
-                .attr('y', this.height - 10)
-                .attr('text-anchor', 'middle')
-                .style('font-family', xf.family)
-                .style('font-size', `${xf.size}px`)
-                .style('font-weight', xf.bold ? 'bold' : 'normal')
-                .style('font-style', xf.italic ? 'italic' : 'normal')
-                .text(this.settings.xLabel)
-                .on('click', (event) => this._startInlineEdit(event, 'xLabel'));
+            if (this.settings.showXLabel) {
+                const xLabelEl = this.svg.append('text')
+                    .attr('class', 'axis-label x-label')
+                    .attr('x', plotCenterX + xOff.x)
+                    .attr('y', this.height - 10 + xOff.y)
+                    .attr('text-anchor', 'middle')
+                    .style('font-family', xf.family)
+                    .style('font-size', `${xf.size}px`)
+                    .style('font-weight', xf.bold ? 'bold' : 'normal')
+                    .style('font-style', xf.italic ? 'italic' : 'normal')
+                    .text(this.settings.xLabel)
+                    .on('click', (event) => this._startInlineEdit(event, 'xLabel'));
+                this._makeLabelDrag(xLabelEl, 'xLabelOffset');
+            }
 
-            // Y axis label
-            this.svg.append('text')
-                .attr('class', 'axis-label y-label')
-                .attr('x', -plotCenterY)
-                .attr('y', 18)
-                .attr('text-anchor', 'middle')
-                .attr('transform', 'rotate(-90)')
-                .style('font-family', yf.family)
-                .style('font-size', `${yf.size}px`)
-                .style('font-weight', yf.bold ? 'bold' : 'normal')
-                .style('font-style', yf.italic ? 'italic' : 'normal')
-                .text(this.settings.yLabel)
-                .on('click', (event) => this._startInlineEdit(event, 'yLabel'));
+            if (this.settings.showYLabel) {
+                const yLabelEl = this.svg.append('text')
+                    .attr('class', 'axis-label y-label')
+                    .attr('x', -plotCenterY + yOff.x)
+                    .attr('y', 18 + yOff.y)
+                    .attr('text-anchor', 'middle')
+                    .attr('transform', 'rotate(-90)')
+                    .style('font-family', yf.family)
+                    .style('font-size', `${yf.size}px`)
+                    .style('font-weight', yf.bold ? 'bold' : 'normal')
+                    .style('font-style', yf.italic ? 'italic' : 'normal')
+                    .text(this.settings.yLabel)
+                    .on('click', (event) => this._startInlineEdit(event, 'yLabel'));
+                this._makeLabelDrag(yLabelEl, 'yLabelOffset');
+            }
         }
+    }
+
+    _makeLabelDrag(selection, offsetKey) {
+        const self = this;
+        let startX, startY, origOffset;
+
+        selection.call(d3.drag()
+            .on('start', function (event) {
+                event.sourceEvent.stopPropagation();
+                startX = event.x;
+                startY = event.y;
+                origOffset = { ...self.settings[offsetKey] };
+                d3.select(this).style('cursor', 'grabbing');
+            })
+            .on('drag', function (event) {
+                const dx = event.x - startX;
+                const dy = event.y - startY;
+                self.settings[offsetKey] = { x: origOffset.x + dx, y: origOffset.y + dy };
+                // Move element directly for smooth feedback
+                const baseX = parseFloat(d3.select(this).attr('x')) || 0;
+                const baseY = parseFloat(d3.select(this).attr('y')) || 0;
+                d3.select(this).attr('x', baseX + (event.dx || 0))
+                    .attr('y', baseY + (event.dy || 0));
+            })
+            .on('end', function () {
+                d3.select(this).style('cursor', 'pointer');
+                if (window.app) window.app.updateGraph();
+            })
+        );
     }
 
     _createFontToolbar(fontObj) {
@@ -673,11 +792,11 @@ class GraphRenderer {
         const rect = textEl.getBoundingClientRect();
 
         const map = {
-            title:  { settingsKey: 'title',  inputId: 'graphTitle',  fontKey: 'titleFont' },
-            xLabel: { settingsKey: 'xLabel', inputId: 'xAxisLabel', fontKey: 'xLabelFont' },
-            yLabel: { settingsKey: 'yLabel', inputId: 'yAxisLabel', fontKey: 'yLabelFont' }
+            title:  { settingsKey: 'title',  inputId: 'graphTitle',  fontKey: 'titleFont',  visKey: 'showTitle' },
+            xLabel: { settingsKey: 'xLabel', inputId: 'xAxisLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+            yLabel: { settingsKey: 'yLabel', inputId: 'yAxisLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' }
         };
-        const { settingsKey, inputId, fontKey } = map[labelType];
+        const { settingsKey, inputId, fontKey, visKey } = map[labelType];
         const fontObj = this.settings[fontKey];
 
         const popup = document.createElement('div');
@@ -686,6 +805,21 @@ class GraphRenderer {
         popup.style.top = `${rect.top + window.scrollY - 40}px`;
 
         const { toolbar, familySelect, sizeInput, boldBtn, italicBtn } = this._createFontToolbar(fontObj);
+
+        // Hide button
+        const hideBtn = document.createElement('button');
+        hideBtn.className = 'svg-edit-btn';
+        hideBtn.textContent = '\u{1F6AB}';
+        hideBtn.title = 'Hide this label';
+        hideBtn.style.marginLeft = '4px';
+        hideBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.settings[visKey] = false;
+            popup.remove();
+            if (window.app) window.app.updateGraph();
+        });
+        toolbar.appendChild(hideBtn);
+
         popup.appendChild(toolbar);
 
         // Text input
@@ -800,58 +934,43 @@ class GraphRenderer {
     // --- Drawing methods ---
 
     _drawScatterWithLine(g, data, groupScale, valueScale, centerType, isH) {
+        const ps = this.settings.pointSize;
         data.forEach((group, i) => {
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
             if (isH) {
-                const cy = groupScale(group.label) + bw / 2;
+                const cyBase = groupScale(group.label) + bw / 2;
                 const jitterWidth = Math.min(bw * 0.3, 30);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
 
-                g.selectAll(`.point-${i}`)
-                    .data(group.values)
-                    .enter()
-                    .append('circle')
-                    .attr('class', `point point-${i}`)
-                    .attr('cy', () => cy + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cx', d => valueScale(d))
-                    .attr('r', 4)
-                    .attr('fill', color)
-                    .attr('stroke', '#333')
-                    .attr('stroke-width', 0.5)
-                    .attr('opacity', 0.8);
+                this._drawDataPoints(g, group.values,
+                    d => valueScale(d),
+                    (d, idx) => cyBase + jitters[idx],
+                    color, { r: ps, cssClass: `point-${i}` });
 
                 const centerValue = centerType === 'mean'
                     ? Statistics.mean(group.values) : Statistics.median(group.values);
                 const lineWidth = bw * 0.5;
-                g.append('line')
-                    .attr('class', 'center-line')
-                    .attr('y1', cy - lineWidth / 2).attr('y2', cy + lineWidth / 2)
+                g.append('line').attr('class', 'center-line')
+                    .attr('y1', cyBase - lineWidth / 2).attr('y2', cyBase + lineWidth / 2)
                     .attr('x1', valueScale(centerValue)).attr('x2', valueScale(centerValue))
                     .attr('stroke', '#333').attr('stroke-width', 2);
             } else {
-                const cx = groupScale(group.label) + bw / 2;
+                const cxBase = groupScale(group.label) + bw / 2;
                 const jitterWidth = Math.min(bw * 0.3, 30);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
 
-                g.selectAll(`.point-${i}`)
-                    .data(group.values)
-                    .enter()
-                    .append('circle')
-                    .attr('class', `point point-${i}`)
-                    .attr('cx', () => cx + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cy', d => valueScale(d))
-                    .attr('r', 4)
-                    .attr('fill', color)
-                    .attr('stroke', '#333')
-                    .attr('stroke-width', 0.5)
-                    .attr('opacity', 0.8);
+                this._drawDataPoints(g, group.values,
+                    (d, idx) => cxBase + jitters[idx],
+                    d => valueScale(d),
+                    color, { r: ps, cssClass: `point-${i}` });
 
                 const centerValue = centerType === 'mean'
                     ? Statistics.mean(group.values) : Statistics.median(group.values);
                 const lineWidth = bw * 0.5;
-                g.append('line')
-                    .attr('class', 'center-line')
-                    .attr('x1', cx - lineWidth / 2).attr('x2', cx + lineWidth / 2)
+                g.append('line').attr('class', 'center-line')
+                    .attr('x1', cxBase - lineWidth / 2).attr('x2', cxBase + lineWidth / 2)
                     .attr('y1', valueScale(centerValue)).attr('y2', valueScale(centerValue))
                     .attr('stroke', '#333').attr('stroke-width', 2);
             }
@@ -908,14 +1027,11 @@ class GraphRenderer {
 
                 // Points
                 const jitterWidth = Math.min(bw * 0.3, 20);
-                g.selectAll(`.dot-${i}`)
-                    .data(group.values)
-                    .enter()
-                    .append('circle')
-                    .attr('class', `dot dot-${i}`)
-                    .attr('cy', () => cy + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cx', d => valueScale(d))
-                    .attr('r', 3.5).attr('fill', '#333').attr('opacity', 0.7);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                this._drawDataPoints(g, group.values,
+                    d => valueScale(d),
+                    (d, j) => cy + jitters[j],
+                    '#333', { r: this.settings.pointSize, opacity: 0.7, cssClass: `dot-${i}` });
             } else {
                 const gx = groupScale(group.label);
                 const cx = gx + bw / 2;
@@ -958,14 +1074,11 @@ class GraphRenderer {
 
                 // Points
                 const jitterWidth = Math.min(bw * 0.3, 20);
-                g.selectAll(`.dot-${i}`)
-                    .data(group.values)
-                    .enter()
-                    .append('circle')
-                    .attr('class', `dot dot-${i}`)
-                    .attr('cx', () => cx + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cy', d => valueScale(d))
-                    .attr('r', 3.5).attr('fill', '#333').attr('opacity', 0.7);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                this._drawDataPoints(g, group.values,
+                    (d, j) => cx + jitters[j],
+                    d => valueScale(d),
+                    '#333', { r: this.settings.pointSize, opacity: 0.7, cssClass: `dot-${i}` });
             }
         });
     }
@@ -1119,11 +1232,11 @@ class GraphRenderer {
                     .attr('stroke', '#fff').attr('stroke-width', 2);
 
                 const jitterWidth = Math.min(violinWidth * 0.3, 10);
-                g.selectAll(`.vdot-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('cy', () => cy + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cx', d => valueScale(d))
-                    .attr('r', 2.5).attr('fill', '#333').attr('opacity', 0.5);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                this._drawDataPoints(g, group.values,
+                    d => valueScale(d),
+                    (d, j) => cy + jitters[j],
+                    '#333', { r: this.settings.pointSize, opacity: 0.5, cssClass: `vdot-${i}` });
             } else {
                 const cx = groupScale(group.label) + bw / 2;
                 const xDensityScale = d3.scaleLinear().domain([0, maxDensity]).range([0, violinWidth]);
@@ -1148,42 +1261,39 @@ class GraphRenderer {
                     .attr('stroke', '#fff').attr('stroke-width', 2);
 
                 const jitterWidth = Math.min(violinWidth * 0.3, 10);
-                g.selectAll(`.vdot-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('cx', () => cx + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cy', d => valueScale(d))
-                    .attr('r', 2.5).attr('fill', '#333').attr('opacity', 0.5);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                this._drawDataPoints(g, group.values,
+                    (d, j) => cx + jitters[j],
+                    d => valueScale(d),
+                    '#333', { r: this.settings.pointSize, opacity: 0.5, cssClass: `vdot-${i}` });
             }
         });
     }
 
     _drawScatterOnly(g, data, groupScale, valueScale, isH) {
+        const ps = this.settings.pointSize;
         data.forEach((group, i) => {
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
             if (isH) {
-                const cy = groupScale(group.label) + bw / 2;
+                const cyBase = groupScale(group.label) + bw / 2;
                 const jitterWidth = Math.min(bw * 0.35, 35);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
 
-                g.selectAll(`.spoint-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('class', `spoint spoint-${i}`)
-                    .attr('cy', () => cy + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cx', d => valueScale(d))
-                    .attr('r', 4.5).attr('fill', color)
-                    .attr('stroke', '#333').attr('stroke-width', 0.5).attr('opacity', 0.8);
+                this._drawDataPoints(g, group.values,
+                    d => valueScale(d),
+                    (d, j) => cyBase + jitters[j],
+                    color, { r: ps, cssClass: `spoint-${i}` });
             } else {
-                const cx = groupScale(group.label) + bw / 2;
+                const cxBase = groupScale(group.label) + bw / 2;
                 const jitterWidth = Math.min(bw * 0.35, 35);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
 
-                g.selectAll(`.spoint-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('class', `spoint spoint-${i}`)
-                    .attr('cx', () => cx + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cy', d => valueScale(d))
-                    .attr('r', 4.5).attr('fill', color)
-                    .attr('stroke', '#333').attr('stroke-width', 0.5).attr('opacity', 0.8);
+                this._drawDataPoints(g, group.values,
+                    (d, j) => cxBase + jitters[j],
+                    d => valueScale(d),
+                    color, { r: ps, cssClass: `spoint-${i}` });
             }
         });
     }
@@ -1232,12 +1342,11 @@ class GraphRenderer {
                 }
 
                 const jitterWidth = Math.min(bw * 0.3, 20);
-                g.selectAll(`.mdot-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('class', `mdot mdot-${i}`)
-                    .attr('cy', () => cy + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cx', d => valueScale(d))
-                    .attr('r', 3.5).attr('fill', '#333').attr('opacity', 0.7);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                this._drawDataPoints(g, group.values,
+                    d => valueScale(d),
+                    (d, j) => cy + jitters[j],
+                    '#333', { r: this.settings.pointSize, opacity: 0.7, cssClass: `mdot-${i}` });
             } else {
                 const gx = groupScale(group.label);
                 const cx = gx + bw / 2;
@@ -1273,12 +1382,11 @@ class GraphRenderer {
                 }
 
                 const jitterWidth = Math.min(bw * 0.3, 20);
-                g.selectAll(`.mdot-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('class', `mdot mdot-${i}`)
-                    .attr('cx', () => cx + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cy', d => valueScale(d))
-                    .attr('r', 3.5).attr('fill', '#333').attr('opacity', 0.7);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                this._drawDataPoints(g, group.values,
+                    (d, j) => cx + jitters[j],
+                    d => valueScale(d),
+                    '#333', { r: this.settings.pointSize, opacity: 0.7, cssClass: `mdot-${i}` });
             }
         });
     }
@@ -1328,12 +1436,11 @@ class GraphRenderer {
                 }
 
                 const jitterWidth = Math.min(bw * 0.35, 25);
-                g.selectAll(`.sbdot-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('class', `sbdot sbdot-${i}`)
-                    .attr('cy', () => cy + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cx', d => valueScale(d))
-                    .attr('r', 4.5).attr('fill', '#333').attr('opacity', 0.75);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                this._drawDataPoints(g, group.values,
+                    d => valueScale(d),
+                    (d, j) => cy + jitters[j],
+                    '#333', { r: this.settings.pointSize, opacity: 0.75, cssClass: `sbdot-${i}` });
             } else {
                 const gx = groupScale(group.label);
                 const cx = gx + bw / 2;
@@ -1369,12 +1476,11 @@ class GraphRenderer {
                 }
 
                 const jitterWidth = Math.min(bw * 0.35, 25);
-                g.selectAll(`.sbdot-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('class', `sbdot sbdot-${i}`)
-                    .attr('cx', () => cx + (Math.random() - 0.5) * jitterWidth)
-                    .attr('cy', d => valueScale(d))
-                    .attr('r', 4.5).attr('fill', '#333').attr('opacity', 0.75);
+                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                this._drawDataPoints(g, group.values,
+                    (d, j) => cx + jitters[j],
+                    d => valueScale(d),
+                    '#333', { r: this.settings.pointSize, opacity: 0.75, cssClass: `sbdot-${i}` });
             }
         });
     }
@@ -1510,20 +1616,16 @@ class GraphRenderer {
 
             if (isH) {
                 const cy = groupScale(group.label) + bw / 2;
-                g.selectAll(`.ba-dot-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('class', `ba-dot ba-dot-${i}`)
-                    .attr('cy', cy).attr('cx', d => valueScale(d))
-                    .attr('r', 5).attr('fill', color)
-                    .attr('stroke', '#333').attr('stroke-width', 1);
+                this._drawDataPoints(g, group.values,
+                    d => valueScale(d),
+                    () => cy,
+                    color, { r: this.settings.pointSize, stroke: '#333', strokeWidth: 1, cssClass: `ba-dot-${i}` });
             } else {
                 const cx = groupScale(group.label) + bw / 2;
-                g.selectAll(`.ba-dot-${i}`)
-                    .data(group.values).enter().append('circle')
-                    .attr('class', `ba-dot ba-dot-${i}`)
-                    .attr('cx', cx).attr('cy', d => valueScale(d))
-                    .attr('r', 5).attr('fill', color)
-                    .attr('stroke', '#333').attr('stroke-width', 1);
+                this._drawDataPoints(g, group.values,
+                    () => cx,
+                    d => valueScale(d),
+                    color, { r: this.settings.pointSize, stroke: '#333', strokeWidth: 1, cssClass: `ba-dot-${i}` });
             }
         });
     }

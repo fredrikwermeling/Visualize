@@ -291,6 +291,32 @@ class Statistics {
         return { H, p, df };
     }
 
+    static bonferroniPostHoc(groups, groupLabels) {
+        const results = [];
+        const numComparisons = (groups.length * (groups.length - 1)) / 2;
+
+        for (let i = 0; i < groups.length; i++) {
+            for (let j = i + 1; j < groups.length; j++) {
+                const testResult = this.tTest(groups[i], groups[j], false);
+                const correctedP = Math.min(testResult.p * numComparisons, 1.0);
+                const sigLabel = this.getSignificanceLevel(correctedP);
+
+                results.push({
+                    group1Index: i,
+                    group2Index: j,
+                    group1Label: groupLabels[i],
+                    group2Label: groupLabels[j],
+                    rawP: testResult.p,
+                    correctedP: correctedP,
+                    significanceLabel: sigLabel,
+                    significant: correctedP < 0.05
+                });
+            }
+        }
+
+        return results;
+    }
+
     static formatPValue(p) {
         if (p < 0.0001) return 'p < 0.0001';
         if (p < 0.001) return `p = ${p.toFixed(4)}`;

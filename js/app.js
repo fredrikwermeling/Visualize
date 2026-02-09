@@ -11,6 +11,7 @@ class App {
         this._bindTableControls();
         this._bindGraphControls();
         this._bindDimensionControls();
+        this._bindAppearanceControls();
         this._bindStatisticsControls();
         this._bindExportControls();
 
@@ -82,9 +83,43 @@ class App {
         });
     }
 
+    _bindAppearanceControls() {
+        document.getElementById('errorBarWidth').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value) || 1.5;
+            this.graphRenderer.updateSettings({ errorBarWidth: val });
+            this.updateGraph();
+        });
+
+        document.getElementById('errorBarDirection').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ errorBarDirection: e.target.value });
+            this.updateGraph();
+        });
+
+        document.getElementById('colorTheme').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ colorTheme: e.target.value, colorOverrides: {} });
+            this.updateGraph();
+        });
+
+        document.getElementById('orientation').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ orientation: e.target.value });
+            this.updateGraph();
+        });
+    }
+
     _bindStatisticsControls() {
         document.getElementById('runStats').addEventListener('click', () => {
             this._runStatisticalTest();
+        });
+
+        document.getElementById('significanceFontSize').addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            this.graphRenderer.updateSettings({ significanceFontSize: val === '' ? null : parseInt(val) });
+            this.updateGraph();
+        });
+
+        document.getElementById('showStatsLegend').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ showStatsLegend: e.target.checked });
+            this.updateGraph();
         });
     }
 
@@ -204,6 +239,9 @@ class App {
 
         this._showStatsResult(html);
 
+        // Set test name for legend
+        this.graphRenderer.updateSettings({ statsTestName: testName });
+
         // Add significance bracket to graph
         this.graphRenderer.setSignificance([{
             group1Index,
@@ -216,6 +254,7 @@ class App {
 
     _runMultiGroupTest(testType, data, filledGroups) {
         const groupValues = filledGroups.map(g => g.values);
+        const groupLabels = filledGroups.map(g => g.label);
 
         // For exactly 2 groups with ANOVA selected, fall back to t-test
         if (filledGroups.length === 2 && testType === 'one-way-anova') {
@@ -225,8 +264,9 @@ class App {
             const pFormatted = Statistics.formatPValue(result.p);
             const sigLevel = Statistics.getSignificanceLevel(result.p);
             const isSignificant = result.p < 0.05;
+            const testName = "Unpaired t-test (Welch's)";
 
-            let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">Unpaired t-test (Welch's)</span></div>`;
+            let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">${testName}</span></div>`;
             html += `<div class="result-item" style="color:#888;font-size:12px"><em>ANOVA with 2 groups falls back to t-test</em></div>`;
             html += `<div class="result-item"><span class="result-label">Comparing:</span> <span class="result-value">${group1.label} vs ${group2.label}</span></div>`;
             html += `<div class="result-item"><span class="result-label">t statistic:</span> <span class="result-value">${result.t.toFixed(4)}</span></div>`;
@@ -240,6 +280,7 @@ class App {
             });
 
             this._showStatsResult(html);
+            this.graphRenderer.updateSettings({ statsTestName: testName });
 
             const g1Idx = data.indexOf(group1);
             const g2Idx = data.indexOf(group2);
@@ -272,7 +313,7 @@ class App {
         const isSignificant = result.p < 0.05;
 
         let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">${testName}</span></div>`;
-        html += `<div class="result-item"><span class="result-label">Groups:</span> <span class="result-value">${filledGroups.map(g => g.label).join(', ')}</span></div>`;
+        html += `<div class="result-item"><span class="result-label">Groups:</span> <span class="result-value">${groupLabels.join(', ')}</span></div>`;
 
         if (result.F !== undefined) {
             html += `<div class="result-item"><span class="result-label">F statistic:</span> <span class="result-value">${result.F.toFixed(4)}</span></div>`;
@@ -293,10 +334,44 @@ class App {
             html += `<div class="result-item"><span class="result-label">Mean ${g.label}:</span> <span class="result-value">${Statistics.mean(g.values).toFixed(4)} (N=${g.values.length})</span></div>`;
         });
 
-        this._showStatsResult(html);
+        // Post-hoc testing (Bonferroni) for significant ANOVA/KW
+        const significantPairs = [];
+        if (isSignificant) {
+            const postHocName = testType === 'one-way-anova'
+                ? 'Bonferroni post-hoc (pairwise t-tests)'
+                : 'Bonferroni post-hoc (pairwise t-tests)';
 
-        // For multi-group: no pairwise brackets — clear significance
-        this.graphRenderer.setSignificance([]);
+            const postHocResults = Statistics.bonferroniPostHoc(groupValues, groupLabels);
+
+            html += `<hr style="margin:8px 0;border-color:#eee">`;
+            html += `<div class="result-item"><span class="result-label">Post-hoc:</span> <span class="result-value">${postHocName}</span></div>`;
+
+            postHocResults.forEach(ph => {
+                const phPFormatted = Statistics.formatPValue(ph.correctedP);
+                const phClass = ph.significant ? 'significant' : 'not-significant';
+                html += `<div class="result-item"><span class="result-value">${ph.group1Label} vs ${ph.group2Label}: ${phPFormatted} <span class="${phClass}">${ph.significanceLabel}</span></span></div>`;
+
+                if (ph.significant) {
+                    // Map filledGroups index to data index
+                    const g1Idx = data.indexOf(filledGroups[ph.group1Index]);
+                    const g2Idx = data.indexOf(filledGroups[ph.group2Index]);
+                    significantPairs.push({
+                        group1Index: g1Idx,
+                        group2Index: g2Idx,
+                        pValue: ph.correctedP,
+                        significanceLabel: ph.significanceLabel
+                    });
+                }
+            });
+
+            this.graphRenderer.updateSettings({ statsTestName: testName + ' + Bonferroni' });
+        } else {
+            html += `<div class="result-item" style="color:#888;font-size:12px"><em>No significant differences — post-hoc not needed</em></div>`;
+            this.graphRenderer.updateSettings({ statsTestName: testName });
+        }
+
+        this._showStatsResult(html);
+        this.graphRenderer.setSignificance(significantPairs);
         this.updateGraph();
     }
 

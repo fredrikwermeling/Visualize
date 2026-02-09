@@ -21,7 +21,7 @@ body {
 
 /* Header */
 header {
-    background-color: #2c3e50;
+    background-color: #3D6B2E;
     color: white;
     padding: 10px 16px;
     border-radius: 8px;
@@ -36,19 +36,8 @@ header {
 }
 
 .logo {
-    height: 50px;
+    height: 80px;
     width: auto;
-}
-
-header h1 {
-    font-size: 1.5em;
-    font-weight: 600;
-}
-
-.tagline {
-    margin-top: 3px;
-    opacity: 0.9;
-    font-size: 0.8em;
 }
 
 /* Main Content */
@@ -68,10 +57,10 @@ header h1 {
 }
 
 .panel h2 {
-    color: #2c3e50;
+    color: #3D6B2E;
     margin-bottom: 8px;
     font-size: 1.2em;
-    border-bottom: 2px solid #3498db;
+    border-bottom: 2px solid #5E8C31;
     padding-bottom: 6px;
 }
 
@@ -98,7 +87,7 @@ header h1 {
 }
 
 .data-table th {
-    background-color: #3498db;
+    background-color: #5E8C31;
     color: white;
     padding: 10px;
     font-weight: 600;
@@ -110,7 +99,7 @@ header h1 {
 }
 
 .data-table th:hover {
-    background-color: #2980b9;
+    background-color: #4B7A28;
 }
 
 /* Column delete button inside th */
@@ -180,7 +169,7 @@ tr:hover .row-delete-btn {
     width: 24px;
     min-width: 24px !important;
     padding: 0 !important;
-    background-color: #3498db !important;
+    background-color: #5E8C31 !important;
     border: none;
 }
 
@@ -191,8 +180,8 @@ tr:hover .row-delete-btn {
 }
 
 .data-table td[contenteditable="true"]:focus {
-    outline: 2px solid #3498db;
-    background-color: #f0f8ff;
+    outline: 2px solid #5E8C31;
+    background-color: #f0f8e8;
 }
 
 .data-table td[contenteditable="true"]:hover {
@@ -247,20 +236,26 @@ tr:hover .row-delete-btn {
 
 /* Graph Controls */
 .graph-controls {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
+}
+
+@media (max-width: 900px) {
+    .graph-controls {
+        grid-template-columns: 1fr;
+    }
 }
 
 .control-section {
     padding: 8px;
     background-color: #f8f9fa;
     border-radius: 4px;
-    border-left: 4px solid #3498db;
+    border-left: 4px solid #5E8C31;
 }
 
 .control-section h3 {
-    color: #2c3e50;
+    color: #3D6B2E;
     margin-bottom: 6px;
     font-size: 0.95em;
 }
@@ -292,8 +287,8 @@ tr:hover .row-delete-btn {
 .control-group input[type="number"]:focus,
 .control-group select:focus {
     outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+    border-color: #5E8C31;
+    box-shadow: 0 0 0 2px rgba(94, 140, 49, 0.15);
 }
 
 .control-group input[type="checkbox"] {
@@ -312,12 +307,12 @@ tr:hover .row-delete-btn {
 }
 
 .btn-primary {
-    background-color: #3498db;
+    background-color: #5E8C31;
     color: white;
 }
 
 .btn-primary:hover {
-    background-color: #2980b9;
+    background-color: #4B7A28;
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
@@ -377,7 +372,7 @@ tr:hover .row-delete-btn {
 
 .stats-results .result-label {
     font-weight: 600;
-    color: #2c3e50;
+    color: #3D6B2E;
 }
 
 .stats-results .result-value {
@@ -398,7 +393,7 @@ tr:hover .row-delete-btn {
     .main-content {
         grid-template-columns: 1fr;
     }
-    
+
     .data-panel {
         position: relative;
         top: 0;
@@ -507,18 +502,18 @@ tr:hover .row-delete-btn {
 }
 
 .svg-edit-btn:hover {
-    background: #e8f0fe;
+    background: #e8f5e0;
 }
 
 .svg-edit-btn.active {
-    background: #3498db;
+    background: #5E8C31;
     color: white;
-    border-color: #3498db;
+    border-color: #5E8C31;
 }
 
 /* SVG Inline Edit Input (inside popup) */
 .svg-inline-edit {
-    border: 2px solid #3498db;
+    border: 2px solid #5E8C31;
     border-radius: 3px;
     padding: 2px 6px;
     font-size: 14px;
@@ -529,8 +524,8 @@ tr:hover .row-delete-btn {
 }
 
 .svg-inline-edit:focus {
-    border-color: #2980b9;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    border-color: #4B7A28;
+    box-shadow: 0 0 0 3px rgba(94, 140, 49, 0.2);
 }
 
 /* Clickable SVG labels */
@@ -543,6 +538,17 @@ tr:hover .row-delete-btn {
 .graph-svg .graph-title:hover,
 .graph-svg .x-label:hover,
 .graph-svg .y-label:hover {
+    opacity: 0.6;
+}
+
+/* Clickable tick labels */
+.graph-svg .x-axis text,
+.graph-svg .y-axis text {
+    cursor: pointer;
+}
+
+.graph-svg .x-axis text:hover,
+.graph-svg .y-axis text:hover {
     opacity: 0.6;
 }
 

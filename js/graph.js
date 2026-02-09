@@ -17,7 +17,7 @@ class GraphRenderer {
             fontSize: 12,
             fontBold: false,
             fontItalic: false,
-            graphType: 'column-bar-mean',
+            graphType: 'column-points-mean',
             yAxisMin: null,
             yAxisMax: null,
             // Per-label font settings

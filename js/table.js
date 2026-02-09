@@ -5,7 +5,7 @@ class DataTable {
         this.table = document.getElementById(tableId);
         this.tbody = document.getElementById(bodyId);
         this.headerRow = document.getElementById(headerRowId);
-        this.numRows = 10; // Initial number of rows
+        this.numRows = 20; // Initial number of rows
         this.initialize();
     }
 

@@ -189,12 +189,6 @@ class HeatmapRenderer {
 
         const interpolator = interpolators[scheme] || interpolators['RdBu'];
 
-        // If data spans negative to positive, center at 0
-        if (min < 0 && max > 0) {
-            const absMax = Math.max(Math.abs(min), Math.abs(max));
-            return d3.scaleSequential(interpolator).domain([-absMax, absMax]);
-        }
-
         return d3.scaleSequential(interpolator).domain([min, max]);
     }
 

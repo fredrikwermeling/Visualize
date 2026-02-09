@@ -446,10 +446,10 @@ class App {
         const colorLabels = { RdBu: 'Red\u2013Blue', RdYlGn: 'Red\u2013Yellow\u2013Green', Viridis: 'Viridis', YlOrRd: 'Yellow\u2013Red', BuPu: 'Blue\u2013Purple' };
 
         const normalizeExplanations = {
-            none: 'Raw values are used directly. Colors reflect the original data scale from minimum to maximum.',
-            all: 'Z-score normalization across the entire dataset. Each value is transformed to (value \u2212 mean) / standard deviation using the global mean and SD. This makes all values comparable on a common scale.',
-            row: 'Z-score normalization per row. Each row is independently scaled so that its mean = 0 and SD = 1. This highlights which columns are relatively high or low within each row, removing differences in row magnitude.',
-            col: 'Z-score normalization per column. Each column is independently scaled so that its mean = 0 and SD = 1. This highlights which rows are relatively high or low within each column, removing differences in column magnitude.'
+            none: 'Raw values are used directly. Colors reflect the original data scale from minimum to maximum. No z-score transformation is applied.',
+            all: 'Z-score across the entire dataset: z = (value \u2212 global mean) / global SD, computed from all values in the matrix. A z-score of 0 = the overall average, +1 = one SD above average, \u22121 = one SD below. This preserves relative differences between both rows and columns while putting everything on a standard scale.',
+            row: 'Z-score per row: z = (value \u2212 row mean) / row SD. Each row is independently scaled (mean = 0, SD = 1). This highlights which columns are relatively high or low within each row, but erases differences in overall row magnitude.',
+            col: 'Z-score per column: z = (value \u2212 column mean) / column SD. Each column is independently scaled (mean = 0, SD = 1). This highlights which rows are relatively high or low within each column, but erases differences in overall column magnitude.'
         };
 
         let html = '<h4>Heatmap Settings</h4>';

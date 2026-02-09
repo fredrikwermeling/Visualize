@@ -8,6 +8,7 @@ class App {
         this.exportManager = new ExportManager(this.graphRenderer);
         this.annotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.annotationManager;
+        this._undoStack = [];
 
         // Bind event listeners
         this._bindTableControls();
@@ -332,7 +333,7 @@ class App {
         });
 
         document.getElementById('drawUndo').addEventListener('click', () => {
-            this.annotationManager.undo();
+            this.undo();
         });
 
         document.getElementById('drawDeleteSelected').addEventListener('click', () => {
@@ -348,9 +349,33 @@ class App {
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
                 e.preventDefault();
-                this.annotationManager.undo();
+                this.undo();
             }
         });
+    }
+
+    // --- Undo ---
+
+    saveUndoState() {
+        const snapshot = {
+            annotations: JSON.parse(JSON.stringify(this.annotationManager.annotations)),
+            settings: JSON.parse(JSON.stringify(this.graphRenderer.settings)),
+            significance: JSON.parse(JSON.stringify(this.graphRenderer.significanceResults || []))
+        };
+        this._undoStack.push(snapshot);
+        if (this._undoStack.length > 50) this._undoStack.shift();
+    }
+
+    undo() {
+        if (this._undoStack.length === 0) return;
+        const snapshot = this._undoStack.pop();
+        this.annotationManager.annotations = snapshot.annotations;
+        this.annotationManager.selectedIndex = -1;
+        this.annotationManager._selectedBracketIdx = -1;
+        // Restore settings (merge into existing object to keep references)
+        Object.assign(this.graphRenderer.settings, snapshot.settings);
+        this.graphRenderer.significanceResults = snapshot.significance;
+        this.updateGraph();
     }
 
     // --- Core methods ---

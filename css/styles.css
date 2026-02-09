@@ -82,7 +82,7 @@ header {
     margin-bottom: 6px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    max-height: 220px;
+    max-height: 350px;
     overflow-y: auto;
 }
 

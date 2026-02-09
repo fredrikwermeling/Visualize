@@ -598,11 +598,6 @@ class GraphRenderer {
             } else if (activeTool === 'none') {
                 el.style('cursor', 'grab');
                 this._makeLabelDrag(el, offsetKey);
-                // Click to select for arrow-key nudging
-                el.on('click', (event) => {
-                    event.stopPropagation();
-                    this._selectLabelForNudge(el, offsetKey);
-                });
             }
         };
 
@@ -684,41 +679,45 @@ class GraphRenderer {
 
     _makeLabelDrag(selection, offsetKey) {
         const self = this;
-        let startX, startY, origOffset;
+        let startX, startY, origOffset, didDrag;
 
         selection.call(d3.drag()
             .on('start', function (event) {
                 event.sourceEvent.stopPropagation();
+                if (window.app) window.app.saveUndoState();
                 startX = event.x;
                 startY = event.y;
                 origOffset = { ...self.settings[offsetKey] };
+                didDrag = false;
                 d3.select(this).style('cursor', 'grabbing');
             })
             .on('drag', function (event) {
                 const dx = event.x - startX;
                 const dy = event.y - startY;
+                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
                 self.settings[offsetKey] = { x: origOffset.x + dx, y: origOffset.y + dy };
-                // Move element directly for smooth feedback
                 const baseX = parseFloat(d3.select(this).attr('x')) || 0;
                 const baseY = parseFloat(d3.select(this).attr('y')) || 0;
                 d3.select(this).attr('x', baseX + (event.dx || 0))
                     .attr('y', baseY + (event.dy || 0));
             })
             .on('end', function () {
-                d3.select(this).style('cursor', 'pointer');
-                if (window.app) window.app.updateGraph();
+                d3.select(this).style('cursor', 'grab');
+                if (didDrag) {
+                    if (window.app) window.app.updateGraph();
+                } else {
+                    // Click without drag — select for arrow-key nudging
+                    self._selectLabelForNudge(d3.select(this), offsetKey);
+                }
             })
         );
     }
 
     _selectLabelForNudge(el, offsetKey) {
-        // Remove previous selection highlight
-        this.svg.selectAll('.label-selected').classed('label-selected', false)
-            .style('outline', null);
-        // Highlight selected label
-        el.classed('label-selected', true);
+        // Store which label is selected for nudging (persists across re-renders)
+        this._nudgeOffsetKey = offsetKey;
 
-        // Remove previous key handler if any
+        // Remove previous key handler
         if (this._labelNudgeHandler) {
             document.removeEventListener('keydown', this._labelNudgeHandler);
         }
@@ -726,10 +725,12 @@ class GraphRenderer {
         this._labelNudgeHandler = (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
             if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+            if (!this._nudgeOffsetKey) return;
 
             e.preventDefault();
             const step = e.shiftKey ? 10 : 2;
-            const off = this.settings[offsetKey];
+            const off = this.settings[this._nudgeOffsetKey];
+            if (!off) return;
             if (e.key === 'ArrowUp') off.y -= step;
             else if (e.key === 'ArrowDown') off.y += step;
             else if (e.key === 'ArrowLeft') off.x -= step;
@@ -740,15 +741,23 @@ class GraphRenderer {
 
         document.addEventListener('keydown', this._labelNudgeHandler);
 
-        // Deselect when clicking elsewhere on SVG
-        this.svg.on('click.labelnudge', () => {
-            this.svg.selectAll('.label-selected').classed('label-selected', false);
-            if (this._labelNudgeHandler) {
-                document.removeEventListener('keydown', this._labelNudgeHandler);
-                this._labelNudgeHandler = null;
-            }
-            this.svg.on('click.labelnudge', null);
-        });
+        // Deselect on Escape or when clicking elsewhere
+        if (this._labelNudgeDeselect) {
+            document.removeEventListener('mousedown', this._labelNudgeDeselect);
+        }
+        this._labelNudgeDeselect = (e) => {
+            // If clicking inside SVG on a label, let the drag handle it
+            if (e.target.closest && e.target.closest('.graph-title, .axis-label, .group-legend')) return;
+            this._nudgeOffsetKey = null;
+            document.removeEventListener('keydown', this._labelNudgeHandler);
+            document.removeEventListener('mousedown', this._labelNudgeDeselect);
+            this._labelNudgeHandler = null;
+            this._labelNudgeDeselect = null;
+        };
+        // Delay binding so the current click doesn't immediately deselect
+        setTimeout(() => {
+            document.addEventListener('mousedown', this._labelNudgeDeselect);
+        }, 0);
     }
 
     _createFontToolbar(fontObj) {
@@ -807,6 +816,8 @@ class GraphRenderer {
         const existing = document.querySelector('.svg-edit-popup');
         if (existing) existing.remove();
 
+        if (window.app) window.app.saveUndoState();
+
         const textEl = event.target;
         const rect = textEl.getBoundingClientRect();
         const fontObj = this.settings.tickFont;
@@ -857,6 +868,8 @@ class GraphRenderer {
         };
         const { settingsKey, inputId, fontKey, visKey } = map[labelType];
         const fontObj = this.settings[fontKey];
+
+        if (window.app) window.app.saveUndoState();
 
         const popup = document.createElement('div');
         popup.className = 'svg-edit-popup';
@@ -2065,10 +2078,6 @@ class GraphRenderer {
             .attr('fill', 'transparent');
         if (activeTool === 'none') {
             dragRect.style('cursor', 'grab').call(this._makeLegendDrag('whole'));
-            dragRect.on('click', (event) => {
-                event.stopPropagation();
-                this._selectLabelForNudge(dragRect, 'groupLegendOffset');
-            });
         }
 
         data.forEach((group, i) => {
@@ -2114,13 +2123,15 @@ class GraphRenderer {
 
     _makeLegendDrag(mode, itemIndex) {
         const self = this;
-        let startX, startY, origOffset, origLegendX, origLegendY, origItemTransform;
+        let startX, startY, origOffset, origLegendX, origLegendY, origItemTransform, didDrag;
 
         return d3.drag()
             .on('start', function (event) {
                 event.sourceEvent.stopPropagation();
+                if (window.app) window.app.saveUndoState();
                 startX = event.x;
                 startY = event.y;
+                didDrag = false;
                 if (mode === 'whole') {
                     origOffset = { ...self.settings.groupLegendOffset };
                     origLegendX = self.innerWidth + 15 + origOffset.x;
@@ -2134,13 +2145,12 @@ class GraphRenderer {
             .on('drag', function (event) {
                 const dx = event.x - startX;
                 const dy = event.y - startY;
+                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
                 if (mode === 'whole') {
-                    // Move the parent legendG directly via transform — no re-render
                     const newX = origLegendX + dx;
                     const newY = origLegendY + dy;
                     d3.select(this.parentNode).attr('transform', `translate(${newX}, ${newY})`);
                 } else {
-                    // Move this item <g> directly via transform — no re-render
                     const lf = self.settings.groupLegendFont;
                     const swatchSize = Math.max(8, lf.size - 2);
                     const lineHeight = swatchSize + 10;
@@ -2159,14 +2169,20 @@ class GraphRenderer {
                     self.settings.groupLegendItemOffsets[itemIndex] = { x: origOffset.x + dx, y: origOffset.y + dy };
                 }
                 d3.select(this).style('cursor', 'grab');
-                // Clean re-render to commit final position
-                if (window.app) window.app.updateGraph();
+                if (didDrag) {
+                    if (window.app) window.app.updateGraph();
+                } else if (mode === 'whole') {
+                    // Click without drag — select for arrow-key nudging
+                    self._selectLabelForNudge(d3.select(this), 'groupLegendOffset');
+                }
             });
     }
 
     _editLegendLabel(event, groupIndex, defaultLabel) {
         const existing = document.querySelector('.svg-edit-popup');
         if (existing) existing.remove();
+
+        if (window.app) window.app.saveUndoState();
 
         const textEl = event.target;
         const rect = textEl.getBoundingClientRect();

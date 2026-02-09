@@ -10,13 +10,13 @@ class App {
         // Bind event listeners
         this._bindTableControls();
         this._bindGraphControls();
-        this._bindFontControls();
         this._bindDimensionControls();
         this._bindStatisticsControls();
         this._bindExportControls();
 
         // Load sample data and draw initial graph
         this.dataTable.loadSampleData();
+        this.updateGraph();
     }
 
     // --- Event binding ---
@@ -52,28 +52,6 @@ class App {
 
         document.getElementById('yAxisLabel').addEventListener('input', (e) => {
             this.graphRenderer.updateSettings({ yLabel: e.target.value });
-            this.updateGraph();
-        });
-    }
-
-    _bindFontControls() {
-        document.getElementById('fontFamily').addEventListener('change', (e) => {
-            this.graphRenderer.updateSettings({ fontFamily: e.target.value });
-            this.updateGraph();
-        });
-
-        document.getElementById('fontSize').addEventListener('input', (e) => {
-            this.graphRenderer.updateSettings({ fontSize: parseInt(e.target.value) || 12 });
-            this.updateGraph();
-        });
-
-        document.getElementById('fontBold').addEventListener('change', (e) => {
-            this.graphRenderer.updateSettings({ fontBold: e.target.checked });
-            this.updateGraph();
-        });
-
-        document.getElementById('fontItalic').addEventListener('change', (e) => {
-            this.graphRenderer.updateSettings({ fontItalic: e.target.checked });
             this.updateGraph();
         });
     }
@@ -122,6 +100,10 @@ class App {
             const safeName = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             this.exportManager.exportSVG(`${safeName}.svg`);
         });
+
+        document.getElementById('copyClipboard').addEventListener('click', (e) => {
+            this.exportManager.copyToClipboard(e.target);
+        });
     }
 
     // --- Core methods ---
@@ -149,7 +131,13 @@ class App {
             return;
         }
 
-        // Run test on first two groups with data
+        // Multi-group tests (ANOVA / Kruskal-Wallis)
+        if (testType === 'one-way-anova' || testType === 'kruskal-wallis') {
+            this._runMultiGroupTest(testType, data, filledGroups);
+            return;
+        }
+
+        // Two-group tests — use first two groups with data
         const group1 = filledGroups[0];
         const group2 = filledGroups[1];
         const group1Index = data.indexOf(group1);
@@ -223,6 +211,92 @@ class App {
             pValue: result.p,
             significanceLabel: sigLevel
         }]);
+        this.updateGraph();
+    }
+
+    _runMultiGroupTest(testType, data, filledGroups) {
+        const groupValues = filledGroups.map(g => g.values);
+
+        // For exactly 2 groups with ANOVA selected, fall back to t-test
+        if (filledGroups.length === 2 && testType === 'one-way-anova') {
+            const group1 = filledGroups[0];
+            const group2 = filledGroups[1];
+            const result = Statistics.tTest(group1.values, group2.values, false);
+            const pFormatted = Statistics.formatPValue(result.p);
+            const sigLevel = Statistics.getSignificanceLevel(result.p);
+            const isSignificant = result.p < 0.05;
+
+            let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">Unpaired t-test (Welch's)</span></div>`;
+            html += `<div class="result-item" style="color:#888;font-size:12px"><em>ANOVA with 2 groups falls back to t-test</em></div>`;
+            html += `<div class="result-item"><span class="result-label">Comparing:</span> <span class="result-value">${group1.label} vs ${group2.label}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">t statistic:</span> <span class="result-value">${result.t.toFixed(4)}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">df:</span> <span class="result-value">${result.df.toFixed(2)}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">P value:</span> <span class="result-value">${pFormatted}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">Significance:</span> <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel} (${isSignificant ? 'Significant' : 'Not significant'} at p &lt; 0.05)</span></div>`;
+
+            html += `<hr style="margin:8px 0;border-color:#eee">`;
+            filledGroups.forEach(g => {
+                html += `<div class="result-item"><span class="result-label">Mean ${g.label}:</span> <span class="result-value">${Statistics.mean(g.values).toFixed(4)} (N=${g.values.length})</span></div>`;
+            });
+
+            this._showStatsResult(html);
+
+            const g1Idx = data.indexOf(group1);
+            const g2Idx = data.indexOf(group2);
+            this.graphRenderer.setSignificance([{
+                group1Index: g1Idx,
+                group2Index: g2Idx,
+                pValue: result.p,
+                significanceLabel: sigLevel
+            }]);
+            this.updateGraph();
+            return;
+        }
+
+        let result, testName;
+        try {
+            if (testType === 'one-way-anova') {
+                result = Statistics.oneWayAnova(groupValues);
+                testName = 'One-way ANOVA';
+            } else {
+                result = Statistics.kruskalWallis(groupValues);
+                testName = 'Kruskal-Wallis test';
+            }
+        } catch (e) {
+            this._showStatsResult(`Error: ${e.message}`);
+            return;
+        }
+
+        const pFormatted = Statistics.formatPValue(result.p);
+        const sigLevel = Statistics.getSignificanceLevel(result.p);
+        const isSignificant = result.p < 0.05;
+
+        let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">${testName}</span></div>`;
+        html += `<div class="result-item"><span class="result-label">Groups:</span> <span class="result-value">${filledGroups.map(g => g.label).join(', ')}</span></div>`;
+
+        if (result.F !== undefined) {
+            html += `<div class="result-item"><span class="result-label">F statistic:</span> <span class="result-value">${result.F.toFixed(4)}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">df (between):</span> <span class="result-value">${result.dfBetween}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">df (within):</span> <span class="result-value">${result.dfWithin}</span></div>`;
+        }
+        if (result.H !== undefined) {
+            html += `<div class="result-item"><span class="result-label">H statistic:</span> <span class="result-value">${result.H.toFixed(4)}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">df:</span> <span class="result-value">${result.df}</span></div>`;
+        }
+
+        html += `<div class="result-item"><span class="result-label">P value:</span> <span class="result-value">${pFormatted}</span></div>`;
+        html += `<div class="result-item"><span class="result-label">Significance:</span> <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel} (${isSignificant ? 'Significant' : 'Not significant'} at p &lt; 0.05)</span></div>`;
+
+        // Per-group summary
+        html += `<hr style="margin:8px 0;border-color:#eee">`;
+        filledGroups.forEach(g => {
+            html += `<div class="result-item"><span class="result-label">Mean ${g.label}:</span> <span class="result-value">${Statistics.mean(g.values).toFixed(4)} (N=${g.values.length})</span></div>`;
+        });
+
+        this._showStatsResult(html);
+
+        // For multi-group: no pairwise brackets — clear significance
+        this.graphRenderer.setSignificance([]);
         this.updateGraph();
     }
 

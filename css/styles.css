@@ -16,16 +16,16 @@ body {
 .container {
     max-width: 1800px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 12px;
 }
 
 /* Header */
 header {
     background-color: #2c3e50;
     color: white;
-    padding: 20px;
+    padding: 10px 16px;
     border-radius: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
@@ -41,21 +41,21 @@ header {
 }
 
 header h1 {
-    font-size: 2em;
+    font-size: 1.5em;
     font-weight: 600;
 }
 
 .tagline {
-    margin-top: 5px;
+    margin-top: 3px;
     opacity: 0.9;
-    font-size: 0.9em;
+    font-size: 0.8em;
 }
 
 /* Main Content */
 .main-content {
     display: grid;
-    grid-template-columns: 400px 1fr;
-    gap: 20px;
+    grid-template-columns: 340px 1fr;
+    gap: 14px;
     align-items: start;
 }
 
@@ -63,16 +63,16 @@ header h1 {
 .panel {
     background: white;
     border-radius: 8px;
-    padding: 20px;
+    padding: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .panel h2 {
     color: #2c3e50;
-    margin-bottom: 15px;
-    font-size: 1.5em;
+    margin-bottom: 8px;
+    font-size: 1.2em;
     border-bottom: 2px solid #3498db;
-    padding-bottom: 10px;
+    padding-bottom: 6px;
 }
 
 /* Data Panel */
@@ -84,10 +84,10 @@ header h1 {
 /* Table Styles */
 .table-container {
     overflow-x: auto;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    max-height: 500px;
+    max-height: 300px;
     overflow-y: auto;
 }
 
@@ -113,6 +113,77 @@ header h1 {
     background-color: #2980b9;
 }
 
+/* Column delete button inside th */
+.th-delete-btn {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: rgba(255,255,255,0.3);
+    color: white;
+    font-size: 11px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 50%;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.data-table th:hover .th-delete-btn {
+    opacity: 1;
+}
+
+.th-delete-btn:hover {
+    background: rgba(255,255,255,0.6);
+    color: #c0392b;
+}
+
+/* Row delete column */
+.row-delete-cell {
+    width: 24px;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent;
+}
+
+.row-delete-btn {
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: #ccc;
+    font-size: 13px;
+    line-height: 20px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 50%;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+tr:hover .row-delete-btn {
+    opacity: 1;
+}
+
+.row-delete-btn:hover {
+    color: #c0392b;
+    background: #fee;
+}
+
+/* Header cell for delete column */
+.delete-col-header {
+    width: 24px;
+    min-width: 24px !important;
+    padding: 0 !important;
+    background-color: #3498db !important;
+    border: none;
+}
+
 .data-table td {
     padding: 8px;
     border: 1px solid #ddd;
@@ -136,13 +207,9 @@ header h1 {
 }
 
 /* Graph Panel */
-.graph-panel {
-    min-height: 600px;
-}
-
 .graph-type-selector {
-    margin-bottom: 20px;
-    padding: 15px;
+    margin-bottom: 10px;
+    padding: 8px;
     background-color: #f8f9fa;
     border-radius: 4px;
 }
@@ -153,10 +220,10 @@ header h1 {
 }
 
 .graph-type-selector select {
-    padding: 8px 12px;
+    padding: 5px 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 13px;
     min-width: 250px;
 }
 
@@ -165,9 +232,9 @@ header h1 {
     background: white;
     border: 1px solid #ddd;
     border-radius: 4px;
-    padding: 20px;
-    margin-bottom: 20px;
-    min-height: 400px;
+    padding: 10px;
+    margin-bottom: 10px;
+    min-height: 300px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -182,11 +249,11 @@ header h1 {
 .graph-controls {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 8px;
 }
 
 .control-section {
-    padding: 15px;
+    padding: 8px;
     background-color: #f8f9fa;
     border-radius: 4px;
     border-left: 4px solid #3498db;
@@ -194,19 +261,19 @@ header h1 {
 
 .control-section h3 {
     color: #2c3e50;
-    margin-bottom: 12px;
-    font-size: 1.1em;
+    margin-bottom: 6px;
+    font-size: 0.95em;
 }
 
 .control-group {
-    margin-bottom: 12px;
+    margin-bottom: 6px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .control-group label {
-    flex: 0 0 120px;
+    flex: 0 0 100px;
     font-weight: 500;
     color: #555;
 }
@@ -215,10 +282,10 @@ header h1 {
 .control-group input[type="number"],
 .control-group select {
     flex: 1;
-    padding: 8px 12px;
+    padding: 5px 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .control-group input[type="text"]:focus,
@@ -235,10 +302,10 @@ header h1 {
 
 /* Buttons */
 .btn {
-    padding: 10px 20px;
+    padding: 6px 14px;
     border: none;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -273,10 +340,26 @@ header h1 {
     cursor: not-allowed;
 }
 
+/* 2-column grid for dimension controls */
+.control-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+}
+
+.control-grid-2col .control-group {
+    margin-bottom: 4px;
+}
+
+.control-grid-2col .control-group label {
+    flex: 0 0 auto;
+    min-width: 50px;
+}
+
 /* Stats Results */
 .stats-results {
-    margin-top: 15px;
-    padding: 15px;
+    margin-top: 8px;
+    padding: 10px;
     background-color: white;
     border-radius: 4px;
     border: 1px solid #ddd;
@@ -371,16 +454,75 @@ header h1 {
     font-weight: 600;
 }
 
-/* SVG Inline Edit Overlay */
-.svg-inline-edit {
+/* SVG Edit Popup (wrapper) */
+.svg-edit-popup {
     position: absolute;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+/* Toolbar row */
+.svg-edit-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.svg-edit-toolbar select,
+.svg-edit-toolbar input[type="number"] {
+    padding: 2px 4px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.svg-edit-font-family {
+    width: 110px;
+}
+
+.svg-edit-font-size {
+    width: 48px;
+    text-align: center;
+}
+
+.svg-edit-btn {
+    width: 26px;
+    height: 26px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 24px;
+    text-align: center;
+    padding: 0;
+    color: #555;
+}
+
+.svg-edit-btn:hover {
+    background: #e8f0fe;
+}
+
+.svg-edit-btn.active {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+/* SVG Inline Edit Input (inside popup) */
+.svg-inline-edit {
     border: 2px solid #3498db;
     border-radius: 3px;
     padding: 2px 6px;
     font-size: 14px;
     background: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    z-index: 100;
     text-align: center;
     min-width: 80px;
     outline: none;

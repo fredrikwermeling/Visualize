@@ -19,7 +19,11 @@ class GraphRenderer {
             fontItalic: false,
             graphType: 'column-bar-mean',
             yAxisMin: null,
-            yAxisMax: null
+            yAxisMax: null,
+            // Per-label font settings
+            titleFont:  { family: 'Arial', size: 18, bold: true,  italic: false },
+            xLabelFont: { family: 'Arial', size: 14, bold: false, italic: false },
+            yLabelFont: { family: 'Arial', size: 14, bold: false, italic: false }
         };
 
         // Color palette (scientific)
@@ -195,7 +199,9 @@ class GraphRenderer {
     }
 
     _drawLabels() {
-        const fontStyle = this._getFontStyle();
+        const tf = this.settings.titleFont;
+        const xf = this.settings.xLabelFont;
+        const yf = this.settings.yLabelFont;
 
         // Graph title
         this.svg.append('text')
@@ -203,10 +209,10 @@ class GraphRenderer {
             .attr('x', this.width / 2)
             .attr('y', this.margin.top / 2)
             .attr('text-anchor', 'middle')
-            .style('font-family', fontStyle.fontFamily)
-            .style('font-size', `${this.settings.fontSize + 6}px`)
-            .style('font-weight', 'bold')
-            .style('font-style', fontStyle.fontStyle)
+            .style('font-family', tf.family)
+            .style('font-size', `${tf.size}px`)
+            .style('font-weight', tf.bold ? 'bold' : 'normal')
+            .style('font-style', tf.italic ? 'italic' : 'normal')
             .text(this.settings.title)
             .on('click', (event) => this._startInlineEdit(event, 'title'));
 
@@ -216,10 +222,10 @@ class GraphRenderer {
             .attr('x', this.width / 2)
             .attr('y', this.height - 10)
             .attr('text-anchor', 'middle')
-            .style('font-family', fontStyle.fontFamily)
-            .style('font-size', `${this.settings.fontSize + 2}px`)
-            .style('font-weight', fontStyle.fontWeight)
-            .style('font-style', fontStyle.fontStyle)
+            .style('font-family', xf.family)
+            .style('font-size', `${xf.size}px`)
+            .style('font-weight', xf.bold ? 'bold' : 'normal')
+            .style('font-style', xf.italic ? 'italic' : 'normal')
             .text(this.settings.xLabel)
             .on('click', (event) => this._startInlineEdit(event, 'xLabel'));
 
@@ -230,60 +236,124 @@ class GraphRenderer {
             .attr('y', 18)
             .attr('text-anchor', 'middle')
             .attr('transform', 'rotate(-90)')
-            .style('font-family', fontStyle.fontFamily)
-            .style('font-size', `${this.settings.fontSize + 2}px`)
-            .style('font-weight', fontStyle.fontWeight)
-            .style('font-style', fontStyle.fontStyle)
+            .style('font-family', yf.family)
+            .style('font-size', `${yf.size}px`)
+            .style('font-weight', yf.bold ? 'bold' : 'normal')
+            .style('font-style', yf.italic ? 'italic' : 'normal')
             .text(this.settings.yLabel)
             .on('click', (event) => this._startInlineEdit(event, 'yLabel'));
     }
 
     _startInlineEdit(event, labelType) {
-        // Remove any existing inline edit
-        const existing = document.querySelector('.svg-inline-edit');
+        // Remove any existing popup
+        const existing = document.querySelector('.svg-edit-popup');
         if (existing) existing.remove();
 
         const textEl = event.target;
         const rect = textEl.getBoundingClientRect();
 
-        // Map label type to settings key and sidebar input ID
+        // Map label type to settings key, sidebar input ID, and font settings key
         const map = {
-            title:  { settingsKey: 'title',  inputId: 'graphTitle' },
-            xLabel: { settingsKey: 'xLabel', inputId: 'xAxisLabel' },
-            yLabel: { settingsKey: 'yLabel', inputId: 'yAxisLabel' }
+            title:  { settingsKey: 'title',  inputId: 'graphTitle',  fontKey: 'titleFont' },
+            xLabel: { settingsKey: 'xLabel', inputId: 'xAxisLabel', fontKey: 'xLabelFont' },
+            yLabel: { settingsKey: 'yLabel', inputId: 'yAxisLabel', fontKey: 'yLabelFont' }
         };
-        const { settingsKey, inputId } = map[labelType];
+        const { settingsKey, inputId, fontKey } = map[labelType];
+        const fontObj = this.settings[fontKey];
 
+        // Create wrapper popup
+        const popup = document.createElement('div');
+        popup.className = 'svg-edit-popup';
+
+        // Position popup near the text element
+        const popupLeft = rect.left + window.scrollX;
+        const popupTop = rect.top + window.scrollY - 40;
+        popup.style.left = `${popupLeft}px`;
+        popup.style.top = `${popupTop}px`;
+
+        // Create toolbar
+        const toolbar = document.createElement('div');
+        toolbar.className = 'svg-edit-toolbar';
+
+        // Font family select
+        const familySelect = document.createElement('select');
+        familySelect.className = 'svg-edit-font-family';
+        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f;
+            if (f === fontObj.family) opt.selected = true;
+            familySelect.appendChild(opt);
+        });
+        toolbar.appendChild(familySelect);
+
+        // Font size input
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'number';
+        sizeInput.className = 'svg-edit-font-size';
+        sizeInput.min = 8;
+        sizeInput.max = 36;
+        sizeInput.value = fontObj.size;
+        toolbar.appendChild(sizeInput);
+
+        // Bold toggle
+        const boldBtn = document.createElement('button');
+        boldBtn.className = 'svg-edit-btn' + (fontObj.bold ? ' active' : '');
+        boldBtn.innerHTML = '<b>B</b>';
+        boldBtn.title = 'Bold';
+        boldBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            boldBtn.classList.toggle('active');
+        });
+        toolbar.appendChild(boldBtn);
+
+        // Italic toggle
+        const italicBtn = document.createElement('button');
+        italicBtn.className = 'svg-edit-btn' + (fontObj.italic ? ' active' : '');
+        italicBtn.innerHTML = '<i>I</i>';
+        italicBtn.title = 'Italic';
+        italicBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            italicBtn.classList.toggle('active');
+        });
+        toolbar.appendChild(italicBtn);
+
+        popup.appendChild(toolbar);
+
+        // Text input
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'svg-inline-edit';
         input.value = this.settings[settingsKey];
+        input.style.fontSize = `${fontObj.size}px`;
+        input.style.fontFamily = fontObj.family;
+        input.style.width = `${Math.max(rect.width + 40, 160)}px`;
+        popup.appendChild(input);
 
-        // Position overlay on top of the SVG text element
-        input.style.left = `${rect.left + window.scrollX}px`;
-        input.style.top = `${rect.top + window.scrollY - 2}px`;
-        input.style.width = `${Math.max(rect.width + 20, 120)}px`;
-        input.style.height = `${rect.height + 6}px`;
-        input.style.fontSize = `${parseFloat(getComputedStyle(textEl).fontSize)}px`;
-        input.style.fontFamily = this.settings.fontFamily;
-
-        document.body.appendChild(input);
+        document.body.appendChild(popup);
         input.focus();
         input.select();
 
         const commit = () => {
+            if (!document.body.contains(popup)) return;
             const newValue = input.value;
             this.settings[settingsKey] = newValue;
+
+            // Update font settings
+            fontObj.family = familySelect.value;
+            fontObj.size = parseInt(sizeInput.value) || fontObj.size;
+            fontObj.bold = boldBtn.classList.contains('active');
+            fontObj.italic = italicBtn.classList.contains('active');
+
             // Sync sidebar input
             const sidebarInput = document.getElementById(inputId);
             if (sidebarInput) sidebarInput.value = newValue;
-            input.remove();
-            // Re-render
+            popup.remove();
             if (window.app) window.app.updateGraph();
         };
 
         const cancel = () => {
-            input.remove();
+            popup.remove();
         };
 
         input.addEventListener('keydown', (e) => {
@@ -296,13 +366,21 @@ class GraphRenderer {
             }
         });
 
-        input.addEventListener('blur', () => {
-            // Small delay to allow keydown to fire first
+        // Commit on blur, but only if focus leaves the popup entirely
+        popup.addEventListener('focusout', (e) => {
             setTimeout(() => {
-                if (document.body.contains(input)) {
+                if (document.body.contains(popup) && !popup.contains(document.activeElement)) {
                     commit();
                 }
-            }, 0);
+            }, 100);
+        });
+
+        // Update input preview when toolbar changes
+        familySelect.addEventListener('change', () => {
+            input.style.fontFamily = familySelect.value;
+        });
+        sizeInput.addEventListener('input', () => {
+            input.style.fontSize = `${sizeInput.value}px`;
         });
     }
 

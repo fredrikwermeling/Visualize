@@ -82,6 +82,79 @@ class ExportManager {
         this._downloadBlob(blob, filename);
     }
 
+    copyToClipboard(buttonEl) {
+        const svgEl = this.graphRenderer.getSvgElement();
+        if (!svgEl) {
+            alert('No graph to copy. Please enter data first.');
+            return;
+        }
+
+        if (!navigator.clipboard || !navigator.clipboard.write) {
+            alert('Clipboard API not available. This feature requires HTTPS or localhost.');
+            return;
+        }
+
+        // Clone the SVG and inline styles
+        const cloned = svgEl.cloneNode(true);
+        this._inlineStyles(svgEl, cloned);
+
+        // Add white background
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bg.setAttribute('width', '100%');
+        bg.setAttribute('height', '100%');
+        bg.setAttribute('fill', 'white');
+        cloned.insertBefore(bg, cloned.firstChild);
+
+        cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        const svgData = new XMLSerializer().serializeToString(cloned);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        const scale = 2;
+
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = svgEl.getAttribute('width') * scale;
+            canvas.height = svgEl.getAttribute('height') * scale;
+
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.scale(scale, scale);
+            ctx.drawImage(img, 0, 0);
+
+            URL.revokeObjectURL(url);
+
+            canvas.toBlob(blob => {
+                navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': blob })
+                ]).then(() => {
+                    // Visual feedback
+                    if (buttonEl) {
+                        const orig = buttonEl.textContent;
+                        buttonEl.textContent = 'Copied!';
+                        buttonEl.style.backgroundColor = '#27ae60';
+                        setTimeout(() => {
+                            buttonEl.textContent = orig;
+                            buttonEl.style.backgroundColor = '';
+                        }, 1500);
+                    }
+                }).catch(err => {
+                    alert('Failed to copy: ' + err.message);
+                });
+            }, 'image/png');
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            alert('Failed to render graph for clipboard.');
+        };
+
+        img.src = url;
+    }
+
     _fallbackPNG(filename) {
         const container = this.graphRenderer.container;
         html2canvas(container, {

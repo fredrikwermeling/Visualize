@@ -205,6 +205,92 @@ class Statistics {
         return { W, p, z };
     }
 
+    static oneWayAnova(groups) {
+        // groups = array of value arrays
+        const k = groups.length;
+        const allValues = groups.flat();
+        const N = allValues.length;
+        const grandMean = this.mean(allValues);
+
+        // Sum of squares between (SSB)
+        let ssb = 0;
+        groups.forEach(g => {
+            const gMean = this.mean(g);
+            ssb += g.length * Math.pow(gMean - grandMean, 2);
+        });
+
+        // Sum of squares within (SSW)
+        let ssw = 0;
+        groups.forEach(g => {
+            const gMean = this.mean(g);
+            g.forEach(v => {
+                ssw += Math.pow(v - gMean, 2);
+            });
+        });
+
+        const dfBetween = k - 1;
+        const dfWithin = N - k;
+
+        if (dfWithin <= 0) {
+            return { F: 0, p: 1, dfBetween, dfWithin };
+        }
+
+        const msb = ssb / dfBetween;
+        const msw = ssw / dfWithin;
+        const F = msw > 0 ? msb / msw : 0;
+
+        // p-value from F-distribution
+        const p = 1 - jStat.centralF.cdf(F, dfBetween, dfWithin);
+
+        return { F, p, dfBetween, dfWithin };
+    }
+
+    static kruskalWallis(groups) {
+        // groups = array of value arrays
+        const k = groups.length;
+        const allTagged = [];
+        groups.forEach((g, gi) => {
+            g.forEach(v => allTagged.push({ value: v, group: gi }));
+        });
+        const N = allTagged.length;
+
+        // Sort and assign ranks (handle ties)
+        allTagged.sort((a, b) => a.value - b.value);
+
+        let rank = 1;
+        for (let i = 0; i < allTagged.length; i++) {
+            let tieCount = 1;
+            let tieSum = rank;
+            while (i + tieCount < allTagged.length &&
+                   allTagged[i].value === allTagged[i + tieCount].value) {
+                tieSum += rank + tieCount;
+                tieCount++;
+            }
+            const avgRank = tieSum / tieCount;
+            for (let j = 0; j < tieCount; j++) {
+                allTagged[i + j].rank = avgRank;
+            }
+            rank += tieCount;
+            i += tieCount - 1;
+        }
+
+        // Calculate H statistic
+        let H = 0;
+        groups.forEach((g, gi) => {
+            const ranks = allTagged.filter(x => x.group === gi).map(x => x.rank);
+            const Ri = ranks.reduce((a, b) => a + b, 0);
+            const ni = g.length;
+            H += (Ri * Ri) / ni;
+        });
+        H = (12 / (N * (N + 1))) * H - 3 * (N + 1);
+
+        const df = k - 1;
+        // p-value from chi-squared distribution
+        const p = 1 - jStat.chisquare.cdf(H, df);
+
+        return { H, p, df };
+    }
+
     static formatPValue(p) {
         if (p < 0.0001) return 'p < 0.0001';
         if (p < 0.001) return `p = ${p.toFixed(4)}`;

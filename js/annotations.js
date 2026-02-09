@@ -6,6 +6,7 @@ class AnnotationManager {
         this.activeTool = 'none'; // none, text, line, arrow, bracket
         this.selectedIndex = -1;
         this._dragState = null;
+        this._bracketDragState = null;
         this._svgRef = null;
         this._marginRef = null;
         this._boundHandlers = {};
@@ -156,6 +157,25 @@ class AnnotationManager {
                 .attr('stroke', '#5E8C31')
                 .attr('stroke-width', 1.5)
                 .attr('stroke-dasharray', '4,3');
+
+            // Endpoint grab handles for lines and arrows
+            if (ann.type === 'line' || ann.type === 'arrow') {
+                const handleR = 5;
+                g.append('circle')
+                    .attr('class', 'endpoint-handle')
+                    .attr('cx', ann.x1).attr('cy', ann.y1)
+                    .attr('r', handleR)
+                    .attr('fill', '#5E8C31').attr('fill-opacity', 0.5)
+                    .attr('stroke', '#5E8C31').attr('stroke-width', 1.5)
+                    .style('cursor', 'crosshair');
+                g.append('circle')
+                    .attr('class', 'endpoint-handle')
+                    .attr('cx', ann.x2).attr('cy', ann.y2)
+                    .attr('r', handleR)
+                    .attr('fill', '#5E8C31').attr('fill-opacity', 0.5)
+                    .attr('stroke', '#5E8C31').attr('stroke-width', 1.5)
+                    .style('cursor', 'crosshair');
+            }
         }
     }
 
@@ -185,18 +205,58 @@ class AnnotationManager {
                 const target = e.target.closest('.annotation-item');
                 if (target) {
                     const idx = parseInt(target.getAttribute('data-ann-idx'));
+                    const ann = this.annotations[idx];
                     this.selectedIndex = idx;
+
+                    // Check if clicking near an endpoint of a line/arrow
+                    if (ann.type === 'line' || ann.type === 'arrow') {
+                        const d1 = Math.hypot(pos.x - ann.x1, pos.y - ann.y1);
+                        const d2 = Math.hypot(pos.x - ann.x2, pos.y - ann.y2);
+                        const threshold = 8;
+                        if (d1 <= threshold && d1 <= d2) {
+                            this._dragState = { type: 'endpoint', annIdx: idx, endpoint: 1, startX: pos.x, startY: pos.y };
+                            if (window.app) window.app.updateGraph();
+                            e.preventDefault();
+                            return;
+                        }
+                        if (d2 <= threshold) {
+                            this._dragState = { type: 'endpoint', annIdx: idx, endpoint: 2, startX: pos.x, startY: pos.y };
+                            if (window.app) window.app.updateGraph();
+                            e.preventDefault();
+                            return;
+                        }
+                    }
+
                     this._dragState = {
                         type: 'move',
                         annIdx: idx,
                         startX: pos.x,
                         startY: pos.y,
-                        origAnn: JSON.parse(JSON.stringify(this.annotations[idx]))
+                        origAnn: JSON.parse(JSON.stringify(ann))
                     };
                     if (window.app) window.app.updateGraph();
                     e.preventDefault();
                     return;
-                } else {
+                }
+
+                // Check if clicking on a significance bracket
+                const bracketTarget = e.target.closest('.bracket-group');
+                if (bracketTarget) {
+                    const bracketIdx = parseInt(bracketTarget.getAttribute('data-bracket-idx'));
+                    if (!isNaN(bracketIdx) && window.app && window.app.graphRenderer) {
+                        this.selectedIndex = -1;
+                        this._bracketDragState = {
+                            bracketIdx: bracketIdx,
+                            startX: pos.x,
+                            startY: pos.y,
+                            origOffset: window.app.graphRenderer.significanceResults[bracketIdx].yOffset || 0
+                        };
+                        e.preventDefault();
+                        return;
+                    }
+                }
+
+                if (!target) {
                     // Clicked empty space — deselect
                     if (this.selectedIndex >= 0) {
                         this.selectedIndex = -1;
@@ -227,10 +287,37 @@ class AnnotationManager {
         };
 
         const mousemove = (e) => {
+            // Handle bracket dragging
+            if (this._bracketDragState) {
+                const pos = getPos(e);
+                const renderer = window.app && window.app.graphRenderer;
+                if (renderer && renderer.significanceResults[this._bracketDragState.bracketIdx]) {
+                    const isH = renderer.settings.orientation === 'horizontal';
+                    // For vertical charts: dragging up = negative yOffset (brackets above bars)
+                    // For horizontal charts: dragging right = positive yOffset (brackets right of bars)
+                    const delta = isH
+                        ? (pos.x - this._bracketDragState.startX)
+                        : (pos.y - this._bracketDragState.startY);
+                    renderer.significanceResults[this._bracketDragState.bracketIdx].yOffset = this._bracketDragState.origOffset + delta;
+                    if (window.app) window.app.updateGraph();
+                }
+                return;
+            }
+
             if (!this._dragState) return;
             const pos = getPos(e);
 
-            if (this._dragState.type === 'move') {
+            if (this._dragState.type === 'endpoint') {
+                const ann = this.annotations[this._dragState.annIdx];
+                if (this._dragState.endpoint === 1) {
+                    ann.x1 = pos.x;
+                    ann.y1 = pos.y;
+                } else {
+                    ann.x2 = pos.x;
+                    ann.y2 = pos.y;
+                }
+                if (window.app) window.app.updateGraph();
+            } else if (this._dragState.type === 'move') {
                 const dx = pos.x - this._dragState.startX;
                 const dy = pos.y - this._dragState.startY;
                 const ann = this.annotations[this._dragState.annIdx];
@@ -254,6 +341,11 @@ class AnnotationManager {
         };
 
         const mouseup = (e) => {
+            // Clear bracket drag state
+            if (this._bracketDragState) {
+                this._bracketDragState = null;
+                return;
+            }
             if (!this._dragState) return;
             const pos = getPos(e);
 

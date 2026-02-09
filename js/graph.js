@@ -1606,8 +1606,9 @@ class GraphRenderer {
 
                 const bracketG = g.append('g')
                     .attr('class', 'bracket-group')
+                    .attr('data-bracket-idx', idx)
                     .style('cursor', 'pointer')
-                    .on('click', (event) => this._openBracketNudge(event, idx));
+                    .on('dblclick', (event) => this._openBracketNudge(event, idx));
 
                 bracketG.append('line')
                     .attr('x1', bracketX - tickWidth).attr('x2', bracketX)
@@ -1638,8 +1639,9 @@ class GraphRenderer {
 
                 const bracketG = g.append('g')
                     .attr('class', 'bracket-group')
+                    .attr('data-bracket-idx', idx)
                     .style('cursor', 'pointer')
-                    .on('click', (event) => this._openBracketNudge(event, idx));
+                    .on('dblclick', (event) => this._openBracketNudge(event, idx));
 
                 bracketG.append('line')
                     .attr('x1', x1).attr('x2', x1)
@@ -1834,7 +1836,7 @@ class GraphRenderer {
 
     _makeLegendDrag(mode, itemIndex) {
         const self = this;
-        let startX, startY, origOffset;
+        let startX, startY, origOffset, origLegendX, origLegendY, origItemTransform;
 
         return d3.drag()
             .on('start', function (event) {
@@ -1843,8 +1845,11 @@ class GraphRenderer {
                 startY = event.y;
                 if (mode === 'whole') {
                     origOffset = { ...self.settings.groupLegendOffset };
+                    origLegendX = self.innerWidth + 15 + origOffset.x;
+                    origLegendY = 10 + origOffset.y;
                 } else {
                     origOffset = { ...(self.settings.groupLegendItemOffsets[itemIndex] || { x: 0, y: 0 }) };
+                    origItemTransform = { x: origOffset.x, y: origOffset.y };
                 }
                 d3.select(this).style('cursor', 'grabbing');
             })
@@ -1852,14 +1857,32 @@ class GraphRenderer {
                 const dx = event.x - startX;
                 const dy = event.y - startY;
                 if (mode === 'whole') {
+                    // Move the parent legendG directly via transform — no re-render
+                    const newX = origLegendX + dx;
+                    const newY = origLegendY + dy;
+                    d3.select(this.parentNode).attr('transform', `translate(${newX}, ${newY})`);
+                } else {
+                    // Move this item <g> directly via transform — no re-render
+                    const lf = self.settings.groupLegendFont;
+                    const swatchSize = Math.max(8, lf.size - 2);
+                    const lineHeight = swatchSize + 10;
+                    const baseY = itemIndex * lineHeight;
+                    const newX = origItemTransform.x + dx;
+                    const newY = baseY + origItemTransform.y + dy;
+                    d3.select(this).attr('transform', `translate(${newX}, ${newY})`);
+                }
+            })
+            .on('end', function (event) {
+                const dx = event.x - startX;
+                const dy = event.y - startY;
+                if (mode === 'whole') {
                     self.settings.groupLegendOffset = { x: origOffset.x + dx, y: origOffset.y + dy };
                 } else {
                     self.settings.groupLegendItemOffsets[itemIndex] = { x: origOffset.x + dx, y: origOffset.y + dy };
                 }
-                if (window.app) window.app.updateGraph();
-            })
-            .on('end', function () {
                 d3.select(this).style('cursor', 'grab');
+                // Clean re-render to commit final position
+                if (window.app) window.app.updateGraph();
             });
     }
 

@@ -5,6 +5,7 @@ class AnnotationManager {
         this.annotations = [];
         this.activeTool = 'none'; // none, text, line, arrow, bracket
         this.selectedIndex = -1;
+        this._selectedBracketIdx = -1;
         this._dragState = null;
         this._bracketDragState = null;
         this._svgRef = null;
@@ -16,6 +17,7 @@ class AnnotationManager {
     setTool(name) {
         this.activeTool = name;
         this.selectedIndex = -1;
+        this._selectedBracketIdx = -1;
 
         const container = document.getElementById('graphContainer');
         if (name === 'none') {
@@ -33,6 +35,7 @@ class AnnotationManager {
     clearAll() {
         this.annotations = [];
         this.selectedIndex = -1;
+        this._selectedBracketIdx = -1;
         this._nextId = 1;
         if (window.app) window.app.updateGraph();
     }
@@ -42,6 +45,13 @@ class AnnotationManager {
             this.annotations.splice(this.selectedIndex, 1);
             this.selectedIndex = -1;
             if (window.app) window.app.updateGraph();
+        } else if (this._selectedBracketIdx >= 0 && window.app && window.app.graphRenderer) {
+            const results = window.app.graphRenderer.significanceResults;
+            if (this._selectedBracketIdx < results.length) {
+                results.splice(this._selectedBracketIdx, 1);
+                this._selectedBracketIdx = -1;
+                window.app.updateGraph();
+            }
         }
     }
 
@@ -207,6 +217,7 @@ class AnnotationManager {
                     const idx = parseInt(target.getAttribute('data-ann-idx'));
                     const ann = this.annotations[idx];
                     this.selectedIndex = idx;
+                    this._selectedBracketIdx = -1;
 
                     // Check if clicking near an endpoint of a line/arrow
                     if (ann.type === 'line' || ann.type === 'arrow') {
@@ -245,12 +256,14 @@ class AnnotationManager {
                     const bracketIdx = parseInt(bracketTarget.getAttribute('data-bracket-idx'));
                     if (!isNaN(bracketIdx) && window.app && window.app.graphRenderer) {
                         this.selectedIndex = -1;
+                        this._selectedBracketIdx = bracketIdx;
                         this._bracketDragState = {
                             bracketIdx: bracketIdx,
                             startX: pos.x,
                             startY: pos.y,
                             origOffset: window.app.graphRenderer.significanceResults[bracketIdx].yOffset || 0
                         };
+                        if (window.app) window.app.updateGraph();
                         e.preventDefault();
                         return;
                     }
@@ -258,8 +271,9 @@ class AnnotationManager {
 
                 if (!target) {
                     // Clicked empty space — deselect
-                    if (this.selectedIndex >= 0) {
+                    if (this.selectedIndex >= 0 || this._selectedBracketIdx >= 0) {
                         this.selectedIndex = -1;
+                        this._selectedBracketIdx = -1;
                         if (window.app) window.app.updateGraph();
                     }
                     return;
@@ -413,7 +427,7 @@ class AnnotationManager {
                 // Don't handle if user is typing in an input
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
 
-                if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedIndex >= 0) {
+                if ((e.key === 'Delete' || e.key === 'Backspace') && (this.selectedIndex >= 0 || this._selectedBracketIdx >= 0)) {
                     this.deleteSelected();
                     e.preventDefault();
                     return;

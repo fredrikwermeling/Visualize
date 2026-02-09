@@ -20,6 +20,8 @@ class GraphRenderer {
             graphType: 'column-points-mean',
             yAxisMin: null,
             yAxisMax: null,
+            yAxisTickStep: null,
+            yAxisScaleType: 'linear',
             // Per-label font settings
             titleFont:  { family: 'Arial', size: 18, bold: true,  italic: false },
             xLabelFont: { family: 'Arial', size: 14, bold: false, italic: false },
@@ -176,15 +178,30 @@ class GraphRenderer {
 
         let groupScale, valueScale;
 
+        // For log scales, ensure domain minimum > 0
+        const scaleType = this.settings.yAxisScaleType;
+        if (scaleType === 'log10' || scaleType === 'log2') {
+            if (yMin <= 0) yMin = 0.1;
+            if (yMax <= yMin) yMax = yMin * 10;
+        }
+
+        const createValueScale = (range) => {
+            if (scaleType === 'log10') {
+                return d3.scaleLog().base(10).domain([yMin, yMax]).range(range);
+            } else if (scaleType === 'log2') {
+                return d3.scaleLog().base(2).domain([yMin, yMax]).range(range);
+            } else {
+                return d3.scaleLinear().domain([yMin, yMax]).range(range);
+            }
+        };
+
         if (isHorizontal) {
             groupScale = d3.scaleBand()
                 .domain(filteredData.map(d => d.label))
                 .range([0, this.innerHeight])
                 .padding(0.4);
 
-            valueScale = d3.scaleLinear()
-                .domain([yMin, yMax])
-                .range([0, this.innerWidth]);
+            valueScale = createValueScale([0, this.innerWidth]);
 
             if (!hasManualMin && !hasManualMax) {
                 valueScale.nice();
@@ -195,9 +212,7 @@ class GraphRenderer {
                 .range([0, this.innerWidth])
                 .padding(0.4);
 
-            valueScale = d3.scaleLinear()
-                .domain([yMin, yMax])
-                .range([this.innerHeight, 0]);
+            valueScale = createValueScale([this.innerHeight, 0]);
 
             if (!hasManualMin && !hasManualMax) {
                 valueScale.nice();
@@ -326,13 +341,25 @@ class GraphRenderer {
 
     _drawAxes(g, groupScale, valueScale, isHorizontal) {
         const tf = this.settings.tickFont;
+        const self = this;
+
+        // Helper: configure tick values on a value-axis generator
+        const configureValueAxis = (axisGen) => {
+            const step = self.settings.yAxisTickStep;
+            if (step && step > 0) {
+                const [min, max] = valueScale.domain();
+                const tickVals = d3.range(min, max + step * 0.5, step);
+                axisGen.tickValues(tickVals);
+            }
+            return axisGen;
+        };
 
         if (isHorizontal) {
             // X axis = value axis (bottom)
             const xAxis = g.append('g')
                 .attr('class', 'x-axis')
                 .attr('transform', `translate(0,${this.innerHeight})`)
-                .call(d3.axisBottom(valueScale));
+                .call(configureValueAxis(d3.axisBottom(valueScale)));
 
             xAxis.selectAll('text')
                 .style('font-family', tf.family)
@@ -377,7 +404,7 @@ class GraphRenderer {
             // Y axis = value axis (left)
             const yAxis = g.append('g')
                 .attr('class', 'y-axis')
-                .call(d3.axisLeft(valueScale));
+                .call(configureValueAxis(d3.axisLeft(valueScale)));
 
             yAxis.selectAll('text')
                 .style('font-family', tf.family)
@@ -1590,6 +1617,7 @@ class GraphRenderer {
 
     _drawSignificanceBrackets(g, data, groupScale, valueScale, isH) {
         const starFontSize = this.settings.significanceFontSize || this.settings.fontSize;
+        const selectedBracketIdx = this.annotationManager ? this.annotationManager._selectedBracketIdx : -1;
 
         this.significanceResults.forEach((result, idx) => {
             const group1Idx = result.group1Index;
@@ -1633,6 +1661,18 @@ class GraphRenderer {
                     .style('font-size', `${starFontSize}px`)
                     .style('font-weight', 'bold')
                     .text(label);
+
+                // Selection highlight
+                if (idx === selectedBracketIdx) {
+                    const bbox = bracketG.node().getBBox();
+                    bracketG.insert('rect', ':first-child')
+                        .attr('x', bbox.x - 3).attr('y', bbox.y - 3)
+                        .attr('width', bbox.width + 6).attr('height', bbox.height + 6)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#5E8C31')
+                        .attr('stroke-width', 1.5)
+                        .attr('stroke-dasharray', '4,3');
+                }
             } else {
                 const { bracketY, x1, x2 } = pos;
                 const tickHeight = 8;
@@ -1665,6 +1705,18 @@ class GraphRenderer {
                     .style('font-size', `${starFontSize}px`)
                     .style('font-weight', 'bold')
                     .text(label);
+
+                // Selection highlight
+                if (idx === selectedBracketIdx) {
+                    const bbox = bracketG.node().getBBox();
+                    bracketG.insert('rect', ':first-child')
+                        .attr('x', bbox.x - 3).attr('y', bbox.y - 3)
+                        .attr('width', bbox.width + 6).attr('height', bbox.height + 6)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#5E8C31')
+                        .attr('stroke-width', 1.5)
+                        .attr('stroke-dasharray', '4,3');
+                }
             }
         });
     }

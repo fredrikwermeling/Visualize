@@ -69,6 +69,17 @@ class App {
             this.graphRenderer.updateSettings({ yAxisMax: val === '' ? null : parseFloat(val) });
             this.updateGraph();
         });
+
+        document.getElementById('yAxisTickStep').addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            this.graphRenderer.updateSettings({ yAxisTickStep: val === '' ? null : parseFloat(val) });
+            this.updateGraph();
+        });
+
+        document.getElementById('yAxisScaleType').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ yAxisScaleType: e.target.value });
+            this.updateGraph();
+        });
     }
 
     _bindAppearanceControls() {

@@ -291,6 +291,85 @@ class Statistics {
         return { H, p, df };
     }
 
+    static friedmanTest(groups) {
+        // Friedman test — non-parametric paired test for 3+ groups
+        // groups = array of value arrays, all must have equal length
+        const k = groups.length;       // number of treatments/conditions
+        const n = groups[0].length;    // number of subjects/blocks
+
+        // Build matrix: rows = subjects, columns = treatments
+        // Rank within each subject (row)
+        let sumRanks = new Array(k).fill(0);
+
+        for (let i = 0; i < n; i++) {
+            // Get values for this subject across all groups
+            const row = groups.map((g, j) => ({ value: g[i], group: j }));
+            row.sort((a, b) => a.value - b.value);
+
+            // Assign ranks with tie handling
+            let rank = 1;
+            for (let r = 0; r < row.length; r++) {
+                let tieCount = 1;
+                let tieSum = rank;
+                while (r + tieCount < row.length && row[r].value === row[r + tieCount].value) {
+                    tieSum += rank + tieCount;
+                    tieCount++;
+                }
+                const avgRank = tieSum / tieCount;
+                for (let t = 0; t < tieCount; t++) {
+                    sumRanks[row[r + t].group] += avgRank;
+                }
+                rank += tieCount;
+                r += tieCount - 1;
+            }
+        }
+
+        // Friedman chi-squared statistic
+        const meanRank = (k + 1) / 2;
+        let Q = 0;
+        for (let j = 0; j < k; j++) {
+            Q += Math.pow(sumRanks[j] / n - meanRank, 2);
+        }
+        Q = (12 * n / (k * (k + 1))) * Q;
+
+        const df = k - 1;
+        const p = 1 - jStat.chisquare.cdf(Q, df);
+
+        return { Q, p, df, n };
+    }
+
+    static friedmanPostHoc(groups, groupLabels) {
+        // Post-hoc for Friedman: pairwise Wilcoxon signed-rank with Bonferroni correction
+        const results = [];
+        const numComparisons = (groups.length * (groups.length - 1)) / 2;
+
+        for (let i = 0; i < groups.length; i++) {
+            for (let j = i + 1; j < groups.length; j++) {
+                let testResult;
+                try {
+                    testResult = this.wilcoxonSignedRank(groups[i], groups[j]);
+                } catch (e) {
+                    testResult = { W: 0, p: 1 };
+                }
+                const correctedP = Math.min(testResult.p * numComparisons, 1.0);
+                const sigLabel = this.getSignificanceLevel(correctedP);
+
+                results.push({
+                    group1Index: i,
+                    group2Index: j,
+                    group1Label: groupLabels[i],
+                    group2Label: groupLabels[j],
+                    rawP: testResult.p,
+                    correctedP: correctedP,
+                    significanceLabel: sigLabel,
+                    significant: correctedP < 0.05
+                });
+            }
+        }
+
+        return results;
+    }
+
     static bonferroniPostHoc(groups, groupLabels) {
         const results = [];
         const numComparisons = (groups.length * (groups.length - 1)) / 2;

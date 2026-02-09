@@ -478,10 +478,25 @@ class App {
                 this.updateGraph();
             });
 
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-group-btn';
+            delBtn.textContent = '\u00d7';
+            delBtn.title = 'Delete column';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Find the column index in the original data by label
+                const allData = this.dataTable.getData();
+                const colIdx = allData.findIndex(d => d.label === label);
+                if (colIdx >= 0) {
+                    this.dataTable.deleteColumn(colIdx);
+                }
+            });
+
             item.appendChild(handle);
             item.appendChild(dot);
             item.appendChild(labelSpan);
             item.appendChild(eyeBtn);
+            item.appendChild(delBtn);
             listEl.appendChild(item);
 
             // Drag events

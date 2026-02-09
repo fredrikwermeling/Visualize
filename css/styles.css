@@ -43,7 +43,7 @@ header {
 /* Main Content */
 .main-content {
     display: grid;
-    grid-template-columns: 340px 1fr;
+    grid-template-columns: 260px 1fr;
     gap: 14px;
     align-items: start;
 }
@@ -70,13 +70,19 @@ header {
     top: 20px;
 }
 
+.data-panel h2 {
+    font-size: 1em;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+}
+
 /* Table Styles */
 .table-container {
     overflow-x: auto;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    max-height: 300px;
+    max-height: 220px;
     overflow-y: auto;
 }
 
@@ -89,64 +95,41 @@ header {
 .data-table th {
     background-color: #5E8C31;
     color: white;
-    padding: 10px;
+    padding: 4px 6px;
     font-weight: 600;
+    font-size: 12px;
     position: sticky;
     top: 0;
     z-index: 10;
     text-align: center;
-    min-width: 100px;
+    min-width: 60px;
 }
 
 .data-table th:hover {
     background-color: #4B7A28;
 }
 
-/* Column delete button inside th */
+/* Column delete button - removed from header, now in group manager */
 .th-delete-btn {
-    display: inline-block;
-    vertical-align: middle;
-    margin-left: 4px;
-    width: 16px;
-    height: 16px;
-    border: none;
-    background: rgba(255,255,255,0.3);
-    color: white;
-    font-size: 11px;
-    line-height: 16px;
-    text-align: center;
-    cursor: pointer;
-    border-radius: 50%;
-    padding: 0;
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-
-.data-table th:hover .th-delete-btn {
-    opacity: 1;
-}
-
-.th-delete-btn:hover {
-    background: rgba(255,255,255,0.6);
-    color: #c0392b;
+    display: none;
 }
 
 /* Row delete column */
 .row-delete-cell {
-    width: 24px;
+    width: 18px;
     padding: 0 !important;
     border: none !important;
     background: transparent;
 }
 
 .row-delete-btn {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     border: none;
     background: transparent;
     color: #ccc;
-    font-size: 13px;
-    line-height: 20px;
+    font-size: 11px;
+    line-height: 16px;
     text-align: center;
     cursor: pointer;
     border-radius: 50%;
@@ -166,17 +149,18 @@ tr:hover .row-delete-btn {
 
 /* Header cell for delete column */
 .delete-col-header {
-    width: 24px;
-    min-width: 24px !important;
+    width: 18px;
+    min-width: 18px !important;
     padding: 0 !important;
     background-color: #5E8C31 !important;
     border: none;
 }
 
 .data-table td {
-    padding: 8px;
+    padding: 3px 4px;
     border: 1px solid #ddd;
     text-align: center;
+    font-size: 12px;
 }
 
 .data-table td[contenteditable="true"]:focus {
@@ -191,8 +175,13 @@ tr:hover .row-delete-btn {
 /* Table Controls */
 .table-controls {
     display: flex;
-    gap: 10px;
+    gap: 4px;
     flex-wrap: wrap;
+}
+
+.table-controls .btn {
+    padding: 3px 8px;
+    font-size: 11px;
 }
 
 /* Graph Panel */
@@ -704,4 +693,20 @@ tr:hover .row-delete-btn {
 
 .group-item .visibility-btn:hover {
     opacity: 1;
+}
+
+.group-item .delete-group-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+    color: #ccc;
+    transition: color 0.15s;
+}
+
+.group-item .delete-group-btn:hover {
+    color: #c0392b;
 }

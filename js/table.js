@@ -73,22 +73,6 @@ class DataTable {
     }
 
     _addDeleteColumnHeaders() {
-        // Add × delete buttons inside each data th
-        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
-        headers.forEach((th, idx) => {
-            if (!th.querySelector('.th-delete-btn')) {
-                const btn = document.createElement('button');
-                btn.className = 'th-delete-btn';
-                btn.textContent = '\u00d7';
-                btn.title = 'Delete column';
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.deleteColumn(idx);
-                });
-                th.appendChild(btn);
-            }
-        });
-
         // Ensure delete-col-header exists (for row delete column alignment)
         if (!this.headerRow.querySelector('.delete-col-header')) {
             const delTh = document.createElement('th');

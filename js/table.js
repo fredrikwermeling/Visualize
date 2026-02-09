@@ -449,6 +449,45 @@ class DataTable {
         return data;
     }
 
+    getMatrixData() {
+        const colLabels = [];
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+        headerCells.forEach(th => {
+            const clone = th.cloneNode(true);
+            const btn = clone.querySelector('.th-delete-btn');
+            if (btn) btn.remove();
+            colLabels.push(clone.textContent.trim() || 'Unnamed');
+        });
+
+        const matrix = [];
+        const rowLabels = [];
+        const rows = this.tbody.querySelectorAll('tr');
+        let rowNum = 1;
+
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td:not(.row-delete-cell)');
+            const rowData = [];
+            let hasAny = false;
+            cells.forEach(cell => {
+                const value = cell.textContent.trim();
+                if (value === '') {
+                    rowData.push(NaN);
+                } else {
+                    const num = parseFloat(value);
+                    rowData.push(num);
+                    if (!isNaN(num)) hasAny = true;
+                }
+            });
+            if (hasAny) {
+                matrix.push(rowData);
+                rowLabels.push('Row ' + rowNum);
+            }
+            rowNum++;
+        });
+
+        return { colLabels, rowLabels, matrix };
+    }
+
     loadSampleData() {
         // Load some sample data for testing
         const sampleData = [

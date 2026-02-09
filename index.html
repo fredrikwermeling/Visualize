@@ -28,6 +28,10 @@
         <div class="main-content">
             <!-- Left Panel: Data Input -->
             <div class="panel data-panel">
+                <div class="mode-selector">
+                    <button class="mode-btn active" data-mode="column">Column</button>
+                    <button class="mode-btn" data-mode="heatmap">Heatmap</button>
+                </div>
                 <h2>Data Input</h2>
                 
                 <!-- Data Table -->
@@ -112,6 +116,52 @@
                 <input type="hidden" id="graphTitle" value="Graph Title">
                 <input type="hidden" id="xAxisLabel" value="Groups">
                 <input type="hidden" id="yAxisLabel" value="Values">
+
+                <div id="heatmapControls" class="heatmap-controls" style="display:none">
+                    <div class="control-section">
+                        <h3>Heatmap Settings</h3>
+                        <div class="control-group">
+                            <label>Cluster:</label>
+                            <select id="heatmapCluster">
+                                <option value="none">None</option>
+                                <option value="rows">Rows</option>
+                                <option value="cols">Columns</option>
+                                <option value="both">Both</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Linkage:</label>
+                            <select id="heatmapLinkage">
+                                <option value="average">Average</option>
+                                <option value="complete">Complete</option>
+                                <option value="single">Single</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Normalize:</label>
+                            <select id="heatmapNormalize">
+                                <option value="none">None</option>
+                                <option value="all">Whole dataset</option>
+                                <option value="row">Per row</option>
+                                <option value="col">Per column</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Colors:</label>
+                            <select id="heatmapColorScheme">
+                                <option value="RdBu">Red–Blue</option>
+                                <option value="RdYlGn">Red–Yellow–Green</option>
+                                <option value="Viridis">Viridis</option>
+                                <option value="YlOrRd">Yellow–Red</option>
+                                <option value="BuPu">Blue–Purple</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Cell values:</label>
+                            <input type="checkbox" id="heatmapShowValues">
+                        </div>
+                    </div>
+                </div>
 
                 <div class="graph-controls">
                     <div class="control-section">
@@ -294,6 +344,8 @@
     <script src="js/graph.js"></script>
     <script src="js/annotations.js"></script>
     <script src="js/export.js"></script>
+    <script src="js/clustering.js"></script>
+    <script src="js/heatmap.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

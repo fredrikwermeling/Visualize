@@ -710,3 +710,52 @@ tr:hover .row-delete-btn {
 .group-item .delete-group-btn:hover {
     color: #c0392b;
 }
+
+/* Mode Selector */
+.mode-selector {
+    display: flex;
+    gap: 0;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #ccc;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 6px 12px;
+    border: none;
+    background: #e0e0e0;
+    color: #555;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.mode-btn:hover {
+    background: #d0d0d0;
+}
+
+.mode-btn.active {
+    background: #5E8C31;
+    color: white;
+}
+
+/* Heatmap Controls */
+.heatmap-controls {
+    margin-bottom: 10px;
+}
+
+.heatmap-controls .control-section {
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid #5E8C31;
+}
+
+.heatmap-controls .control-section h3 {
+    color: #3D6B2E;
+    margin-bottom: 6px;
+    font-size: 0.95em;
+}

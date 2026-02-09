@@ -5,10 +5,12 @@ class App {
         // Initialize components
         this.dataTable = new DataTable('dataTable', 'tableBody', 'headerRow');
         this.graphRenderer = new GraphRenderer('graphContainer');
+        this.heatmapRenderer = new HeatmapRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
         this.annotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.annotationManager;
         this._undoStack = [];
+        this.mode = 'column';
 
         // Bind event listeners
         this._bindTableControls();
@@ -18,6 +20,8 @@ class App {
         this._bindStatisticsControls();
         this._bindExportControls();
         this._bindDrawingTools();
+        this._bindModeSelector();
+        this._bindHeatmapControls();
 
         // Load sample data and draw initial graph
         this.dataTable.loadSampleData();
@@ -354,6 +358,69 @@ class App {
         });
     }
 
+    _bindModeSelector() {
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.mode = btn.dataset.mode;
+                this._applyMode();
+                this.updateGraph();
+            });
+        });
+    }
+
+    _applyMode() {
+        const isHeatmap = this.mode === 'heatmap';
+
+        // Column-specific controls
+        const columnEls = [
+            document.querySelector('.graph-type-selector'),
+            document.getElementById('drawingToolbar'),
+            document.getElementById('groupManager'),
+            document.getElementById('manualColorGroup')
+        ];
+        columnEls.forEach(el => { if (el) el.style.display = isHeatmap ? 'none' : ''; });
+
+        // Control sections inside .graph-controls
+        const controlSections = document.querySelectorAll('.graph-controls .control-section');
+        controlSections.forEach((section, i) => {
+            const h3 = section.querySelector('h3');
+            if (!h3) return;
+            const title = h3.textContent.trim();
+            if (title === 'Statistics') {
+                section.style.display = isHeatmap ? 'none' : '';
+            }
+            // Dimensions & Style: hide column-specific rows in heatmap mode
+            // Export: always visible
+        });
+
+        // Heatmap controls
+        const heatmapControls = document.getElementById('heatmapControls');
+        if (heatmapControls) heatmapControls.style.display = isHeatmap ? '' : 'none';
+    }
+
+    _bindHeatmapControls() {
+        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapColorScheme'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', () => this.updateGraph());
+        });
+        const showVals = document.getElementById('heatmapShowValues');
+        if (showVals) showVals.addEventListener('change', () => this.updateGraph());
+    }
+
+    _getHeatmapSettings() {
+        return {
+            cluster: document.getElementById('heatmapCluster')?.value || 'none',
+            linkage: document.getElementById('heatmapLinkage')?.value || 'average',
+            normalize: document.getElementById('heatmapNormalize')?.value || 'none',
+            colorScheme: document.getElementById('heatmapColorScheme')?.value || 'RdBu',
+            showValues: document.getElementById('heatmapShowValues')?.checked || false,
+            title: this.graphRenderer.settings.title || 'Heatmap'
+        };
+    }
+
     // --- Undo ---
 
     saveUndoState() {
@@ -381,6 +448,13 @@ class App {
     // --- Core methods ---
 
     updateGraph() {
+        if (this.mode === 'heatmap') {
+            const matrixData = this.dataTable.getMatrixData();
+            const settings = this._getHeatmapSettings();
+            this.heatmapRenderer.render(matrixData, settings);
+            return;
+        }
+
         const data = this.dataTable.getData();
         this.graphRenderer.render(data);
         this._updateManualColorSwatches(data);

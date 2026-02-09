@@ -280,8 +280,14 @@ class AnnotationManager {
                 }
             }
 
-            // Text tool: click to place
+            // Text tool: click to place — but let clicks on graph labels pass through
             if (this.activeTool === 'text') {
+                const clickedEl = e.target;
+                const isGraphLabel = clickedEl.closest('.graph-title, .axis-label, .legend-item, .x-axis .tick, .y-axis .tick');
+                if (isGraphLabel) {
+                    // Let the label's own click handler fire
+                    return;
+                }
                 this._showTextInput(pos.x, pos.y, svgNode);
                 e.preventDefault();
                 return;

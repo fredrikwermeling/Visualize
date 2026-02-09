@@ -623,3 +623,85 @@ tr:hover .row-delete-btn {
 #postHocAdvice {
     padding: 2px 4px;
 }
+
+/* Group Order Manager */
+.group-manager {
+    margin-top: 8px;
+}
+
+.group-manager h3 {
+    font-size: 0.9em;
+    color: #3D6B2E;
+    margin: 6px 0 4px;
+}
+
+.group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.group-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: grab;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.group-item:hover {
+    background: #e8f5e0;
+}
+
+.group-item.drag-over {
+    border-color: #5E8C31;
+    background: #e8f5e0;
+}
+
+.group-item.hidden {
+    opacity: 0.4;
+}
+
+.group-item .drag-handle {
+    cursor: grab;
+    color: #999;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.group-item .group-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.group-item .color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid #ccc;
+}
+
+.group-item .visibility-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.group-item .visibility-btn:hover {
+    opacity: 1;
+}

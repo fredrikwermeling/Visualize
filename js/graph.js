@@ -47,9 +47,12 @@ class GraphRenderer {
             GROUP_LEGEND_WIDTH: 130,
             groupLegendOffset: { x: 0, y: 0 },     // drag offset for whole legend
             groupLegendItemOffsets: {},               // { index: {x, y} } per-item offsets
-            groupLegendFont: { family: 'Arial', size: 12 },
+            groupLegendFont: { family: 'Arial', size: 12, bold: false, italic: false },
             // Group label display
-            showAxisGroupLabels: true
+            showAxisGroupLabels: true,
+            // Group ordering & visibility
+            groupOrder: [],      // array of group labels in display order; empty = use data order
+            hiddenGroups: []     // array of group labels to hide from graph
         };
 
         // Color themes
@@ -106,6 +109,12 @@ class GraphRenderer {
         return palette[index % palette.length];
     }
 
+    // Returns color for a group at display position i, using the original data index for stable colors
+    _getGroupColor(i) {
+        const origIdx = this._filteredColorIndices ? this._filteredColorIndices[i] : i;
+        return this._getColor(origIdx);
+    }
+
     updateSettings(settings) {
         Object.assign(this.settings, settings);
     }
@@ -124,7 +133,32 @@ class GraphRenderer {
         this.container.innerHTML = '';
 
         // Filter out columns with no data
-        const filteredData = data.filter(d => d.values.length > 0);
+        let filteredData = data.filter(d => d.values.length > 0);
+
+        // Build stable color index map from original data order (before reorder/hide)
+        this._colorIndexMap = {};
+        filteredData.forEach((d, i) => { this._colorIndexMap[d.label] = i; });
+
+        // Store original data labels for bracket index remapping
+        this._origDataLabels = data.map(d => d.label);
+
+        // Hide groups
+        if (this.settings.hiddenGroups.length > 0) {
+            filteredData = filteredData.filter(d => !this.settings.hiddenGroups.includes(d.label));
+        }
+        // Reorder groups
+        if (this.settings.groupOrder.length > 0) {
+            const orderMap = new Map(this.settings.groupOrder.map((label, i) => [label, i]));
+            filteredData.sort((a, b) => {
+                const ai = orderMap.has(a.label) ? orderMap.get(a.label) : Infinity;
+                const bi = orderMap.has(b.label) ? orderMap.get(b.label) : Infinity;
+                return ai - bi;
+            });
+        }
+
+        // Build color index array for filtered/reordered data
+        this._filteredColorIndices = filteredData.map(d => this._colorIndexMap[d.label] ?? 0);
+
         if (filteredData.length === 0) {
             this.container.innerHTML = '<div class="empty-state"><h3>Enter data to see your graph</h3><p>Type numbers into the table on the left</p></div>';
             return;
@@ -708,6 +742,9 @@ class GraphRenderer {
         const existing = document.querySelector('.bar-color-picker');
         if (existing) existing.remove();
 
+        // Map display index to original color index
+        const origIndex = this._filteredColorIndices ? this._filteredColorIndices[barIndex] : barIndex;
+
         const rect = event.target.getBoundingClientRect();
         const popup = document.createElement('div');
         popup.className = 'svg-edit-popup bar-color-picker';
@@ -716,7 +753,7 @@ class GraphRenderer {
 
         const colorInput = document.createElement('input');
         colorInput.type = 'color';
-        colorInput.value = this._getColor(barIndex);
+        colorInput.value = this._getColor(origIndex);
         colorInput.style.width = '40px';
         colorInput.style.height = '30px';
         colorInput.style.border = 'none';
@@ -739,12 +776,12 @@ class GraphRenderer {
         document.body.appendChild(popup);
 
         colorInput.addEventListener('input', () => {
-            this.settings.colorOverrides[barIndex] = colorInput.value;
+            this.settings.colorOverrides[origIndex] = colorInput.value;
             if (window.app) window.app.updateGraph();
         });
 
         resetBtn.addEventListener('click', () => {
-            delete this.settings.colorOverrides[barIndex];
+            delete this.settings.colorOverrides[origIndex];
             popup.remove();
             if (window.app) window.app.updateGraph();
         });
@@ -764,7 +801,7 @@ class GraphRenderer {
 
     _drawScatterWithLine(g, data, groupScale, valueScale, centerType, isH) {
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
             if (isH) {
@@ -826,7 +863,7 @@ class GraphRenderer {
         const ebDir = this.settings.errorBarDirection;
 
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
             const meanVal = Statistics.mean(group.values);
             const errorVal = errorType === 'sd'
@@ -937,7 +974,7 @@ class GraphRenderer {
         const ebw = this.settings.errorBarWidth;
 
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
             const sorted = [...group.values].sort((a, b) => a - b);
             const q = Statistics.quartiles(group.values);
@@ -1043,7 +1080,7 @@ class GraphRenderer {
 
     _drawViolinPlot(g, data, groupScale, valueScale, isH) {
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
             if (group.values.length < 3) {
@@ -1122,7 +1159,7 @@ class GraphRenderer {
 
     _drawScatterOnly(g, data, groupScale, valueScale, isH) {
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
             if (isH) {
@@ -1156,7 +1193,7 @@ class GraphRenderer {
         const ebDir = this.settings.errorBarDirection;
 
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
             const medianVal = Statistics.median(group.values);
             const q = Statistics.quartiles(group.values);
@@ -1251,7 +1288,7 @@ class GraphRenderer {
         const ebDir = this.settings.errorBarDirection;
 
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
             const meanVal = Statistics.mean(group.values);
             const errorVal = errorType === 'sd'
@@ -1346,7 +1383,7 @@ class GraphRenderer {
         const ebw = this.settings.errorBarWidth;
 
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
             if (group.values.length < 3) {
@@ -1468,7 +1505,7 @@ class GraphRenderer {
         }
 
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
             if (isH) {
@@ -1542,11 +1579,18 @@ class GraphRenderer {
         const BRACKET_HEIGHT = 20; // vertical space a bracket occupies (line + text)
         const ceilings = this._getGroupCeilings(data, valueScale, groupScale, isH);
 
+        // Build label-to-filteredIndex map for resolving original indices
+        const labelToFilteredIdx = {};
+        data.forEach((d, i) => { labelToFilteredIdx[d.label] = i; });
+
         // Build bracket objects with span info
         const brackets = this.significanceResults.map((result, idx) => {
-            const g1 = result.group1Index;
-            const g2 = result.group2Index;
-            if (g1 >= data.length || g2 >= data.length) return null;
+            // Map original data indices to labels, then to filtered positions
+            const origG1Label = this._origDataLabels ? this._origDataLabels[result.group1Index] : null;
+            const origG2Label = this._origDataLabels ? this._origDataLabels[result.group2Index] : null;
+            const g1 = origG1Label != null ? labelToFilteredIdx[origG1Label] : result.group1Index;
+            const g2 = origG2Label != null ? labelToFilteredIdx[origG2Label] : result.group2Index;
+            if (g1 == null || g2 == null || g1 >= data.length || g2 >= data.length) return null;
 
             const minIdx = Math.min(g1, g2);
             const maxIdx = Math.max(g1, g2);
@@ -1619,11 +1663,18 @@ class GraphRenderer {
         const starFontSize = this.settings.significanceFontSize || this.settings.fontSize;
         const selectedBracketIdx = this.annotationManager ? this.annotationManager._selectedBracketIdx : -1;
 
-        this.significanceResults.forEach((result, idx) => {
-            const group1Idx = result.group1Index;
-            const group2Idx = result.group2Index;
+        // Build label-to-filteredIndex map for resolving original indices
+        const labelToFilteredIdx = {};
+        data.forEach((d, i) => { labelToFilteredIdx[d.label] = i; });
 
-            if (group1Idx >= data.length || group2Idx >= data.length) return;
+        this.significanceResults.forEach((result, idx) => {
+            // Map original data indices to filtered positions via labels
+            const origG1Label = this._origDataLabels ? this._origDataLabels[result.group1Index] : null;
+            const origG2Label = this._origDataLabels ? this._origDataLabels[result.group2Index] : null;
+            const group1Idx = origG1Label != null ? labelToFilteredIdx[origG1Label] : result.group1Index;
+            const group2Idx = origG2Label != null ? labelToFilteredIdx[origG2Label] : result.group2Index;
+
+            if (group1Idx == null || group2Idx == null || group1Idx >= data.length || group2Idx >= data.length) return;
 
             const pos = this._bracketLayout[idx];
             if (!pos) return;
@@ -1853,7 +1904,7 @@ class GraphRenderer {
             .call(this._makeLegendDrag('whole'));
 
         data.forEach((group, i) => {
-            const color = this._getColor(i);
+            const color = this._getGroupColor(i);
             const label = this.settings.groupLegendLabels[i] || group.label;
             const itemOff = this.settings.groupLegendItemOffsets[i] || { x: 0, y: 0 };
             const y = i * lineHeight + itemOff.y;
@@ -1879,6 +1930,8 @@ class GraphRenderer {
                 .attr('dominant-baseline', 'middle')
                 .style('font-family', lf.family)
                 .style('font-size', `${lf.size}px`)
+                .style('font-weight', lf.bold ? 'bold' : 'normal')
+                .style('font-style', lf.italic ? 'italic' : 'normal')
                 .style('fill', '#333')
                 .style('cursor', 'pointer')
                 .text(label)
@@ -1981,8 +2034,22 @@ class GraphRenderer {
         sizeInput.min = 8; sizeInput.max = 28;
         sizeInput.style.width = '48px';
 
+        const boldBtn = document.createElement('button');
+        boldBtn.className = 'svg-edit-btn' + (lf.bold ? ' active' : '');
+        boldBtn.innerHTML = '<b>B</b>';
+        boldBtn.title = 'Bold';
+        boldBtn.addEventListener('click', (e) => { e.preventDefault(); boldBtn.classList.toggle('active'); });
+
+        const italicBtn = document.createElement('button');
+        italicBtn.className = 'svg-edit-btn' + (lf.italic ? ' active' : '');
+        italicBtn.innerHTML = '<i>I</i>';
+        italicBtn.title = 'Italic';
+        italicBtn.addEventListener('click', (e) => { e.preventDefault(); italicBtn.classList.toggle('active'); });
+
         row.appendChild(familySelect);
         row.appendChild(sizeInput);
+        row.appendChild(boldBtn);
+        row.appendChild(italicBtn);
         popup.appendChild(row);
 
         document.body.appendChild(popup);
@@ -2000,6 +2067,8 @@ class GraphRenderer {
             // Update legend font
             this.settings.groupLegendFont.family = familySelect.value;
             this.settings.groupLegendFont.size = parseInt(sizeInput.value) || lf.size;
+            this.settings.groupLegendFont.bold = boldBtn.classList.contains('active');
+            this.settings.groupLegendFont.italic = italicBtn.classList.contains('active');
             popup.remove();
             if (window.app) window.app.updateGraph();
         };

@@ -280,6 +280,7 @@ class App {
         const data = this.dataTable.getData();
         this.graphRenderer.render(data);
         this._updateManualColorSwatches(data);
+        this._updateGroupManager(data);
     }
 
     _updateManualColorSwatches(data) {
@@ -318,6 +319,117 @@ class App {
                 }
             });
         }
+    }
+
+    _updateGroupManager(data) {
+        const container = document.getElementById('groupManager');
+        const listEl = document.getElementById('groupList');
+        if (!container || !listEl) return;
+
+        const filled = data.filter(d => d.values.length > 0);
+        if (filled.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = '';
+
+        const settings = this.graphRenderer.settings;
+        const hiddenGroups = settings.hiddenGroups;
+
+        // Determine display order: use groupOrder if set, otherwise data order
+        let orderedLabels;
+        if (settings.groupOrder.length > 0) {
+            // Start with stored order, add any new groups at end
+            const knownSet = new Set(settings.groupOrder);
+            orderedLabels = [...settings.groupOrder.filter(l => filled.some(d => d.label === l))];
+            filled.forEach(d => {
+                if (!knownSet.has(d.label)) orderedLabels.push(d.label);
+            });
+        } else {
+            orderedLabels = filled.map(d => d.label);
+        }
+
+        // Build color index map (same as graph.js)
+        const colorIndexMap = {};
+        filled.forEach((d, i) => { colorIndexMap[d.label] = i; });
+
+        listEl.innerHTML = '';
+        orderedLabels.forEach((label, idx) => {
+            const isHidden = hiddenGroups.includes(label);
+            const colorIdx = colorIndexMap[label] ?? 0;
+            const color = this.graphRenderer._getColor(colorIdx);
+
+            const item = document.createElement('div');
+            item.className = 'group-item' + (isHidden ? ' hidden' : '');
+            item.draggable = true;
+            item.dataset.label = label;
+            item.dataset.idx = idx;
+
+            const handle = document.createElement('span');
+            handle.className = 'drag-handle';
+            handle.textContent = '\u2261';
+
+            const dot = document.createElement('span');
+            dot.className = 'color-dot';
+            dot.style.background = color;
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'group-label';
+            labelSpan.textContent = label;
+
+            const eyeBtn = document.createElement('button');
+            eyeBtn.className = 'visibility-btn';
+            eyeBtn.textContent = isHidden ? '\u{1F6AB}' : '\u{1F441}';
+            eyeBtn.title = isHidden ? 'Show group' : 'Hide group';
+            eyeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isHidden) {
+                    settings.hiddenGroups = hiddenGroups.filter(l => l !== label);
+                } else {
+                    settings.hiddenGroups = [...hiddenGroups, label];
+                }
+                this.updateGraph();
+            });
+
+            item.appendChild(handle);
+            item.appendChild(dot);
+            item.appendChild(labelSpan);
+            item.appendChild(eyeBtn);
+            listEl.appendChild(item);
+
+            // Drag events
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', idx.toString());
+                item.style.opacity = '0.5';
+            });
+            item.addEventListener('dragend', () => {
+                item.style.opacity = '';
+                listEl.querySelectorAll('.group-item').forEach(el => el.classList.remove('drag-over'));
+            });
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                item.classList.add('drag-over');
+            });
+            item.addEventListener('dragleave', () => {
+                item.classList.remove('drag-over');
+            });
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.classList.remove('drag-over');
+                const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                const toIdx = idx;
+                if (fromIdx === toIdx) return;
+
+                // Reorder
+                const newOrder = [...orderedLabels];
+                const [moved] = newOrder.splice(fromIdx, 1);
+                newOrder.splice(toIdx, 0, moved);
+                settings.groupOrder = newOrder;
+                this.updateGraph();
+            });
+        });
     }
 
     _runStatisticalTest() {

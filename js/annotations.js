@@ -315,13 +315,37 @@ class AnnotationManager {
 
         this._boundHandlers = { mousedown, mousemove, mouseup };
 
-        // Keyboard: Delete selected
+        // Keyboard: Delete selected + arrow key movement
         if (!this._keyHandler) {
             this._keyHandler = (e) => {
+                // Don't handle if user is typing in an input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
                 if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedIndex >= 0) {
-                    // Don't delete if user is typing in an input
-                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
                     this.deleteSelected();
+                    e.preventDefault();
+                    return;
+                }
+
+                // Arrow key movement for selected annotation
+                if (this.selectedIndex >= 0 && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    const step = e.shiftKey ? 10 : 2;
+                    const ann = this.annotations[this.selectedIndex];
+                    let dx = 0, dy = 0;
+                    if (e.key === 'ArrowUp') dy = -step;
+                    else if (e.key === 'ArrowDown') dy = step;
+                    else if (e.key === 'ArrowLeft') dx = -step;
+                    else if (e.key === 'ArrowRight') dx = step;
+
+                    if (ann.type === 'text') {
+                        ann.x += dx; ann.y += dy;
+                    } else if (ann.type === 'line' || ann.type === 'arrow') {
+                        ann.x1 += dx; ann.y1 += dy;
+                        ann.x2 += dx; ann.y2 += dy;
+                    } else if (ann.type === 'bracket') {
+                        ann.x1 += dx; ann.x2 += dx; ann.y += dy;
+                    }
+                    if (window.app) window.app.updateGraph();
                     e.preventDefault();
                 }
             };

@@ -43,6 +43,9 @@ class GraphRenderer {
             showGroupLegend: false,
             groupLegendLabels: {},
             GROUP_LEGEND_WIDTH: 130,
+            groupLegendOffset: { x: 0, y: 0 },     // drag offset for whole legend
+            groupLegendItemOffsets: {},               // { index: {x, y} } per-item offsets
+            groupLegendFont: { family: 'Arial', size: 12 },
             // Group label display
             showAxisGroupLabels: true
         };
@@ -749,8 +752,10 @@ class GraphRenderer {
                     .attr('cy', () => cy + (Math.random() - 0.5) * jitterWidth)
                     .attr('cx', d => valueScale(d))
                     .attr('r', 4)
-                    .attr('fill', '#333')
-                    .attr('opacity', 0.7);
+                    .attr('fill', color)
+                    .attr('stroke', '#333')
+                    .attr('stroke-width', 0.5)
+                    .attr('opacity', 0.8);
 
                 const centerValue = centerType === 'mean'
                     ? Statistics.mean(group.values) : Statistics.median(group.values);
@@ -772,8 +777,10 @@ class GraphRenderer {
                     .attr('cx', () => cx + (Math.random() - 0.5) * jitterWidth)
                     .attr('cy', d => valueScale(d))
                     .attr('r', 4)
-                    .attr('fill', '#333')
-                    .attr('opacity', 0.7);
+                    .attr('fill', color)
+                    .attr('stroke', '#333')
+                    .attr('stroke-width', 0.5)
+                    .attr('opacity', 0.8);
 
                 const centerValue = centerType === 'mean'
                     ? Statistics.mean(group.values) : Statistics.median(group.values);
@@ -1771,40 +1778,89 @@ class GraphRenderer {
     }
 
     _drawGroupLegend(g, data) {
-        const legendX = this.innerWidth + 15;
-        const legendY = 10;
-        const swatchSize = 12;
-        const lineHeight = 22;
-        const tf = this.settings.tickFont;
+        const legendOff = this.settings.groupLegendOffset;
+        const legendX = this.innerWidth + 15 + legendOff.x;
+        const legendY = 10 + legendOff.y;
+        const lf = this.settings.groupLegendFont;
+        const swatchSize = Math.max(8, lf.size - 2);
+        const lineHeight = swatchSize + 10;
 
         const legendG = g.append('g')
             .attr('class', 'group-legend')
             .attr('transform', `translate(${legendX}, ${legendY})`);
 
+        // Invisible drag handle for entire legend
+        const totalHeight = data.length * lineHeight;
+        legendG.append('rect')
+            .attr('x', -4).attr('y', -4)
+            .attr('width', this.settings.GROUP_LEGEND_WIDTH).attr('height', totalHeight + 8)
+            .attr('fill', 'transparent')
+            .style('cursor', 'grab')
+            .call(this._makeLegendDrag('whole'));
+
         data.forEach((group, i) => {
             const color = this._getColor(i);
             const label = this.settings.groupLegendLabels[i] || group.label;
-            const y = i * lineHeight;
+            const itemOff = this.settings.groupLegendItemOffsets[i] || { x: 0, y: 0 };
+            const y = i * lineHeight + itemOff.y;
+            const x = itemOff.x;
+
+            const itemG = legendG.append('g')
+                .attr('class', 'legend-item')
+                .attr('transform', `translate(${x}, ${y})`)
+                .style('cursor', 'grab')
+                .call(this._makeLegendDrag('item', i));
 
             // Color swatch
-            legendG.append('rect')
-                .attr('x', 0).attr('y', y)
+            itemG.append('rect')
+                .attr('x', 0).attr('y', 0)
                 .attr('width', swatchSize).attr('height', swatchSize)
                 .attr('fill', color).attr('stroke', '#333')
                 .attr('stroke-width', 0.5).attr('rx', 2);
 
-            // Label text (clickable for editing)
-            legendG.append('text')
+            // Label text (click to edit)
+            itemG.append('text')
                 .attr('x', swatchSize + 6)
-                .attr('y', y + swatchSize / 2)
+                .attr('y', swatchSize / 2)
                 .attr('dominant-baseline', 'middle')
-                .style('font-family', tf.family)
-                .style('font-size', `${tf.size}px`)
+                .style('font-family', lf.family)
+                .style('font-size', `${lf.size}px`)
                 .style('fill', '#333')
                 .style('cursor', 'pointer')
                 .text(label)
-                .on('click', (event) => this._editLegendLabel(event, i, group.label));
+                .on('click', (event) => { event.stopPropagation(); this._editLegendLabel(event, i, group.label); });
         });
+    }
+
+    _makeLegendDrag(mode, itemIndex) {
+        const self = this;
+        let startX, startY, origOffset;
+
+        return d3.drag()
+            .on('start', function (event) {
+                event.sourceEvent.stopPropagation();
+                startX = event.x;
+                startY = event.y;
+                if (mode === 'whole') {
+                    origOffset = { ...self.settings.groupLegendOffset };
+                } else {
+                    origOffset = { ...(self.settings.groupLegendItemOffsets[itemIndex] || { x: 0, y: 0 }) };
+                }
+                d3.select(this).style('cursor', 'grabbing');
+            })
+            .on('drag', function (event) {
+                const dx = event.x - startX;
+                const dy = event.y - startY;
+                if (mode === 'whole') {
+                    self.settings.groupLegendOffset = { x: origOffset.x + dx, y: origOffset.y + dy };
+                } else {
+                    self.settings.groupLegendItemOffsets[itemIndex] = { x: origOffset.x + dx, y: origOffset.y + dy };
+                }
+                if (window.app) window.app.updateGraph();
+            })
+            .on('end', function () {
+                d3.select(this).style('cursor', 'grab');
+            });
     }
 
     _editLegendLabel(event, groupIndex, defaultLabel) {
@@ -1813,6 +1869,7 @@ class GraphRenderer {
 
         const textEl = event.target;
         const rect = textEl.getBoundingClientRect();
+        const lf = this.settings.groupLegendFont;
 
         const popup = document.createElement('div');
         popup.className = 'svg-edit-popup';
@@ -1827,6 +1884,32 @@ class GraphRenderer {
         input.style.fontSize = '12px';
         popup.appendChild(input);
 
+        // Font controls row
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.gap = '4px';
+        row.style.marginTop = '4px';
+
+        const familySelect = document.createElement('select');
+        familySelect.className = 'svg-edit-font-family';
+        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f; opt.textContent = f;
+            if (f === lf.family) opt.selected = true;
+            familySelect.appendChild(opt);
+        });
+
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'number';
+        sizeInput.className = 'svg-edit-font-size';
+        sizeInput.value = lf.size;
+        sizeInput.min = 8; sizeInput.max = 28;
+        sizeInput.style.width = '48px';
+
+        row.appendChild(familySelect);
+        row.appendChild(sizeInput);
+        popup.appendChild(row);
+
         document.body.appendChild(popup);
         input.focus();
         input.select();
@@ -1839,6 +1922,9 @@ class GraphRenderer {
             } else {
                 delete this.settings.groupLegendLabels[groupIndex];
             }
+            // Update legend font
+            this.settings.groupLegendFont.family = familySelect.value;
+            this.settings.groupLegendFont.size = parseInt(sizeInput.value) || lf.size;
             popup.remove();
             if (window.app) window.app.updateGraph();
         };

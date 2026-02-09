@@ -43,21 +43,6 @@ class App {
             this.graphRenderer.updateSettings({ graphType: e.target.value });
             this.updateGraph();
         });
-
-        document.getElementById('graphTitle').addEventListener('input', (e) => {
-            this.graphRenderer.updateSettings({ title: e.target.value });
-            this.updateGraph();
-        });
-
-        document.getElementById('xAxisLabel').addEventListener('input', (e) => {
-            this.graphRenderer.updateSettings({ xLabel: e.target.value });
-            this.updateGraph();
-        });
-
-        document.getElementById('yAxisLabel').addEventListener('input', (e) => {
-            this.graphRenderer.updateSettings({ yLabel: e.target.value });
-            this.updateGraph();
-        });
     }
 
     _bindDimensionControls() {
@@ -152,6 +137,7 @@ class App {
             document.getElementById('postHocGroup').style.display = isMultiGroup ? '' : 'none';
             this._updatePostHocAdvice();
             this._updateDunnettVisibility();
+            this._updateTwoGroupSelectors();
         });
 
         document.getElementById('postHocMethod').addEventListener('change', () => {
@@ -164,6 +150,7 @@ class App {
         const isMulti = testType === 'one-way-anova' || testType === 'kruskal-wallis';
         document.getElementById('postHocGroup').style.display = isMulti ? '' : 'none';
         this._updatePostHocAdvice();
+        this._updateTwoGroupSelectors();
     }
 
     _updatePostHocAdvice() {
@@ -202,6 +189,43 @@ class App {
         });
     }
 
+    _updateTwoGroupSelectors() {
+        const testType = document.getElementById('testType').value;
+        const isTwoGroup = ['t-test-unpaired', 't-test-paired', 'mann-whitney', 'wilcoxon'].includes(testType);
+        const data = this.dataTable.getData();
+        const filledGroups = data.filter(d => d.values.length > 0);
+        const showSelectors = isTwoGroup && filledGroups.length > 2;
+
+        document.getElementById('twoGroupWarning').style.display = showSelectors ? '' : 'none';
+        document.getElementById('twoGroupSelectGroup').style.display = showSelectors ? '' : 'none';
+        document.getElementById('twoGroupSelectGroup2').style.display = showSelectors ? '' : 'none';
+
+        if (showSelectors) {
+            this._populateTwoGroupSelectors(data);
+        }
+    }
+
+    _populateTwoGroupSelectors(data) {
+        const sel1 = document.getElementById('twoGroupSelect1');
+        const sel2 = document.getElementById('twoGroupSelect2');
+        const prev1 = sel1.value;
+        const prev2 = sel2.value;
+        sel1.innerHTML = '';
+        sel2.innerHTML = '';
+        const filled = data.filter(d => d.values.length > 0);
+        filled.forEach((d, i) => {
+            const opt1 = document.createElement('option');
+            opt1.value = i; opt1.textContent = d.label;
+            sel1.appendChild(opt1);
+            const opt2 = document.createElement('option');
+            opt2.value = i; opt2.textContent = d.label;
+            sel2.appendChild(opt2);
+        });
+        // Restore or set defaults
+        sel1.value = prev1 !== '' && parseInt(prev1) < filled.length ? prev1 : '0';
+        sel2.value = prev2 !== '' && parseInt(prev2) < filled.length ? prev2 : (filled.length > 1 ? '1' : '0');
+    }
+
     _bindExportControls() {
         document.getElementById('exportPNG').addEventListener('click', () => {
             const title = this.graphRenderer.settings.title || 'graph';
@@ -230,6 +254,10 @@ class App {
             });
         });
 
+        document.getElementById('drawDeleteSelected').addEventListener('click', () => {
+            this.annotationManager.deleteSelected();
+        });
+
         document.getElementById('drawClearAll').addEventListener('click', () => {
             this.annotationManager.clearAll();
         });
@@ -240,6 +268,45 @@ class App {
     updateGraph() {
         const data = this.dataTable.getData();
         this.graphRenderer.render(data);
+        this._updateManualColorSwatches(data);
+    }
+
+    _updateManualColorSwatches(data) {
+        const container = document.getElementById('manualColorSwatches');
+        if (!container) return;
+        const filled = data.filter(d => d.values.length > 0);
+        // Rebuild only if count changed
+        if (container.childElementCount !== filled.length) {
+            container.innerHTML = '';
+            filled.forEach((group, i) => {
+                const swatch = document.createElement('input');
+                swatch.type = 'color';
+                swatch.value = this.graphRenderer._getColor(i);
+                swatch.title = group.label;
+                swatch.style.width = '28px';
+                swatch.style.height = '24px';
+                swatch.style.border = '1px solid #ccc';
+                swatch.style.borderRadius = '3px';
+                swatch.style.cursor = 'pointer';
+                swatch.style.padding = '0';
+                swatch.dataset.groupIndex = i;
+                swatch.addEventListener('input', (e) => {
+                    const idx = parseInt(e.target.dataset.groupIndex);
+                    this.graphRenderer.settings.colorOverrides[idx] = e.target.value;
+                    this.graphRenderer.render(this.dataTable.getData());
+                });
+                container.appendChild(swatch);
+            });
+        } else {
+            // Update values
+            filled.forEach((group, i) => {
+                const swatch = container.children[i];
+                if (swatch) {
+                    swatch.value = this.graphRenderer._getColor(i);
+                    swatch.title = group.label;
+                }
+            });
+        }
     }
 
     _runStatisticalTest() {
@@ -266,9 +333,19 @@ class App {
             return;
         }
 
-        // Two-group tests — use first two groups with data
-        const group1 = filledGroups[0];
-        const group2 = filledGroups[1];
+        // Two-group tests — use selected groups if >2, else first two
+        let g1Sel = 0, g2Sel = 1;
+        if (filledGroups.length > 2) {
+            this._updateTwoGroupSelectors();
+            g1Sel = parseInt(document.getElementById('twoGroupSelect1').value) || 0;
+            g2Sel = parseInt(document.getElementById('twoGroupSelect2').value) || 1;
+            if (g1Sel === g2Sel) {
+                this._showStatsResult('Please select two different groups to compare.');
+                return;
+            }
+        }
+        const group1 = filledGroups[g1Sel];
+        const group2 = filledGroups[g2Sel];
         const group1Index = data.indexOf(group1);
         const group2Index = data.indexOf(group2);
 

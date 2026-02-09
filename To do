@@ -1,5 +1,10 @@
-- heat maps including connecting data beahving similarly.
-- cncer survivaml grap and two way anova.
-- likelly need to have another table, that opens if select them. 
-- a first selection of graph type and then the app adjust
-- make a stand alone app for computer? Does this allow for connecting graph in powerpoint to the software and back again?
+- allow for pasting from Excel. including identifying what is text = header and what is numbers. 
+- allow to move and remove the heading and x/y-axis
+- allow for changing group labels in the horizontal axis, angled, or straight down. 
+- allow for changing the size of data points and symbol
+
+- heat maps including connecting data behaving similarly.
+- cancer survival graph and two-way ANOVA.
+- likely need to have another table that opens if selected. 
+- a first selection of graph type, and then the app adjusts
+- Make a standalone app for a computer? Does this allow for connecting graph in powerpoint to the software and back again?

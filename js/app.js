@@ -361,10 +361,18 @@ class App {
     _bindModeSelector() {
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                const prevMode = this.mode;
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.mode = btn.dataset.mode;
                 this._applyMode();
+                if (this.mode !== prevMode) {
+                    if (this.mode === 'heatmap') {
+                        this.dataTable.loadHeatmapSampleData();
+                    } else {
+                        this.dataTable.loadSampleData();
+                    }
+                }
                 this.updateGraph();
             });
         });
@@ -408,6 +416,8 @@ class App {
         });
         const showVals = document.getElementById('heatmapShowValues');
         if (showVals) showVals.addEventListener('change', () => this.updateGraph());
+        const showInfo = document.getElementById('heatmapShowInfo');
+        if (showInfo) showInfo.addEventListener('change', () => this.updateGraph());
     }
 
     _getHeatmapSettings() {
@@ -417,8 +427,42 @@ class App {
             normalize: document.getElementById('heatmapNormalize')?.value || 'none',
             colorScheme: document.getElementById('heatmapColorScheme')?.value || 'RdBu',
             showValues: document.getElementById('heatmapShowValues')?.checked || false,
+            showInfo: document.getElementById('heatmapShowInfo')?.checked ?? true,
             title: this.graphRenderer.settings.title || 'Heatmap'
         };
+    }
+
+    _updateHeatmapInfo(settings, el) {
+        if (!el) return;
+        if (!settings.showInfo) {
+            el.style.display = 'none';
+            return;
+        }
+        el.style.display = '';
+
+        const clusterLabels = { none: 'None', rows: 'Rows', cols: 'Columns', both: 'Both' };
+        const linkageLabels = { average: 'Average (UPGMA)', complete: 'Complete', single: 'Single' };
+        const normalizeLabels = { none: 'None', all: 'Whole dataset', row: 'Per row', col: 'Per column' };
+        const colorLabels = { RdBu: 'Red\u2013Blue', RdYlGn: 'Red\u2013Yellow\u2013Green', Viridis: 'Viridis', YlOrRd: 'Yellow\u2013Red', BuPu: 'Blue\u2013Purple' };
+
+        const normalizeExplanations = {
+            none: 'Raw values are used directly. Colors reflect the original data scale from minimum to maximum.',
+            all: 'Z-score normalization across the entire dataset. Each value is transformed to (value \u2212 mean) / standard deviation using the global mean and SD. This makes all values comparable on a common scale.',
+            row: 'Z-score normalization per row. Each row is independently scaled so that its mean = 0 and SD = 1. This highlights which columns are relatively high or low within each row, removing differences in row magnitude.',
+            col: 'Z-score normalization per column. Each column is independently scaled so that its mean = 0 and SD = 1. This highlights which rows are relatively high or low within each column, removing differences in column magnitude.'
+        };
+
+        let html = '<h4>Heatmap Settings</h4>';
+        html += `<div class="info-row"><span class="info-label">Clustering:</span><span>${clusterLabels[settings.cluster] || 'None'}`;
+        if (settings.cluster !== 'none') {
+            html += ` (${linkageLabels[settings.linkage] || settings.linkage} linkage, Euclidean distance)`;
+        }
+        html += '</span></div>';
+        html += `<div class="info-row"><span class="info-label">Normalization:</span><span>${normalizeLabels[settings.normalize] || 'None'}</span></div>`;
+        html += `<div class="info-row"><span class="info-label">Color scheme:</span><span>${colorLabels[settings.colorScheme] || settings.colorScheme}</span></div>`;
+        html += `<div class="info-explain">${normalizeExplanations[settings.normalize] || ''}</div>`;
+
+        el.innerHTML = html;
     }
 
     // --- Undo ---
@@ -448,12 +492,15 @@ class App {
     // --- Core methods ---
 
     updateGraph() {
+        const infoEl = document.getElementById('heatmapInfo');
         if (this.mode === 'heatmap') {
             const matrixData = this.dataTable.getMatrixData();
             const settings = this._getHeatmapSettings();
             this.heatmapRenderer.render(matrixData, settings);
+            this._updateHeatmapInfo(settings, infoEl);
             return;
         }
+        if (infoEl) infoEl.style.display = 'none';
 
         const data = this.dataTable.getData();
         this.graphRenderer.render(data);

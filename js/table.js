@@ -509,25 +509,81 @@ class DataTable {
         return { colLabels, rowLabels, matrix };
     }
 
-    loadSampleData() {
-        // Load some sample data for testing
-        const sampleData = [
-            [5.2, 5.8, 4.9, 5.5, 6.1, 5.3, 5.7],
-            [7.1, 6.8, 7.5, 7.2, 6.9, 7.4, 7.0],
-            [4.5, 4.2, 4.8, 4.6, 4.3, 4.7, 4.4]
-        ];
+    setupTable(headers, numRows, rowData) {
+        // Rebuild headers
+        const existingHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+        const delColHeader = this.headerRow.querySelector('.delete-col-header');
+        existingHeaders.forEach(h => h.remove());
 
-        const rows = this.tbody.querySelectorAll('tr');
-        sampleData.forEach((colData, colIndex) => {
-            colData.forEach((value, rowIndex) => {
-                if (rows[rowIndex]) {
-                    const cells = rows[rowIndex].querySelectorAll('td:not(.row-delete-cell)');
-                    if (cells[colIndex]) {
-                        cells[colIndex].textContent = value;
-                    }
-                }
+        for (const label of headers) {
+            const th = document.createElement('th');
+            th.contentEditable = true;
+            th.textContent = label;
+            if (delColHeader) {
+                this.headerRow.insertBefore(th, delColHeader);
+            } else {
+                this.headerRow.appendChild(th);
+            }
+        }
+
+        // Rebuild rows
+        this.numRows = numRows;
+        this.tbody.innerHTML = '';
+        for (let r = 0; r < numRows; r++) {
+            const row = this._createRow(headers.length);
+            this.tbody.appendChild(row);
+        }
+
+        // Fill data: rowData is array of arrays, each inner array = one row's cell values
+        if (rowData) {
+            const bodyRows = this.tbody.querySelectorAll('tr');
+            rowData.forEach((rd, r) => {
+                if (r >= bodyRows.length) return;
+                const cells = bodyRows[r].querySelectorAll('td:not(.row-delete-cell)');
+                rd.forEach((val, c) => {
+                    if (c < cells.length) cells[c].textContent = val;
+                });
             });
-        });
+        }
+
+        this._addDeleteColumnHeaders();
+        this._updateDeleteButtonVisibility();
+        this.setupHeaderEditing();
+    }
+
+    loadSampleData() {
+        const headers = ['Group 1', 'Group 2', 'Group 3'];
+        // Column-oriented sample data transposed to row-oriented
+        const rowData = [
+            [5.2, 7.1, 4.5],
+            [5.8, 6.8, 4.2],
+            [4.9, 7.5, 4.8],
+            [5.5, 7.2, 4.6],
+            [6.1, 6.9, 4.3],
+            [5.3, 7.4, 4.7],
+            [5.7, 7.0, 4.4]
+        ];
+        this.setupTable(headers, 10, rowData);
+
+        if (window.app) {
+            window.app.updateGraph();
+        }
+    }
+
+    loadHeatmapSampleData() {
+        const headers = ['Row ID', 'Condition A', 'Condition B', 'Condition C', 'Condition D'];
+        const rowLabels = ['Gene A', 'Gene B', 'Gene C', 'Gene D', 'Gene E', 'Gene F', 'Gene G', 'Gene H'];
+        const rowData = [
+            ['Gene A', 2.1, 5.4, 1.8, 4.2],
+            ['Gene B', 8.3, 3.1, 7.6, 2.9],
+            ['Gene C', 1.5, 6.8, 3.2, 7.1],
+            ['Gene D', 9.0, 2.4, 8.5, 1.6],
+            ['Gene E', 4.7, 4.9, 5.1, 5.3],
+            ['Gene F', 3.2, 8.7, 2.0, 9.1],
+            ['Gene G', 6.5, 1.3, 7.9, 3.8],
+            ['Gene H', 1.1, 7.2, 4.4, 6.6]
+        ];
+        this.setupTable(headers, 20, rowData);
 
         if (window.app) {
             window.app.updateGraph();

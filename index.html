@@ -39,12 +39,9 @@
                     <table id="dataTable" class="data-table">
                         <thead>
                             <tr id="headerRow">
-                                <th contenteditable="true">Row Name</th>
                                 <th contenteditable="true">Group 1</th>
                                 <th contenteditable="true">Group 2</th>
                                 <th contenteditable="true">Group 3</th>
-                                <th contenteditable="true">Group 4</th>
-                                <th contenteditable="true">Group 5</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
@@ -113,6 +110,7 @@
                 <div id="graphContainer" class="graph-container">
                     <!-- SVG will be inserted here -->
                 </div>
+                <div id="heatmapInfo" class="heatmap-info" style="display:none"></div>
                 
                 <!-- Graph Controls -->
                 <!-- Hidden inputs for title/label sync with inline editing -->
@@ -162,6 +160,10 @@
                         <div class="control-group">
                             <label>Cell values:</label>
                             <input type="checkbox" id="heatmapShowValues">
+                        </div>
+                        <div class="control-group">
+                            <label>Show info:</label>
+                            <input type="checkbox" id="heatmapShowInfo" checked>
                         </div>
                     </div>
                 </div>

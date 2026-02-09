@@ -759,3 +759,41 @@ tr:hover .row-delete-btn {
     margin-bottom: 6px;
     font-size: 0.95em;
 }
+
+/* Heatmap Info Panel */
+.heatmap-info {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #444;
+}
+
+.heatmap-info h4 {
+    color: #3D6B2E;
+    font-size: 13px;
+    margin: 0 0 6px;
+}
+
+.heatmap-info .info-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.heatmap-info .info-label {
+    font-weight: 600;
+    color: #555;
+    min-width: 90px;
+}
+
+.heatmap-info .info-explain {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #e0e0e0;
+    font-style: italic;
+    color: #666;
+}

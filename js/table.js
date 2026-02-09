@@ -450,26 +450,42 @@ class DataTable {
     }
 
     getMatrixData() {
-        const colLabels = [];
+        const allColLabels = [];
         const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
         headerCells.forEach(th => {
             const clone = th.cloneNode(true);
             const btn = clone.querySelector('.th-delete-btn');
             if (btn) btn.remove();
-            colLabels.push(clone.textContent.trim() || 'Unnamed');
+            allColLabels.push(clone.textContent.trim() || 'Unnamed');
         });
+
+        // First pass: check if first column is text (row labels)
+        const rows = this.tbody.querySelectorAll('tr');
+        let firstColTextCount = 0;
+        let firstColNumCount = 0;
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td:not(.row-delete-cell)');
+            if (cells.length === 0) return;
+            const val = cells[0].textContent.trim();
+            if (val === '') return;
+            if (isNaN(parseFloat(val))) firstColTextCount++;
+            else firstColNumCount++;
+        });
+
+        const firstColIsLabels = firstColTextCount > 0 && firstColTextCount >= firstColNumCount;
+        const dataColStart = firstColIsLabels ? 1 : 0;
+        const colLabels = firstColIsLabels ? allColLabels.slice(1) : allColLabels;
 
         const matrix = [];
         const rowLabels = [];
-        const rows = this.tbody.querySelectorAll('tr');
         let rowNum = 1;
 
         rows.forEach(row => {
             const cells = row.querySelectorAll('td:not(.row-delete-cell)');
             const rowData = [];
             let hasAny = false;
-            cells.forEach(cell => {
-                const value = cell.textContent.trim();
+            for (let c = dataColStart; c < cells.length; c++) {
+                const value = cells[c].textContent.trim();
                 if (value === '') {
                     rowData.push(NaN);
                 } else {
@@ -477,10 +493,15 @@ class DataTable {
                     rowData.push(num);
                     if (!isNaN(num)) hasAny = true;
                 }
-            });
+            }
             if (hasAny) {
                 matrix.push(rowData);
-                rowLabels.push('Row ' + rowNum);
+                if (firstColIsLabels && cells.length > 0) {
+                    const label = cells[0].textContent.trim();
+                    rowLabels.push(label || 'Row ' + rowNum);
+                } else {
+                    rowLabels.push('Row ' + rowNum);
+                }
             }
             rowNum++;
         });

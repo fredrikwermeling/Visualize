@@ -38,7 +38,13 @@ class GraphRenderer {
             significanceFontSize: null,
             // Stats legend
             showStatsLegend: false,
-            statsTestName: ''
+            statsTestName: '',
+            // Group color legend
+            showGroupLegend: false,
+            groupLegendLabels: {},
+            GROUP_LEGEND_WIDTH: 130,
+            // Group label display
+            showAxisGroupLabels: true
         };
 
         // Color themes
@@ -75,6 +81,8 @@ class GraphRenderer {
 
         // Significance results to draw brackets
         this.significanceResults = [];
+        // Bracket layout cache (computed during render)
+        this._bracketLayout = [];
     }
 
     get innerWidth() {
@@ -125,6 +133,16 @@ class GraphRenderer {
             this.margin = { top: 60, right: 40, bottom: 50, left: 100 };
         } else {
             this.margin = { top: 60, right: 30, bottom: 80, left: 70 };
+        }
+
+        // Extra bottom margin for stats legend below graph
+        if (this.settings.showStatsLegend && this.significanceResults.length > 0) {
+            this.margin.bottom += 30;
+        }
+
+        // Extra right margin for group color legend
+        if (this.settings.showGroupLegend) {
+            this.margin.right += this.settings.GROUP_LEGEND_WIDTH;
         }
 
         // Create SVG
@@ -237,14 +255,69 @@ class GraphRenderer {
         // Draw title and axis labels
         this._drawLabels(isHorizontal);
 
-        // Draw significance brackets
+        // Draw significance brackets with auto-layout
         if (this.significanceResults.length > 0) {
+            this._bracketLayout = this._computeBracketLayout(filteredData, groupScale, valueScale, isHorizontal);
+
+            // Check if brackets intrude into title area (vertical only, no manual Y-max)
+            if (!isHorizontal && !hasManualMax && this._bracketLayout.length > 0) {
+                const topBracketY = Math.min(...this._bracketLayout.filter(Boolean).map(b => b.bracketY - 14));
+                if (topBracketY < 0) {
+                    // Need more headroom — increase yMax and re-render once
+                    const extraNeeded = -topBracketY + 10;
+                    const pixelsPerUnit = this.innerHeight / (yMax - yMin);
+                    const extraUnits = extraNeeded / pixelsPerUnit;
+                    yMax = yMax + extraUnits;
+
+                    valueScale.domain([yMin, yMax]);
+                    // Redraw: clear and redo from axes
+                    g.selectAll('*').remove();
+                    this._drawAxes(g, groupScale, valueScale, isHorizontal);
+                    this._drawAxisBreak(g, valueScale, isHorizontal);
+                    this._currentScales = { groupScale, valueScale, isHorizontal };
+
+                    // Redraw the chart
+                    switch (this.settings.graphType) {
+                        case 'scatter-only': this._drawScatterOnly(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        case 'column-points-mean': this._drawScatterWithLine(g, filteredData, groupScale, valueScale, 'mean', isHorizontal); break;
+                        case 'column-points-median': this._drawScatterWithLine(g, filteredData, groupScale, valueScale, 'median', isHorizontal); break;
+                        case 'column-bar-mean': this._drawBarWithError(g, filteredData, groupScale, valueScale, 'sd', isHorizontal); break;
+                        case 'column-bar-sem': this._drawBarWithError(g, filteredData, groupScale, valueScale, 'sem', isHorizontal); break;
+                        case 'column-bar-median': this._drawBarMedianIQR(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        case 'scatter-bar-mean-sd': this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sd', isHorizontal); break;
+                        case 'scatter-bar-mean-sem': this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sem', isHorizontal); break;
+                        case 'box-plot': this._drawBoxPlot(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        case 'violin-plot': this._drawViolinPlot(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        case 'violin-box': this._drawViolinBox(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        case 'before-after': this._drawBeforeAfter(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        default: this._drawBarWithError(g, filteredData, groupScale, valueScale, 'sd', isHorizontal);
+                    }
+
+                    // Remove old labels and redraw
+                    this.svg.selectAll('.graph-title, .axis-label').remove();
+                    this._drawLabels(isHorizontal);
+
+                    // Recompute bracket layout with new scale
+                    this._bracketLayout = this._computeBracketLayout(filteredData, groupScale, valueScale, isHorizontal);
+                }
+            }
+
             this._drawSignificanceBrackets(g, filteredData, groupScale, valueScale, isHorizontal);
         }
 
         // Draw stats legend
         if (this.settings.showStatsLegend && this.significanceResults.length > 0) {
             this._drawStatsLegend(g);
+        }
+
+        // Draw group color legend
+        if (this.settings.showGroupLegend) {
+            this._drawGroupLegend(g, filteredData);
+        }
+
+        // Draw annotations (from drawing tools)
+        if (this.annotationManager) {
+            this.annotationManager.drawAnnotations(this.svg, this.margin);
         }
     }
 
@@ -270,12 +343,16 @@ class GraphRenderer {
                 .attr('class', 'y-axis')
                 .call(d3.axisLeft(groupScale));
 
-            yAxis.selectAll('text')
-                .style('font-family', tf.family)
-                .style('font-size', `${tf.size}px`)
-                .style('font-weight', tf.bold ? 'bold' : 'normal')
-                .style('font-style', tf.italic ? 'italic' : 'normal')
-                .on('click', (event) => this._openTickFontPopup(event));
+            if (!this.settings.showAxisGroupLabels) {
+                yAxis.selectAll('.tick text').remove();
+            } else {
+                yAxis.selectAll('text')
+                    .style('font-family', tf.family)
+                    .style('font-size', `${tf.size}px`)
+                    .style('font-weight', tf.bold ? 'bold' : 'normal')
+                    .style('font-style', tf.italic ? 'italic' : 'normal')
+                    .on('click', (event) => this._openTickFontPopup(event));
+            }
         } else {
             // X axis = group axis (bottom)
             const xAxis = g.append('g')
@@ -283,12 +360,16 @@ class GraphRenderer {
                 .attr('transform', `translate(0,${this.innerHeight})`)
                 .call(d3.axisBottom(groupScale));
 
-            xAxis.selectAll('text')
-                .style('font-family', tf.family)
-                .style('font-size', `${tf.size}px`)
-                .style('font-weight', tf.bold ? 'bold' : 'normal')
-                .style('font-style', tf.italic ? 'italic' : 'normal')
-                .on('click', (event) => this._openTickFontPopup(event));
+            if (!this.settings.showAxisGroupLabels) {
+                xAxis.selectAll('.tick text').remove();
+            } else {
+                xAxis.selectAll('text')
+                    .style('font-family', tf.family)
+                    .style('font-size', `${tf.size}px`)
+                    .style('font-weight', tf.bold ? 'bold' : 'normal')
+                    .style('font-style', tf.italic ? 'italic' : 'normal')
+                    .on('click', (event) => this._openTickFontPopup(event));
+            }
 
             // Y axis = value axis (left)
             const yAxis = g.append('g')
@@ -1376,6 +1457,130 @@ class GraphRenderer {
         });
     }
 
+    _getGroupCeilings(data, valueScale, groupScale, isH) {
+        // Returns pixel ceiling per group — the highest visual element pixel
+        // For vertical: smaller pixel Y = higher on screen
+        // For horizontal: larger pixel X = further right
+        const graphType = this.settings.graphType;
+        const ebDir = this.settings.errorBarDirection;
+
+        return data.map((group, i) => {
+            const vals = group.values;
+            if (vals.length === 0) return isH ? 0 : this.innerHeight;
+
+            const maxVal = d3.max(vals);
+            const meanVal = Statistics.mean(vals);
+            const medianVal = Statistics.median(vals);
+
+            let topValue = maxVal;
+
+            // Account for error bars extending above data
+            if (graphType.includes('bar-mean') || graphType === 'column-bar-mean' || graphType === 'column-bar-sem' || graphType === 'scatter-bar-mean-sd' || graphType === 'scatter-bar-mean-sem') {
+                const errorType = (graphType.includes('sem') || graphType.includes('sem')) ? 'sem' : 'sd';
+                const errorVal = errorType === 'sem' ? Statistics.sem(vals) : Statistics.std(vals);
+                topValue = Math.max(topValue, meanVal + errorVal);
+            } else if (graphType === 'column-bar-median') {
+                const q = Statistics.quartiles(vals);
+                topValue = Math.max(topValue, q.q3);
+            } else if (graphType === 'box-plot' || graphType === 'violin-box') {
+                const q = Statistics.quartiles(vals);
+                const iqr = q.q3 - q.q1;
+                const sorted = [...vals].sort((a, b) => a - b);
+                const whiskerMax = Math.min(d3.max(sorted), q.q3 + 1.5 * iqr);
+                topValue = Math.max(topValue, whiskerMax);
+                // Include outliers above
+                const outliers = sorted.filter(v => v > q.q3 + 1.5 * iqr);
+                if (outliers.length > 0) topValue = Math.max(topValue, d3.max(outliers));
+            }
+
+            if (isH) {
+                return valueScale(topValue); // pixel X
+            } else {
+                return valueScale(topValue); // pixel Y (smaller = higher)
+            }
+        });
+    }
+
+    _computeBracketLayout(data, groupScale, valueScale, isH) {
+        if (this.significanceResults.length === 0) return [];
+
+        const GAP = 12;
+        const BRACKET_HEIGHT = 20; // vertical space a bracket occupies (line + text)
+        const ceilings = this._getGroupCeilings(data, valueScale, groupScale, isH);
+
+        // Build bracket objects with span info
+        const brackets = this.significanceResults.map((result, idx) => {
+            const g1 = result.group1Index;
+            const g2 = result.group2Index;
+            if (g1 >= data.length || g2 >= data.length) return null;
+
+            const minIdx = Math.min(g1, g2);
+            const maxIdx = Math.max(g1, g2);
+            const span = maxIdx - minIdx;
+
+            return { idx, g1, g2, minIdx, maxIdx, span, result };
+        }).filter(Boolean);
+
+        // Sort by span width (narrowest first, like GraphPad Prism)
+        brackets.sort((a, b) => a.span - b.span);
+
+        // Working ceilings array (updated as brackets are placed)
+        const workCeilings = [...ceilings];
+        const layout = new Array(this.significanceResults.length);
+
+        if (isH) {
+            // Horizontal: brackets go to the right of bars
+            brackets.forEach(b => {
+                // Find max ceiling (pixel X) across spanned groups
+                let maxCeiling = 0;
+                for (let i = b.minIdx; i <= b.maxIdx; i++) {
+                    if (i < workCeilings.length) {
+                        maxCeiling = Math.max(maxCeiling, workCeilings[i]);
+                    }
+                }
+
+                const bracketX = maxCeiling + GAP + (b.result.yOffset || 0);
+                const y1 = groupScale(data[b.g1].label) + groupScale.bandwidth() / 2;
+                const y2 = groupScale(data[b.g2].label) + groupScale.bandwidth() / 2;
+
+                layout[b.idx] = { bracketX, y1, y2, isH: true };
+
+                // Update ceilings for spanned groups
+                for (let i = b.minIdx; i <= b.maxIdx; i++) {
+                    if (i < workCeilings.length) {
+                        workCeilings[i] = bracketX + BRACKET_HEIGHT;
+                    }
+                }
+            });
+        } else {
+            // Vertical: brackets go above bars (lower pixel Y = higher)
+            brackets.forEach(b => {
+                // Find min ceiling (pixel Y) across spanned groups — lowest pixel = highest on screen
+                let minCeiling = this.innerHeight;
+                for (let i = b.minIdx; i <= b.maxIdx; i++) {
+                    if (i < workCeilings.length) {
+                        minCeiling = Math.min(minCeiling, workCeilings[i]);
+                    }
+                }
+
+                const bracketY = minCeiling - GAP + (b.result.yOffset || 0);
+                const x1 = groupScale(data[b.g1].label) + groupScale.bandwidth() / 2;
+                const x2 = groupScale(data[b.g2].label) + groupScale.bandwidth() / 2;
+
+                layout[b.idx] = { bracketY, x1, x2, isH: false };
+
+                // Update ceilings for spanned groups
+                for (let i = b.minIdx; i <= b.maxIdx; i++) {
+                    if (i < workCeilings.length) {
+                        workCeilings[i] = bracketY - BRACKET_HEIGHT;
+                    }
+                }
+            });
+        }
+
+        return layout;
+    }
+
     _drawSignificanceBrackets(g, data, groupScale, valueScale, isH) {
         const starFontSize = this.settings.significanceFontSize || this.settings.fontSize;
 
@@ -1385,18 +1590,11 @@ class GraphRenderer {
 
             if (group1Idx >= data.length || group2Idx >= data.length) return;
 
-            const yOffset = result.yOffset || 0;
+            const pos = this._bracketLayout[idx];
+            if (!pos) return;
 
             if (isH) {
-                // Horizontal: brackets go to the right of bars
-                const y1 = groupScale(data[group1Idx].label) + groupScale.bandwidth() / 2;
-                const y2 = groupScale(data[group2Idx].label) + groupScale.bandwidth() / 2;
-
-                const allMax = Math.max(
-                    d3.max(data[group1Idx].values),
-                    d3.max(data[group2Idx].values)
-                );
-                const bracketX = valueScale(allMax) + 15 + (idx * 25) + yOffset;
+                const { bracketX, y1, y2 } = pos;
                 const tickWidth = 8;
 
                 const bracketG = g.append('g')
@@ -1428,15 +1626,7 @@ class GraphRenderer {
                     .style('font-weight', 'bold')
                     .text(label);
             } else {
-                // Vertical: brackets above bars
-                const x1 = groupScale(data[group1Idx].label) + groupScale.bandwidth() / 2;
-                const x2 = groupScale(data[group2Idx].label) + groupScale.bandwidth() / 2;
-
-                const allMax = Math.max(
-                    d3.max(data[group1Idx].values),
-                    d3.max(data[group2Idx].values)
-                );
-                const bracketY = valueScale(allMax) - 15 - (idx * 25) + yOffset;
+                const { bracketY, x1, x2 } = pos;
                 const tickHeight = 8;
 
                 const bracketG = g.append('g')
@@ -1489,36 +1679,63 @@ class GraphRenderer {
         row.style.alignItems = 'center';
         row.style.gap = '4px';
 
-        const upBtn = document.createElement('button');
-        upBtn.className = 'svg-edit-btn';
-        upBtn.textContent = '\u2191';
-        upBtn.title = 'Move up';
-
-        const downBtn = document.createElement('button');
-        downBtn.className = 'svg-edit-btn';
-        downBtn.textContent = '\u2193';
-        downBtn.title = 'Move down';
-
+        const STEP = 15;
         const isH = this.settings.orientation === 'horizontal';
 
-        upBtn.addEventListener('click', (e) => {
+        const nudge = (direction) => {
+            if (!this.significanceResults[bracketIdx]) return;
+            // direction: 1 = up (away from data), -1 = down (toward data)
+            const delta = isH ? direction * STEP : -direction * STEP;
+            this.significanceResults[bracketIdx].yOffset = (this.significanceResults[bracketIdx].yOffset || 0) + delta;
+            if (window.app) window.app.updateGraph();
+        };
+
+        const makeHoldButton = (label, title, direction) => {
+            const btn = document.createElement('button');
+            btn.className = 'svg-edit-btn';
+            btn.textContent = label;
+            btn.title = title;
+            let timer = null;
+            let interval = null;
+
+            const start = (e) => {
+                e.preventDefault();
+                nudge(direction);
+                timer = setTimeout(() => {
+                    interval = setInterval(() => nudge(direction), 80);
+                }, 400);
+            };
+            const stop = () => {
+                if (timer) { clearTimeout(timer); timer = null; }
+                if (interval) { clearInterval(interval); interval = null; }
+            };
+
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', stop);
+            btn.addEventListener('mouseleave', stop);
+            btn.addEventListener('touchstart', start);
+            btn.addEventListener('touchend', stop);
+            return btn;
+        };
+
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'svg-edit-btn';
+        resetBtn.textContent = '\u21BA';
+        resetBtn.title = 'Reset position';
+        resetBtn.style.fontSize = '14px';
+        resetBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (!this.significanceResults[bracketIdx]) return;
-            this.significanceResults[bracketIdx].yOffset = (this.significanceResults[bracketIdx].yOffset || 0) + (isH ? 5 : -5);
-            popup.remove();
+            this.significanceResults[bracketIdx].yOffset = 0;
             if (window.app) window.app.updateGraph();
         });
 
-        downBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (!this.significanceResults[bracketIdx]) return;
-            this.significanceResults[bracketIdx].yOffset = (this.significanceResults[bracketIdx].yOffset || 0) + (isH ? -5 : 5);
-            popup.remove();
-            if (window.app) window.app.updateGraph();
-        });
+        const downBtn = makeHoldButton('\u25BC', 'Move down (hold to repeat)', -1);
+        const upBtn = makeHoldButton('\u25B2', 'Move up (hold to repeat)', 1);
 
-        row.appendChild(upBtn);
+        row.appendChild(resetBtn);
         row.appendChild(downBtn);
+        row.appendChild(upBtn);
         popup.appendChild(row);
 
         document.body.appendChild(popup);
@@ -1535,35 +1752,108 @@ class GraphRenderer {
     }
 
     _drawStatsLegend(g) {
-        const padding = 8;
-        const lineHeight = 14;
-        const lines = ['* p < 0.05', '** p < 0.01', '*** p < 0.001'];
+        // Draw as a centered single line below the x-axis label
+        const plotCenterX = this.innerWidth / 2;
+        let legendText = '* p < 0.05    ** p < 0.01    *** p < 0.001';
         if (this.settings.statsTestName) {
-            lines.push(this.settings.statsTestName);
+            legendText += '    |    ' + this.settings.statsTestName;
         }
 
+        g.append('text')
+            .attr('class', 'stats-legend')
+            .attr('x', plotCenterX)
+            .attr('y', this.innerHeight + 35)
+            .attr('text-anchor', 'middle')
+            .style('font-family', this.settings.fontFamily)
+            .style('font-size', '10px')
+            .style('fill', '#666')
+            .text(legendText);
+    }
+
+    _drawGroupLegend(g, data) {
+        const legendX = this.innerWidth + 15;
+        const legendY = 10;
+        const swatchSize = 12;
+        const lineHeight = 22;
+        const tf = this.settings.tickFont;
+
         const legendG = g.append('g')
-            .attr('class', 'stats-legend');
+            .attr('class', 'group-legend')
+            .attr('transform', `translate(${legendX}, ${legendY})`);
 
-        const boxWidth = 140;
-        const boxHeight = padding * 2 + lines.length * lineHeight;
-        const boxX = this.innerWidth - boxWidth - 5;
-        const boxY = this.innerHeight - boxHeight - 5;
+        data.forEach((group, i) => {
+            const color = this._getColor(i);
+            const label = this.settings.groupLegendLabels[i] || group.label;
+            const y = i * lineHeight;
 
-        legendG.append('rect')
-            .attr('x', boxX).attr('y', boxY)
-            .attr('width', boxWidth).attr('height', boxHeight)
-            .attr('fill', 'white').attr('stroke', '#ccc')
-            .attr('stroke-width', 0.5).attr('rx', 3);
+            // Color swatch
+            legendG.append('rect')
+                .attr('x', 0).attr('y', y)
+                .attr('width', swatchSize).attr('height', swatchSize)
+                .attr('fill', color).attr('stroke', '#333')
+                .attr('stroke-width', 0.5).attr('rx', 2);
 
-        lines.forEach((line, i) => {
+            // Label text (clickable for editing)
             legendG.append('text')
-                .attr('x', boxX + padding)
-                .attr('y', boxY + padding + (i + 1) * lineHeight - 3)
-                .style('font-family', this.settings.fontFamily)
-                .style('font-size', '10px')
-                .style('fill', '#555')
-                .text(line);
+                .attr('x', swatchSize + 6)
+                .attr('y', y + swatchSize / 2)
+                .attr('dominant-baseline', 'middle')
+                .style('font-family', tf.family)
+                .style('font-size', `${tf.size}px`)
+                .style('fill', '#333')
+                .style('cursor', 'pointer')
+                .text(label)
+                .on('click', (event) => this._editLegendLabel(event, i, group.label));
+        });
+    }
+
+    _editLegendLabel(event, groupIndex, defaultLabel) {
+        const existing = document.querySelector('.svg-edit-popup');
+        if (existing) existing.remove();
+
+        const textEl = event.target;
+        const rect = textEl.getBoundingClientRect();
+
+        const popup = document.createElement('div');
+        popup.className = 'svg-edit-popup';
+        popup.style.left = `${rect.left + window.scrollX}px`;
+        popup.style.top = `${rect.top + window.scrollY - 4}px`;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'svg-inline-edit';
+        input.value = this.settings.groupLegendLabels[groupIndex] || defaultLabel;
+        input.style.width = '120px';
+        input.style.fontSize = '12px';
+        popup.appendChild(input);
+
+        document.body.appendChild(popup);
+        input.focus();
+        input.select();
+
+        const commit = () => {
+            if (!document.body.contains(popup)) return;
+            const val = input.value.trim();
+            if (val && val !== defaultLabel) {
+                this.settings.groupLegendLabels[groupIndex] = val;
+            } else {
+                delete this.settings.groupLegendLabels[groupIndex];
+            }
+            popup.remove();
+            if (window.app) window.app.updateGraph();
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); popup.remove(); }
+        });
+
+        popup.addEventListener('focusout', () => {
+            setTimeout(() => {
+                if (document.body.contains(popup) && !popup.contains(document.activeElement)) {
+                    commit();
+                }
+            }, 100);
         });
     }
 

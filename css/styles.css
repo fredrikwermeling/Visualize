@@ -570,3 +570,56 @@ tr:hover .row-delete-btn {
 .table-container::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+
+/* Drawing Toolbar */
+.drawing-toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px 4px 0 0;
+    border-bottom: none;
+    align-items: center;
+}
+
+.draw-tool-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+}
+
+.draw-tool-btn:hover {
+    background: #e8f5e0;
+}
+
+.draw-tool-btn.active {
+    background: #5E8C31;
+    color: white;
+    border-color: #5E8C31;
+}
+
+.drawing-separator {
+    width: 1px;
+    height: 20px;
+    background: #ddd;
+    margin: 0 4px;
+}
+
+.graph-container.drawing-active svg {
+    cursor: crosshair;
+}
+
+/* Post-hoc advice text */
+#postHocAdvice {
+    padding: 2px 4px;
+}

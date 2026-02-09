@@ -317,6 +317,128 @@ class Statistics {
         return results;
     }
 
+    static holmBonferroniPostHoc(groups, groupLabels) {
+        const results = [];
+        const k = groups.length;
+
+        // Generate all pairwise comparisons
+        const comparisons = [];
+        for (let i = 0; i < k; i++) {
+            for (let j = i + 1; j < k; j++) {
+                const testResult = this.tTest(groups[i], groups[j], false);
+                comparisons.push({
+                    group1Index: i,
+                    group2Index: j,
+                    group1Label: groupLabels[i],
+                    group2Label: groupLabels[j],
+                    rawP: testResult.p
+                });
+            }
+        }
+
+        // Sort by raw p-value ascending
+        comparisons.sort((a, b) => a.rawP - b.rawP);
+        const m = comparisons.length;
+
+        // Apply Holm correction: p_i * (m - i), enforce monotonicity
+        let maxSoFar = 0;
+        comparisons.forEach((comp, i) => {
+            let correctedP = comp.rawP * (m - i);
+            correctedP = Math.min(correctedP, 1.0);
+            correctedP = Math.max(correctedP, maxSoFar); // enforce monotonicity
+            maxSoFar = correctedP;
+            comp.correctedP = correctedP;
+            comp.significanceLabel = this.getSignificanceLevel(correctedP);
+            comp.significant = correctedP < 0.05;
+        });
+
+        return comparisons;
+    }
+
+    static tukeyHSDPostHoc(groups, groupLabels) {
+        const k = groups.length;
+        const allValues = groups.flat();
+        const N = allValues.length;
+
+        // Calculate MSW (mean square within)
+        let ssw = 0;
+        groups.forEach(g => {
+            const gMean = this.mean(g);
+            g.forEach(v => { ssw += Math.pow(v - gMean, 2); });
+        });
+        const dfWithin = N - k;
+        if (dfWithin <= 0) return [];
+        const msw = ssw / dfWithin;
+
+        const results = [];
+        for (let i = 0; i < k; i++) {
+            for (let j = i + 1; j < k; j++) {
+                const mean_i = this.mean(groups[i]);
+                const mean_j = this.mean(groups[j]);
+                const n_i = groups[i].length;
+                const n_j = groups[j].length;
+
+                const q = Math.abs(mean_i - mean_j) / Math.sqrt(msw * 0.5 * (1 / n_i + 1 / n_j));
+
+                // p-value from Tukey's studentized range distribution
+                // jStat.tukey.cdf(q, k, dfWithin)
+                let p;
+                try {
+                    p = 1 - jStat.tukey.cdf(q, k, dfWithin);
+                } catch (e) {
+                    // Fallback: approximate with Bonferroni-corrected t-test
+                    const testResult = this.tTest(groups[i], groups[j], false);
+                    const numComp = (k * (k - 1)) / 2;
+                    p = Math.min(testResult.p * numComp, 1.0);
+                }
+
+                p = Math.max(0, Math.min(1, p));
+                const sigLabel = this.getSignificanceLevel(p);
+
+                results.push({
+                    group1Index: i,
+                    group2Index: j,
+                    group1Label: groupLabels[i],
+                    group2Label: groupLabels[j],
+                    rawP: p,
+                    correctedP: p,
+                    significanceLabel: sigLabel,
+                    significant: p < 0.05
+                });
+            }
+        }
+
+        return results;
+    }
+
+    static dunnettPostHoc(groups, groupLabels, controlIdx = 0) {
+        const k = groups.length;
+        const results = [];
+        const m = k - 1; // number of comparisons (vs control only)
+
+        for (let i = 0; i < k; i++) {
+            if (i === controlIdx) continue;
+
+            const testResult = this.tTest(groups[controlIdx], groups[i], false);
+            // Bonferroni correction with m = k-1 comparisons
+            const correctedP = Math.min(testResult.p * m, 1.0);
+            const sigLabel = this.getSignificanceLevel(correctedP);
+
+            results.push({
+                group1Index: controlIdx,
+                group2Index: i,
+                group1Label: groupLabels[controlIdx],
+                group2Label: groupLabels[i],
+                rawP: testResult.p,
+                correctedP: correctedP,
+                significanceLabel: sigLabel,
+                significant: correctedP < 0.05
+            });
+        }
+
+        return results;
+    }
+
     static formatPValue(p) {
         if (p < 0.0001) return 'p < 0.0001';
         if (p < 0.001) return `p = ${p.toFixed(4)}`;

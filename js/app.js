@@ -6,6 +6,8 @@ class App {
         this.dataTable = new DataTable('dataTable', 'tableBody', 'headerRow');
         this.graphRenderer = new GraphRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
+        this.annotationManager = new AnnotationManager();
+        this.graphRenderer.annotationManager = this.annotationManager;
 
         // Bind event listeners
         this._bindTableControls();
@@ -14,6 +16,7 @@ class App {
         this._bindAppearanceControls();
         this._bindStatisticsControls();
         this._bindExportControls();
+        this._bindDrawingTools();
 
         // Load sample data and draw initial graph
         this.dataTable.loadSampleData();
@@ -104,6 +107,27 @@ class App {
             this.graphRenderer.updateSettings({ orientation: e.target.value });
             this.updateGraph();
         });
+
+        document.getElementById('showGroupLegend').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ showGroupLegend: e.target.checked });
+            this.updateGraph();
+        });
+
+        document.getElementById('groupLabelDisplay').addEventListener('change', (e) => {
+            const val = e.target.value;
+            const legendCheckbox = document.getElementById('showGroupLegend');
+            if (val === 'axis') {
+                this.graphRenderer.updateSettings({ showAxisGroupLabels: true, showGroupLegend: false });
+                legendCheckbox.checked = false;
+            } else if (val === 'legend') {
+                this.graphRenderer.updateSettings({ showAxisGroupLabels: false, showGroupLegend: true });
+                legendCheckbox.checked = true;
+            } else { // both
+                this.graphRenderer.updateSettings({ showAxisGroupLabels: true, showGroupLegend: true });
+                legendCheckbox.checked = true;
+            }
+            this.updateGraph();
+        });
     }
 
     _bindStatisticsControls() {
@@ -120,6 +144,61 @@ class App {
         document.getElementById('showStatsLegend').addEventListener('change', (e) => {
             this.graphRenderer.updateSettings({ showStatsLegend: e.target.checked });
             this.updateGraph();
+        });
+
+        // Show/hide post-hoc controls based on test type
+        document.getElementById('testType').addEventListener('change', (e) => {
+            const isMultiGroup = e.target.value === 'one-way-anova' || e.target.value === 'kruskal-wallis';
+            document.getElementById('postHocGroup').style.display = isMultiGroup ? '' : 'none';
+            this._updatePostHocAdvice();
+            this._updateDunnettVisibility();
+        });
+
+        document.getElementById('postHocMethod').addEventListener('change', () => {
+            this._updatePostHocAdvice();
+            this._updateDunnettVisibility();
+        });
+
+        // Initialize post-hoc visibility
+        const testType = document.getElementById('testType').value;
+        const isMulti = testType === 'one-way-anova' || testType === 'kruskal-wallis';
+        document.getElementById('postHocGroup').style.display = isMulti ? '' : 'none';
+        this._updatePostHocAdvice();
+    }
+
+    _updatePostHocAdvice() {
+        const adviceEl = document.getElementById('postHocAdvice');
+        const postHocGroup = document.getElementById('postHocGroup');
+        if (postHocGroup.style.display === 'none') {
+            adviceEl.style.display = 'none';
+            return;
+        }
+
+        const method = document.getElementById('postHocMethod').value;
+        const advice = {
+            tukey: 'Standard choice for all pairwise comparisons after ANOVA',
+            bonferroni: 'Most conservative. Strict Type I error control',
+            holm: 'Less conservative than Bonferroni, more powerful',
+            dunnett: 'Compare each group to one control. More powerful for control-only comparisons'
+        };
+        adviceEl.textContent = advice[method] || '';
+        adviceEl.style.display = advice[method] ? '' : 'none';
+    }
+
+    _updateDunnettVisibility() {
+        const method = document.getElementById('postHocMethod').value;
+        const dunnettGroup = document.getElementById('dunnettControlGroup');
+        dunnettGroup.style.display = method === 'dunnett' ? '' : 'none';
+    }
+
+    _populateDunnettControl(data) {
+        const sel = document.getElementById('dunnettControlIndex');
+        sel.innerHTML = '';
+        data.filter(d => d.values.length > 0).forEach((d, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = d.label;
+            sel.appendChild(opt);
         });
     }
 
@@ -138,6 +217,21 @@ class App {
 
         document.getElementById('copyClipboard').addEventListener('click', (e) => {
             this.exportManager.copyToClipboard(e.target);
+        });
+    }
+
+    _bindDrawingTools() {
+        const toolButtons = ['drawToolNone', 'drawToolText', 'drawToolLine', 'drawToolArrow', 'drawToolBracket'];
+        const toolMap = { drawToolNone: 'none', drawToolText: 'text', drawToolLine: 'line', drawToolArrow: 'arrow', drawToolBracket: 'bracket' };
+
+        toolButtons.forEach(id => {
+            document.getElementById(id).addEventListener('click', () => {
+                this.annotationManager.setTool(toolMap[id]);
+            });
+        });
+
+        document.getElementById('drawClearAll').addEventListener('click', () => {
+            this.annotationManager.clearAll();
         });
     }
 
@@ -334,14 +428,37 @@ class App {
             html += `<div class="result-item"><span class="result-label">Mean ${g.label}:</span> <span class="result-value">${Statistics.mean(g.values).toFixed(4)} (N=${g.values.length})</span></div>`;
         });
 
-        // Post-hoc testing (Bonferroni) for significant ANOVA/KW
+        // Post-hoc testing for significant ANOVA/KW
         const significantPairs = [];
         if (isSignificant) {
-            const postHocName = testType === 'one-way-anova'
-                ? 'Bonferroni post-hoc (pairwise t-tests)'
-                : 'Bonferroni post-hoc (pairwise t-tests)';
+            const postHocMethod = document.getElementById('postHocMethod').value;
+            let postHocResults;
+            let postHocName;
 
-            const postHocResults = Statistics.bonferroniPostHoc(groupValues, groupLabels);
+            // Populate Dunnett control dropdown
+            this._populateDunnettControl(data);
+
+            switch (postHocMethod) {
+                case 'tukey':
+                    postHocResults = Statistics.tukeyHSDPostHoc(groupValues, groupLabels);
+                    postHocName = 'Tukey HSD';
+                    break;
+                case 'holm':
+                    postHocResults = Statistics.holmBonferroniPostHoc(groupValues, groupLabels);
+                    postHocName = 'Holm-Bonferroni';
+                    break;
+                case 'dunnett': {
+                    const controlIdx = parseInt(document.getElementById('dunnettControlIndex').value) || 0;
+                    postHocResults = Statistics.dunnettPostHoc(groupValues, groupLabels, controlIdx);
+                    postHocName = `Dunnett (control: ${groupLabels[controlIdx]})`;
+                    break;
+                }
+                case 'bonferroni':
+                default:
+                    postHocResults = Statistics.bonferroniPostHoc(groupValues, groupLabels);
+                    postHocName = 'Bonferroni';
+                    break;
+            }
 
             html += `<hr style="margin:8px 0;border-color:#eee">`;
             html += `<div class="result-item"><span class="result-label">Post-hoc:</span> <span class="result-value">${postHocName}</span></div>`;
@@ -352,7 +469,6 @@ class App {
                 html += `<div class="result-item"><span class="result-value">${ph.group1Label} vs ${ph.group2Label}: ${phPFormatted} <span class="${phClass}">${ph.significanceLabel}</span></span></div>`;
 
                 if (ph.significant) {
-                    // Map filledGroups index to data index
                     const g1Idx = data.indexOf(filledGroups[ph.group1Index]);
                     const g2Idx = data.indexOf(filledGroups[ph.group2Index]);
                     significantPairs.push({
@@ -364,7 +480,7 @@ class App {
                 }
             });
 
-            this.graphRenderer.updateSettings({ statsTestName: testName + ' + Bonferroni' });
+            this.graphRenderer.updateSettings({ statsTestName: testName + ' + ' + postHocName });
         } else {
             html += `<div class="result-item" style="color:#888;font-size:12px"><em>No significant differences — post-hoc not needed</em></div>`;
             this.graphRenderer.updateSettings({ statsTestName: testName });

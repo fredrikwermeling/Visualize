@@ -439,6 +439,7 @@ class GraphRenderer {
     _drawAxes(g, groupScale, valueScale, isHorizontal) {
         const tf = this.settings.tickFont;
         const self = this;
+        const activeTool = window.app?.annotationManager?.activeTool || 'none';
 
         // Helper: configure tick values on a value-axis generator
         const configureValueAxis = (axisGen) => {
@@ -458,12 +459,12 @@ class GraphRenderer {
                 .attr('transform', `translate(0,${this.innerHeight})`)
                 .call(configureValueAxis(d3.axisBottom(valueScale)));
 
-            xAxis.selectAll('text')
+            const xTickSel = xAxis.selectAll('text')
                 .style('font-family', tf.family)
                 .style('font-size', `${tf.size}px`)
                 .style('font-weight', tf.bold ? 'bold' : 'normal')
-                .style('font-style', tf.italic ? 'italic' : 'normal')
-                .on('click', (event) => this._openTickFontPopup(event));
+                .style('font-style', tf.italic ? 'italic' : 'normal');
+            if (activeTool === 'text') xTickSel.style('cursor', 'text').on('click', (event) => this._openTickFontPopup(event));
 
             // Y axis = group axis (left)
             const yAxis = g.append('g')
@@ -473,12 +474,12 @@ class GraphRenderer {
             if (!this.settings.showAxisGroupLabels) {
                 yAxis.selectAll('.tick text').remove();
             } else {
-                yAxis.selectAll('text')
+                const yTickSel = yAxis.selectAll('text')
                     .style('font-family', tf.family)
                     .style('font-size', `${tf.size}px`)
                     .style('font-weight', tf.bold ? 'bold' : 'normal')
-                    .style('font-style', tf.italic ? 'italic' : 'normal')
-                    .on('click', (event) => this._openTickFontPopup(event));
+                    .style('font-style', tf.italic ? 'italic' : 'normal');
+                if (activeTool === 'text') yTickSel.style('cursor', 'text').on('click', (event) => this._openTickFontPopup(event));
             }
         } else {
             // X axis = group axis (bottom)
@@ -495,8 +496,8 @@ class GraphRenderer {
                     .style('font-family', tf.family)
                     .style('font-size', `${tf.size}px`)
                     .style('font-weight', tf.bold ? 'bold' : 'normal')
-                    .style('font-style', tf.italic ? 'italic' : 'normal')
-                    .on('click', (event) => this._openTickFontPopup(event));
+                    .style('font-style', tf.italic ? 'italic' : 'normal');
+                if (activeTool === 'text') xTicks.style('cursor', 'text').on('click', (event) => this._openTickFontPopup(event));
 
                 if (angle === 45) {
                     xTicks.attr('transform', 'rotate(-45)')
@@ -516,12 +517,12 @@ class GraphRenderer {
                 .attr('class', 'y-axis')
                 .call(configureValueAxis(d3.axisLeft(valueScale)));
 
-            yAxis.selectAll('text')
+            const yTickSel = yAxis.selectAll('text')
                 .style('font-family', tf.family)
                 .style('font-size', `${tf.size}px`)
                 .style('font-weight', tf.bold ? 'bold' : 'normal')
-                .style('font-style', tf.italic ? 'italic' : 'normal')
-                .on('click', (event) => this._openTickFontPopup(event));
+                .style('font-style', tf.italic ? 'italic' : 'normal');
+            if (activeTool === 'text') yTickSel.style('cursor', 'text').on('click', (event) => this._openTickFontPopup(event));
         }
 
         g.selectAll('.domain').attr('stroke', '#333');
@@ -588,6 +589,18 @@ class GraphRenderer {
         const plotCenterX = this.margin.left + this.innerWidth / 2;
         const plotCenterY = this.margin.top + this.innerHeight / 2;
 
+        const activeTool = window.app?.annotationManager?.activeTool || 'none';
+
+        const _applyLabelInteraction = (el, labelType, offsetKey) => {
+            if (activeTool === 'text') {
+                el.style('cursor', 'text')
+                    .on('click', (event) => this._startInlineEdit(event, labelType));
+            } else if (activeTool === 'none') {
+                el.style('cursor', 'grab');
+                this._makeLabelDrag(el, offsetKey);
+            }
+        };
+
         // Graph title
         if (this.settings.showTitle) {
             const titleEl = this.svg.append('text')
@@ -599,9 +612,8 @@ class GraphRenderer {
                 .style('font-size', `${tf.size}px`)
                 .style('font-weight', tf.bold ? 'bold' : 'normal')
                 .style('font-style', tf.italic ? 'italic' : 'normal')
-                .text(this.settings.title)
-                .on('click', (event) => this._startInlineEdit(event, 'title'));
-            this._makeLabelDrag(titleEl, 'titleOffset');
+                .text(this.settings.title);
+            _applyLabelInteraction(titleEl, 'title', 'titleOffset');
         }
 
         if (isHorizontal) {
@@ -615,9 +627,8 @@ class GraphRenderer {
                     .style('font-size', `${yf.size}px`)
                     .style('font-weight', yf.bold ? 'bold' : 'normal')
                     .style('font-style', yf.italic ? 'italic' : 'normal')
-                    .text(this.settings.yLabel)
-                    .on('click', (event) => this._startInlineEdit(event, 'yLabel'));
-                this._makeLabelDrag(xLabelEl, 'xLabelOffset');
+                    .text(this.settings.yLabel);
+                _applyLabelInteraction(xLabelEl, 'yLabel', 'xLabelOffset');
             }
 
             if (this.settings.showYLabel) {
@@ -631,9 +642,8 @@ class GraphRenderer {
                     .style('font-size', `${xf.size}px`)
                     .style('font-weight', xf.bold ? 'bold' : 'normal')
                     .style('font-style', xf.italic ? 'italic' : 'normal')
-                    .text(this.settings.xLabel)
-                    .on('click', (event) => this._startInlineEdit(event, 'xLabel'));
-                this._makeLabelDrag(yLabelEl, 'yLabelOffset');
+                    .text(this.settings.xLabel);
+                _applyLabelInteraction(yLabelEl, 'xLabel', 'yLabelOffset');
             }
         } else {
             if (this.settings.showXLabel) {
@@ -646,9 +656,8 @@ class GraphRenderer {
                     .style('font-size', `${xf.size}px`)
                     .style('font-weight', xf.bold ? 'bold' : 'normal')
                     .style('font-style', xf.italic ? 'italic' : 'normal')
-                    .text(this.settings.xLabel)
-                    .on('click', (event) => this._startInlineEdit(event, 'xLabel'));
-                this._makeLabelDrag(xLabelEl, 'xLabelOffset');
+                    .text(this.settings.xLabel);
+                _applyLabelInteraction(xLabelEl, 'xLabel', 'xLabelOffset');
             }
 
             if (this.settings.showYLabel) {
@@ -662,9 +671,8 @@ class GraphRenderer {
                     .style('font-size', `${yf.size}px`)
                     .style('font-weight', yf.bold ? 'bold' : 'normal')
                     .style('font-style', yf.italic ? 'italic' : 'normal')
-                    .text(this.settings.yLabel)
-                    .on('click', (event) => this._startInlineEdit(event, 'yLabel'));
-                this._makeLabelDrag(yLabelEl, 'yLabelOffset');
+                    .text(this.settings.yLabel);
+                _applyLabelInteraction(yLabelEl, 'yLabel', 'yLabelOffset');
             }
         }
     }
@@ -1991,19 +1999,21 @@ class GraphRenderer {
         const lf = this.settings.groupLegendFont;
         const swatchSize = Math.max(8, lf.size - 2);
         const lineHeight = swatchSize + 10;
+        const activeTool = window.app?.annotationManager?.activeTool || 'none';
 
         const legendG = g.append('g')
             .attr('class', 'group-legend')
             .attr('transform', `translate(${legendX}, ${legendY})`);
 
-        // Invisible drag handle for entire legend
+        // Invisible drag handle for entire legend (only in arrow/move mode)
         const totalHeight = data.length * lineHeight;
-        legendG.append('rect')
+        const dragRect = legendG.append('rect')
             .attr('x', -4).attr('y', -4)
             .attr('width', this.settings.GROUP_LEGEND_WIDTH).attr('height', totalHeight + 8)
-            .attr('fill', 'transparent')
-            .style('cursor', 'grab')
-            .call(this._makeLegendDrag('whole'));
+            .attr('fill', 'transparent');
+        if (activeTool === 'none') {
+            dragRect.style('cursor', 'grab').call(this._makeLegendDrag('whole'));
+        }
 
         data.forEach((group, i) => {
             const color = this._getGroupColor(i);
@@ -2014,9 +2024,10 @@ class GraphRenderer {
 
             const itemG = legendG.append('g')
                 .attr('class', 'legend-item')
-                .attr('transform', `translate(${x}, ${y})`)
-                .style('cursor', 'grab')
-                .call(this._makeLegendDrag('item', i));
+                .attr('transform', `translate(${x}, ${y})`);
+            if (activeTool === 'none') {
+                itemG.style('cursor', 'grab').call(this._makeLegendDrag('item', i));
+            }
 
             // Color swatch
             itemG.append('rect')
@@ -2025,8 +2036,8 @@ class GraphRenderer {
                 .attr('fill', color).attr('stroke', '#333')
                 .attr('stroke-width', 0.5).attr('rx', 2);
 
-            // Label text (click to edit)
-            itemG.append('text')
+            // Label text
+            const textEl = itemG.append('text')
                 .attr('x', swatchSize + 6)
                 .attr('y', swatchSize / 2)
                 .attr('dominant-baseline', 'middle')
@@ -2035,9 +2046,13 @@ class GraphRenderer {
                 .style('font-weight', lf.bold ? 'bold' : 'normal')
                 .style('font-style', lf.italic ? 'italic' : 'normal')
                 .style('fill', '#333')
-                .style('cursor', 'pointer')
-                .text(label)
-                .on('click', (event) => { event.stopPropagation(); this._editLegendLabel(event, i, group.label); });
+                .text(label);
+            if (activeTool === 'text') {
+                textEl.style('cursor', 'text')
+                    .on('click', (event) => { event.stopPropagation(); this._editLegendLabel(event, i, group.label); });
+            } else if (activeTool === 'none') {
+                textEl.style('cursor', 'grab');
+            }
         });
     }
 

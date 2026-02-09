@@ -327,6 +327,7 @@ class App {
         toolButtons.forEach(id => {
             document.getElementById(id).addEventListener('click', () => {
                 this.annotationManager.setTool(toolMap[id]);
+                this.updateGraph();
             });
         });
 

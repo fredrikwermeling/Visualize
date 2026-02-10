@@ -1,3 +1,15 @@
+- in heatmap, the angel 90o should go below the heat map, not in it. Also, the 0o angel doesnt work in heatmap. 
+- can´t change the text in headers, x/y axis, etc. It should be possible by double-clicking. 
+- in heatmap now i can change the color of the groups and font/font size, but I cant move them areound. perhaps the color feature could be moved below in to the settings, and arpear when click the groups. All elements on the graph (header, y/x axis legened, color legends, statstical lines) should be treated the same. you click them, they become highlighted (green box?) and can be moved around, and if double clicking, the teext, font/font size can be moved 
+- allow all selections of size, width, etc. to not have limitations, let them go as long as possible. 
+- By default use the width 250, y step 2, point size 6 and bar width 1 in column, and also use points with mean line as dafult
+- Make the statistics box in the column more condensed; it could be divided into 2 subcolumns. also the star size could take much less space. 
+- Move the statistics "show legend in graph" lower, now it touches the x-axis legends. move it further down, and move the "group" higher. Also, allow for moving the "show legend in graph" by clicking and moving with the mouse or arrows.
+- add button next to clear data "add test data" (if removed, can get it back).
+- for column, showing points. make a chance to toggle, so that points are either partly overlapping like now, but also so the points are not overlaping
+- Make the width and height settings only related to the x-axis and y-axis in the column.
+- add a header related to selecting graph (column and heat map at the moment, but more in the furture). 
+- when going from heatmap to "show legend in graph", it says "Standard choice for all pairwise comparisons after ANOVA". I dont understand this semtece, it seems wrong. the T test used in this setup is only for giving a quick idea if something is differnt. 
 
 - cancer survival graph and two-way ANOVA.
 - likely need to have another table that opens if selected. 

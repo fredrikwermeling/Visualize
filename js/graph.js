@@ -1776,7 +1776,7 @@ class GraphRenderer {
     _computeBracketLayout(data, groupScale, valueScale, isH) {
         if (this.significanceResults.length === 0) return [];
 
-        const GAP = 12;
+        const GAP = 20;
         const BRACKET_HEIGHT = 20; // vertical space a bracket occupies (line + text)
         const ceilings = this._getGroupCeilings(data, valueScale, groupScale, isH);
 

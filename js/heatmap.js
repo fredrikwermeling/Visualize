@@ -14,7 +14,11 @@ class HeatmapRenderer {
             showGroupBar: false,
             legendTitle: null,  // null = auto-generate, '' = hidden, string = custom
             title: 'Heatmap',
-            groupColorOverrides: {}  // { groupName: '#color' }
+            groupColorOverrides: {},  // { groupName: '#color' }
+            titleFont: { family: 'Arial', size: 16, bold: true, italic: false },
+            legendTitleFont: { family: 'Arial', size: 10, bold: false, italic: false },
+            groupLabelFont: { family: 'Arial', size: 10, bold: false, italic: false },
+            groupLabelOverrides: {}  // { groupName: 'overriddenText' }
         };
         // Drag offsets for movable elements
         this._titleOffset = { x: 0, y: 0 };
@@ -443,14 +447,85 @@ class HeatmapRenderer {
             });
             colorRect.append('title').text('Click to change color');
 
-            g.append('text')
+            const glf = this.settings.groupLabelFont;
+            const displayName = (this.settings.groupLabelOverrides && this.settings.groupLabelOverrides[name]) || name;
+            const labelEl = g.append('text')
                 .attr('x', xOff + 13)
                 .attr('y', 9)
-                .attr('font-size', '10px')
+                .attr('font-size', glf.size + 'px')
+                .attr('font-family', glf.family)
+                .attr('font-weight', glf.bold ? 'bold' : 'normal')
+                .attr('font-style', glf.italic ? 'italic' : 'normal')
                 .attr('fill', '#555')
-                .text(name);
+                .attr('cursor', 'pointer')
+                .text(displayName);
 
-            xOff += 13 + name.length * 6 + 12;
+            labelEl.append('title').text('Double-click to edit label');
+
+            // Double-click to edit group label with font controls
+            ((groupName, el) => {
+                el.on('dblclick', (event) => {
+                    event.stopPropagation();
+                    const existing = document.querySelector('.svg-edit-popup');
+                    if (existing) existing.remove();
+
+                    const bbox = el.node().getBoundingClientRect();
+                    const fontObj = this.settings.groupLabelFont;
+
+                    const popup = document.createElement('div');
+                    popup.className = 'svg-edit-popup';
+                    popup.style.left = (bbox.left + window.scrollX - 20) + 'px';
+                    popup.style.top = (bbox.bottom + window.scrollY + 4) + 'px';
+
+                    const { toolbar, familySelect, sizeInput, boldBtn, italicBtn } = this._createFontToolbar(fontObj);
+                    popup.appendChild(toolbar);
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'svg-inline-edit';
+                    const currentOverride = (this.settings.groupLabelOverrides && this.settings.groupLabelOverrides[groupName]) || groupName;
+                    input.value = currentOverride;
+                    popup.appendChild(input);
+
+                    document.body.appendChild(popup);
+                    input.focus();
+                    input.select();
+
+                    const commit = () => {
+                        const newText = input.value.trim();
+                        if (!this.settings.groupLabelOverrides) this.settings.groupLabelOverrides = {};
+                        if (newText && newText !== groupName) {
+                            this.settings.groupLabelOverrides[groupName] = newText;
+                        } else {
+                            delete this.settings.groupLabelOverrides[groupName];
+                        }
+                        this.settings.groupLabelFont = {
+                            family: familySelect.value,
+                            size: parseInt(sizeInput.value) || 10,
+                            bold: boldBtn.classList.contains('active'),
+                            italic: italicBtn.classList.contains('active')
+                        };
+                        popup.remove();
+                        document.removeEventListener('mousedown', outsideClick);
+                        if (window.app) window.app.updateGraph();
+                    };
+
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') commit();
+                        if (e.key === 'Escape') {
+                            popup.remove();
+                            document.removeEventListener('mousedown', outsideClick);
+                        }
+                    });
+
+                    const outsideClick = (e) => {
+                        if (!popup.contains(e.target)) commit();
+                    };
+                    setTimeout(() => document.addEventListener('mousedown', outsideClick), 0);
+                });
+            })(name, labelEl);
+
+            xOff += 13 + displayName.length * 6 + 12;
             if (xOff > maxWidth) break;
         }
     }
@@ -601,12 +676,15 @@ class HeatmapRenderer {
         if (legendTitle) {
             const ltOx = this._legendTitleOffset.x;
             const ltOy = this._legendTitleOffset.y;
+            const ltf = this.settings.legendTitleFont;
             const ltEl = lg.append('text')
                 .attr('x', w / 2 + ltOx).attr('y', h + 24 + ltOy)
                 .attr('text-anchor', 'middle')
-                .attr('font-size', '10px')
+                .attr('font-size', ltf.size + 'px')
+                .attr('font-family', ltf.family)
+                .attr('font-weight', ltf.bold ? 'bold' : '600')
+                .attr('font-style', ltf.italic ? 'italic' : 'normal')
                 .attr('fill', '#555')
-                .attr('font-weight', '600')
                 .attr('cursor', 'grab')
                 .text(legendTitle);
 
@@ -625,33 +703,58 @@ class HeatmapRenderer {
                 })
             );
 
-            // Double-click to edit
+            // Double-click to edit with font toolbar
             ltEl.on('dblclick', () => {
+                if (ltDragged) { ltDragged = false; return; }
+                const existing = document.querySelector('.svg-edit-popup');
+                if (existing) existing.remove();
+
                 const bbox = ltEl.node().getBoundingClientRect();
-                const cRect = this.container.getBoundingClientRect();
+                const fontObj = this.settings.legendTitleFont;
+
+                const popup = document.createElement('div');
+                popup.className = 'svg-edit-popup';
+                popup.style.left = (bbox.left + window.scrollX - 20) + 'px';
+                popup.style.top = (bbox.bottom + window.scrollY + 4) + 'px';
+
+                const { toolbar, familySelect, sizeInput, boldBtn, italicBtn } = this._createFontToolbar(fontObj);
+                popup.appendChild(toolbar);
+
                 const input = document.createElement('input');
                 input.type = 'text';
-                input.value = legendTitle;
                 input.className = 'svg-inline-edit';
-                input.style.position = 'absolute';
-                input.style.left = (bbox.left - cRect.left - 20) + 'px';
-                input.style.top = (bbox.top - cRect.top - 4) + 'px';
-                input.style.width = Math.max(bbox.width + 40, 80) + 'px';
-                input.style.fontSize = '10px';
-                this.container.style.position = 'relative';
-                this.container.appendChild(input);
+                input.value = legendTitle;
+                popup.appendChild(input);
+
+                document.body.appendChild(popup);
                 input.focus();
                 input.select();
-                const finish = () => {
+
+                const commit = () => {
                     this.settings.legendTitle = input.value.trim() || null;
-                    input.remove();
+                    this.settings.legendTitleFont = {
+                        family: familySelect.value,
+                        size: parseInt(sizeInput.value) || 10,
+                        bold: boldBtn.classList.contains('active'),
+                        italic: italicBtn.classList.contains('active')
+                    };
+                    popup.remove();
+                    document.removeEventListener('mousedown', outsideClick);
                     if (window.app) window.app.updateGraph();
                 };
-                input.addEventListener('blur', finish);
+
                 input.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') input.blur();
-                    if (e.key === 'Escape') { input.value = legendTitle; input.blur(); }
+                    if (e.key === 'Enter') commit();
+                    if (e.key === 'Escape') {
+                        popup.remove();
+                        document.removeEventListener('mousedown', outsideClick);
+                    }
                 });
+
+                const outsideClick = (e) => {
+                    if (!popup.contains(e.target)) commit();
+                };
+                setTimeout(() => document.addEventListener('mousedown', outsideClick), 0);
             });
 
             // Right-click to remove
@@ -663,15 +766,69 @@ class HeatmapRenderer {
         }
     }
 
+    _createFontToolbar(fontObj) {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'svg-edit-toolbar';
+
+        const familySelect = document.createElement('select');
+        familySelect.className = 'svg-edit-font-family';
+        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f;
+            if (f === fontObj.family) opt.selected = true;
+            familySelect.appendChild(opt);
+        });
+        toolbar.appendChild(familySelect);
+
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'number';
+        sizeInput.className = 'svg-edit-font-size';
+        sizeInput.min = 8;
+        sizeInput.max = 36;
+        sizeInput.value = fontObj.size;
+        toolbar.appendChild(sizeInput);
+
+        const boldBtn = document.createElement('button');
+        boldBtn.className = 'svg-edit-btn' + (fontObj.bold ? ' active' : '');
+        boldBtn.innerHTML = '<b>B</b>';
+        boldBtn.title = 'Bold';
+        boldBtn.addEventListener('mousedown', (e) => e.preventDefault());
+        boldBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            boldBtn.classList.toggle('active');
+        });
+        toolbar.appendChild(boldBtn);
+
+        const italicBtn = document.createElement('button');
+        italicBtn.className = 'svg-edit-btn' + (fontObj.italic ? ' active' : '');
+        italicBtn.innerHTML = '<i>I</i>';
+        italicBtn.title = 'Italic';
+        italicBtn.addEventListener('mousedown', (e) => e.preventDefault());
+        italicBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            italicBtn.classList.toggle('active');
+        });
+        toolbar.appendChild(italicBtn);
+
+        familySelect.addEventListener('mousedown', (e) => e.stopPropagation());
+        sizeInput.addEventListener('mousedown', (e) => e.stopPropagation());
+
+        return { toolbar, familySelect, sizeInput, boldBtn, italicBtn };
+    }
+
     _drawTitle(svg, width, title) {
         const ox = this._titleOffset.x;
         const oy = this._titleOffset.y;
+        const tf = this.settings.titleFont;
         const titleEl = svg.append('text')
             .attr('x', width / 2 + ox)
             .attr('y', 18 + oy)
             .attr('text-anchor', 'middle')
-            .attr('font-size', '16px')
-            .attr('font-weight', 'bold')
+            .attr('font-size', tf.size + 'px')
+            .attr('font-family', tf.family)
+            .attr('font-weight', tf.bold ? 'bold' : 'normal')
+            .attr('font-style', tf.italic ? 'italic' : 'normal')
             .attr('fill', '#333')
             .attr('cursor', 'grab')
             .text(title);
@@ -692,46 +849,60 @@ class HeatmapRenderer {
             .on('end', function() { d3.select(this).style('cursor', 'grab'); })
         );
 
-        titleEl.on('click', () => {
-            if (wasDragged) return;
+        titleEl.on('dblclick', () => {
+            if (wasDragged) { wasDragged = false; return; }
+            const existing = document.querySelector('.svg-edit-popup');
+            if (existing) existing.remove();
+
             const bbox = titleEl.node().getBoundingClientRect();
-            const containerRect = this.container.getBoundingClientRect();
+            const fontObj = this.settings.titleFont;
+
+            const popup = document.createElement('div');
+            popup.className = 'svg-edit-popup';
+            popup.style.left = (bbox.left + window.scrollX - 20) + 'px';
+            popup.style.top = (bbox.bottom + window.scrollY + 4) + 'px';
+
+            const { toolbar, familySelect, sizeInput, boldBtn, italicBtn } = this._createFontToolbar(fontObj);
+            popup.appendChild(toolbar);
 
             const input = document.createElement('input');
             input.type = 'text';
-            input.value = this.settings.title;
             input.className = 'svg-inline-edit';
-            input.style.position = 'absolute';
-            input.style.left = (bbox.left - containerRect.left) + 'px';
-            input.style.top = (bbox.top - containerRect.top - 4) + 'px';
-            input.style.width = Math.max(bbox.width + 40, 120) + 'px';
-            input.style.fontSize = '16px';
-            input.style.fontWeight = 'bold';
-            input.style.textAlign = 'center';
+            input.value = this.settings.title;
+            popup.appendChild(input);
 
-            this.container.style.position = 'relative';
-            this.container.appendChild(input);
+            document.body.appendChild(popup);
             input.focus();
             input.select();
 
-            const finish = () => {
-                const newTitle = input.value.trim() || 'Heatmap';
-                this.settings.title = newTitle;
-                input.remove();
+            const commit = () => {
+                this.settings.title = input.value.trim() || 'Heatmap';
+                this.settings.titleFont = {
+                    family: familySelect.value,
+                    size: parseInt(sizeInput.value) || 16,
+                    bold: boldBtn.classList.contains('active'),
+                    italic: italicBtn.classList.contains('active')
+                };
+                popup.remove();
+                document.removeEventListener('mousedown', outsideClick);
                 if (window.app) window.app.updateGraph();
             };
 
-            input.addEventListener('blur', finish);
             input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') input.blur();
+                if (e.key === 'Enter') commit();
                 if (e.key === 'Escape') {
-                    input.value = this.settings.title;
-                    input.blur();
+                    popup.remove();
+                    document.removeEventListener('mousedown', outsideClick);
                 }
             });
+
+            const outsideClick = (e) => {
+                if (!popup.contains(e.target)) commit();
+            };
+            setTimeout(() => document.addEventListener('mousedown', outsideClick), 0);
         });
 
-        titleEl.append('title').text('Click to edit title');
+        titleEl.append('title').text('Drag to move. Double-click to edit.');
     }
 
     // --- CSV Export ---

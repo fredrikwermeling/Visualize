@@ -65,7 +65,8 @@ class GraphRenderer {
             pointShape: 'circle',
             // Group ordering & visibility
             groupOrder: [],      // array of group labels in display order; empty = use data order
-            hiddenGroups: []     // array of group labels to hide from graph
+            hiddenGroups: [],     // array of group labels to hide from graph
+            centerLineWidth: 0.5  // fraction of bandwidth for mean/median line (0.1–1.0)
         };
 
         // Color themes
@@ -1050,7 +1051,7 @@ class GraphRenderer {
 
                 const centerValue = centerType === 'mean'
                     ? Statistics.mean(group.values) : Statistics.median(group.values);
-                const lineWidth = bw * 0.5;
+                const lineWidth = bw * (this.settings.centerLineWidth || 0.5);
                 g.append('line').attr('class', 'center-line')
                     .attr('y1', cyBase - lineWidth / 2).attr('y2', cyBase + lineWidth / 2)
                     .attr('x1', valueScale(centerValue)).attr('x2', valueScale(centerValue))
@@ -1067,7 +1068,7 @@ class GraphRenderer {
 
                 const centerValue = centerType === 'mean'
                     ? Statistics.mean(group.values) : Statistics.median(group.values);
-                const lineWidth = bw * 0.5;
+                const lineWidth = bw * (this.settings.centerLineWidth || 0.5);
                 g.append('line').attr('class', 'center-line')
                     .attr('x1', cxBase - lineWidth / 2).attr('x2', cxBase + lineWidth / 2)
                     .attr('y1', valueScale(centerValue)).attr('y2', valueScale(centerValue))

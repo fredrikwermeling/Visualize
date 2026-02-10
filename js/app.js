@@ -172,6 +172,13 @@ class App {
             this.graphRenderer.updateSettings({ pointShape: e.target.value });
             this.updateGraph();
         });
+
+        // Center line (mean/median bar) width
+        document.getElementById('centerLineWidth').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value) || 0.5;
+            this.graphRenderer.updateSettings({ centerLineWidth: val });
+            this.updateGraph();
+        });
     }
 
     _bindStatisticsControls() {

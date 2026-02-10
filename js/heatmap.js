@@ -12,13 +12,17 @@ class HeatmapRenderer {
             colorScheme: 'RdBu',
             showValues: false,
             showGroupBar: false,
-            legendTitle: '',
-            title: 'Heatmap'
+            legendTitle: null,  // null = auto-generate, '' = hidden, string = custom
+            title: 'Heatmap',
+            groupColorOverrides: {}  // { groupName: '#color' }
         };
         // Drag offsets for movable elements
         this._titleOffset = { x: 0, y: 0 };
         this._legendOffset = { x: 0, y: 0 };
         this._groupLegendOffset = { x: 0, y: 0 };
+        this._legendTitleOffset = { x: 0, y: 0 };
+        // Text annotations on heatmap
+        this._annotations = [];
     }
 
     render(matrixData, settings) {
@@ -71,9 +75,12 @@ class HeatmapRenderer {
         // Group detection
         const groups = this.settings.showGroupBar ? this._detectGroups(rowLabels) : null;
 
-        // Layout dimensions
-        const width = parseInt(document.getElementById('graphWidth')?.value) || 600;
-        const height = parseInt(document.getElementById('graphHeight')?.value) || 400;
+        // Auto-generate legend title
+        const legendTitle = this._getAutoLegendTitle();
+
+        // Cell area dimensions (user controls cell area, not total SVG)
+        const cellAreaWidth = parseInt(document.getElementById('heatmapWidth')?.value) || 300;
+        const cellAreaHeight = parseInt(document.getElementById('heatmapHeight')?.value) || 300;
 
         const rowDendroWidth = rowTree ? 60 : 0;
         const colDendroHeight = colTree ? 60 : 0;
@@ -86,20 +93,16 @@ class HeatmapRenderer {
         const rowLabelWidth = Math.min(Math.max(maxRowLabel, 40), 120);
         const colLabelHeight = Math.min(Math.max(...colLabels.map(l => l.length)) * 5, 80);
         const legendWidth = 50;
-        const legendTitleExtra = this.settings.legendTitle ? 16 : 0;
+        const legendTitleExtra = legendTitle ? 16 : 0;
 
         const marginTop = titleHeight + colDendroHeight + groupLegendHeight + 5;
         const marginLeft = rowDendroWidth + groupBarWidth + 5;
         const marginRight = rowLabelWidth + legendWidth + 15;
         const marginBottom = colLabelHeight + legendTitleExtra + 10;
 
-        const cellAreaWidth = width - marginLeft - marginRight;
-        const cellAreaHeight = height - marginTop - marginBottom;
-
-        if (cellAreaWidth <= 0 || cellAreaHeight <= 0) {
-            this.container.innerHTML = '<div class="empty-state"><h3>Increase dimensions for heatmap</h3></div>';
-            return;
-        }
+        // Total SVG = cell area + margins
+        const width = cellAreaWidth + marginLeft + marginRight;
+        const height = cellAreaHeight + marginTop + marginBottom;
 
         const svg = d3.select(this.container).append('svg')
             .attr('class', 'graph-svg heatmap-svg')
@@ -153,7 +156,22 @@ class HeatmapRenderer {
 
         // Color legend
         const isWinsorized = this.settings.winsorize !== 'none';
-        this._drawColorLegend(svg, colorScale, width - legendWidth - 5, marginTop, legendWidth - 10, cellAreaHeight, isWinsorized);
+        this._drawColorLegend(svg, colorScale, width - legendWidth - 5, marginTop, legendWidth - 10, cellAreaHeight, isWinsorized, legendTitle);
+
+        // Text annotations
+        this._drawAnnotations(svg, width, height);
+    }
+
+    _getAutoLegendTitle() {
+        if (this.settings.legendTitle === '') return null; // explicitly removed
+        if (this.settings.legendTitle && this.settings.legendTitle !== null) return this.settings.legendTitle;
+        // Auto-generate based on normalization
+        const norm = this.settings.normalize;
+        const method = this.settings.normMethod;
+        if (norm === 'none') return 'Value';
+        const prefix = norm === 'row' ? 'Row ' : norm === 'col' ? 'Col ' : '';
+        const suffix = method === 'robust' ? 'Robust Z' : 'Z-score';
+        return prefix + suffix;
     }
 
     // --- Normalization ---
@@ -250,7 +268,9 @@ class HeatmapRenderer {
         });
 
         const uniqueGroups = Object.keys(groupNames);
-        const groupColors = d3.scaleOrdinal(d3.schemeSet2).domain(uniqueGroups);
+        const defaultColors = d3.scaleOrdinal(d3.schemeSet2).domain(uniqueGroups);
+        const overrides = this.settings.groupColorOverrides || {};
+        const groupColors = (name) => overrides[name] || defaultColors(name);
 
         return { groupMap, uniqueGroups, groupNames, groupColors };
     }
@@ -397,14 +417,35 @@ class HeatmapRenderer {
 
         for (const name of groups.uniqueGroups) {
             const color = groups.groupColors(name);
+            const curX = xOff;
 
-            g.append('rect')
+            const colorRect = g.append('rect')
                 .attr('x', xOff)
                 .attr('y', 0)
                 .attr('width', 10)
                 .attr('height', 10)
                 .attr('fill', color)
-                .attr('rx', 2);
+                .attr('rx', 2)
+                .attr('cursor', 'pointer');
+
+            // Click to change group color
+            colorRect.on('click', () => {
+                const picker = document.createElement('input');
+                picker.type = 'color';
+                picker.value = color;
+                picker.style.position = 'absolute';
+                picker.style.opacity = '0';
+                document.body.appendChild(picker);
+                picker.addEventListener('input', (e) => {
+                    if (!this.settings.groupColorOverrides) this.settings.groupColorOverrides = {};
+                    this.settings.groupColorOverrides[name] = e.target.value;
+                    if (window.app) window.app.updateGraph();
+                });
+                picker.addEventListener('change', () => picker.remove());
+                picker.addEventListener('blur', () => setTimeout(() => picker.remove(), 200));
+                picker.click();
+            });
+            colorRect.append('title').text('Click to change color');
 
             g.append('text')
                 .attr('x', xOff + 13)
@@ -486,7 +527,7 @@ class HeatmapRenderer {
         drawNode(tree);
     }
 
-    _drawColorLegend(svg, colorScale, x, y, w, h, isWinsorized) {
+    _drawColorLegend(svg, colorScale, x, y, w, h, isWinsorized, legendTitle) {
         const defs = svg.append('defs');
         const gradientId = 'heatmap-legend-grad';
         const gradient = defs.append('linearGradient')
@@ -560,16 +601,69 @@ class HeatmapRenderer {
                 .text('(clipped)');
         }
 
-        // Legend title
-        const legendTitle = this.settings.legendTitle;
+        // Legend title (editable, removable)
         if (legendTitle) {
-            lg.append('text')
-                .attr('x', w / 2).attr('y', h + 24)
+            const ltOx = this._legendTitleOffset.x;
+            const ltOy = this._legendTitleOffset.y;
+            const ltEl = lg.append('text')
+                .attr('x', w / 2 + ltOx).attr('y', h + 24 + ltOy)
                 .attr('text-anchor', 'middle')
                 .attr('font-size', '10px')
                 .attr('fill', '#555')
                 .attr('font-weight', '600')
+                .attr('cursor', 'grab')
                 .text(legendTitle);
+
+            ltEl.append('title').text('Drag to move. Double-click to edit. Right-click to remove.');
+
+            // Drag
+            let ltDragged = false;
+            ltEl.call(d3.drag()
+                .on('start', function() { ltDragged = false; })
+                .on('drag', (event) => {
+                    ltDragged = true;
+                    this._legendTitleOffset.x += event.dx;
+                    this._legendTitleOffset.y += event.dy;
+                    ltEl.attr('x', w / 2 + this._legendTitleOffset.x)
+                        .attr('y', h + 24 + this._legendTitleOffset.y);
+                })
+            );
+
+            // Double-click to edit
+            ltEl.on('dblclick', () => {
+                const bbox = ltEl.node().getBoundingClientRect();
+                const cRect = this.container.getBoundingClientRect();
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = legendTitle;
+                input.className = 'svg-inline-edit';
+                input.style.position = 'absolute';
+                input.style.left = (bbox.left - cRect.left - 20) + 'px';
+                input.style.top = (bbox.top - cRect.top - 4) + 'px';
+                input.style.width = Math.max(bbox.width + 40, 80) + 'px';
+                input.style.fontSize = '10px';
+                this.container.style.position = 'relative';
+                this.container.appendChild(input);
+                input.focus();
+                input.select();
+                const finish = () => {
+                    this.settings.legendTitle = input.value.trim() || null;
+                    input.remove();
+                    if (window.app) window.app.updateGraph();
+                };
+                input.addEventListener('blur', finish);
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') input.blur();
+                    if (e.key === 'Escape') { input.value = legendTitle; input.blur(); }
+                });
+            });
+
+            // Right-click to remove
+            ltEl.on('contextmenu', (event) => {
+                event.preventDefault();
+                this.settings.legendTitle = '';
+                if (window.app) window.app.updateGraph();
+            });
         }
     }
 
@@ -705,6 +799,113 @@ class HeatmapRenderer {
         a.download = 'heatmap_grouped.csv';
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    // --- Text Annotations ---
+
+    _drawAnnotations(svg, width, height) {
+        const self = this;
+        // Draw existing annotations
+        this._annotations.forEach((ann, idx) => {
+            const g = svg.append('g')
+                .attr('transform', `translate(${ann.x}, ${ann.y})`)
+                .attr('cursor', 'grab');
+
+            const textEl = g.append('text')
+                .attr('text-anchor', 'start')
+                .attr('font-size', `${ann.fontSize || 12}px`)
+                .attr('font-family', ann.fontFamily || 'Arial')
+                .attr('fill', ann.color || '#333')
+                .text(ann.text);
+
+            // Drag
+            g.call(d3.drag()
+                .on('drag', (event) => {
+                    ann.x += event.dx;
+                    ann.y += event.dy;
+                    g.attr('transform', `translate(${ann.x}, ${ann.y})`);
+                })
+            );
+
+            // Double-click to edit
+            textEl.on('dblclick', (event) => {
+                event.stopPropagation();
+                const bbox = textEl.node().getBoundingClientRect();
+                const cRect = self.container.getBoundingClientRect();
+
+                const popup = document.createElement('div');
+                popup.className = 'svg-edit-popup';
+                popup.style.left = (bbox.left - cRect.left + window.scrollX) + 'px';
+                popup.style.top = (bbox.top - cRect.top + window.scrollY - 30) + 'px';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = ann.text;
+                input.className = 'svg-inline-edit';
+                input.style.width = '120px';
+                input.style.fontSize = '12px';
+
+                const sizeInput = document.createElement('input');
+                sizeInput.type = 'number';
+                sizeInput.value = ann.fontSize || 12;
+                sizeInput.min = 6;
+                sizeInput.max = 36;
+                sizeInput.style.width = '40px';
+                sizeInput.style.fontSize = '11px';
+                sizeInput.style.padding = '2px';
+                sizeInput.style.border = '1px solid #ccc';
+                sizeInput.style.borderRadius = '3px';
+
+                const delBtn = document.createElement('button');
+                delBtn.textContent = '\u00d7';
+                delBtn.className = 'svg-edit-btn';
+                delBtn.title = 'Delete';
+
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.gap = '4px';
+                row.style.alignItems = 'center';
+                row.appendChild(input);
+                row.appendChild(sizeInput);
+                row.appendChild(delBtn);
+                popup.appendChild(row);
+
+                self.container.style.position = 'relative';
+                self.container.appendChild(popup);
+                input.focus();
+                input.select();
+
+                const commit = () => {
+                    ann.text = input.value.trim() || 'Text';
+                    ann.fontSize = parseInt(sizeInput.value) || 12;
+                    popup.remove();
+                    if (window.app) window.app.updateGraph();
+                };
+
+                delBtn.addEventListener('click', () => {
+                    self._annotations.splice(idx, 1);
+                    popup.remove();
+                    if (window.app) window.app.updateGraph();
+                });
+
+                input.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); });
+                sizeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); });
+                popup.addEventListener('focusout', () => {
+                    setTimeout(() => {
+                        if (document.body.contains(popup) && !popup.contains(document.activeElement)) commit();
+                    }, 150);
+                });
+            });
+        });
+
+        // Double-click on empty area to add new text
+        svg.on('dblclick', (event) => {
+            // Only on empty SVG area
+            if (event.target.tagName !== 'svg' && event.target.tagName !== 'rect') return;
+            const [mx, my] = d3.pointer(event);
+            self._annotations.push({ x: mx, y: my, text: 'Text', fontSize: 12, fontFamily: 'Arial', color: '#333' });
+            if (window.app) window.app.updateGraph();
+        });
     }
 
     _transpose(matrix) {

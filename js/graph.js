@@ -233,9 +233,25 @@ class GraphRenderer {
             this.margin = { top: 60, right: 30, bottom: 80, left: 70 };
         }
 
+        // Auto-detect label overlap and set angle in vertical mode
+        if (!isHorizontal && this.settings.xTickAngle === 0) {
+            const labels = filteredData.map(d => d.label);
+            const bandW = (this.width - this.margin.left - this.margin.right) / (labels.length || 1);
+            const maxLabelPx = Math.max(...labels.map(l => l.length * 7.5));
+            if (maxLabelPx > bandW * 0.9 && labels.length > 1) {
+                this._autoAngled = true;
+            } else {
+                this._autoAngled = false;
+            }
+        } else {
+            this._autoAngled = false;
+        }
+
+        this._effectiveAngle = this._autoAngled ? 45 : this.settings.xTickAngle;
+
         // Extra bottom margin for angled x-axis labels
-        if (!isHorizontal && this.settings.xTickAngle > 0) {
-            this.margin.bottom += this.settings.xTickAngle === 90 ? 40 : 20;
+        if (!isHorizontal && this._effectiveAngle > 0) {
+            this.margin.bottom += this._effectiveAngle === 90 ? 40 : 20;
         }
 
         // Extra bottom margin for stats legend below graph
@@ -502,7 +518,7 @@ class GraphRenderer {
             if (!this.settings.showAxisGroupLabels) {
                 xAxis.selectAll('.tick text').remove();
             } else {
-                const angle = this.settings.xTickAngle || 0;
+                const angle = this._effectiveAngle || this.settings.xTickAngle || 0;
                 const xTicks = xAxis.selectAll('text')
                     .style('font-family', xtf.family)
                     .style('font-size', `${xtf.size}px`)

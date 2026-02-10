@@ -12,6 +12,10 @@ class App {
         this._undoStack = [];
         this.mode = 'column';
 
+        // Separate data storage per mode
+        this._columnTableData = null;  // saved when switching away from column
+        this._heatmapTableData = null; // saved when switching away from heatmap
+
         // Bind event listeners
         this._bindTableControls();
         this._bindGraphControls();
@@ -52,15 +56,26 @@ class App {
 
     _bindDimensionControls() {
         document.getElementById('graphWidth').addEventListener('input', (e) => {
-            const width = parseInt(e.target.value) || 600;
+            const width = parseInt(e.target.value) || 500;
             this.graphRenderer.setDimensions(width, this.graphRenderer.height);
+            // Reset title position on dimension change
+            this.graphRenderer.settings.titleOffset = { x: 0, y: 0 };
             this.updateGraph();
         });
 
         document.getElementById('graphHeight').addEventListener('input', (e) => {
-            const height = parseInt(e.target.value) || 400;
+            const height = parseInt(e.target.value) || 500;
             this.graphRenderer.setDimensions(this.graphRenderer.width, height);
             this.updateGraph();
+        });
+
+        // Heatmap dimension controls
+        ['heatmapWidth', 'heatmapHeight'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => {
+                this.heatmapRenderer._titleOffset = { x: 0, y: 0 };
+                this.updateGraph();
+            });
         });
 
         document.getElementById('yAxisMin').addEventListener('input', (e) => {
@@ -309,20 +324,76 @@ class App {
 
     _bindExportControls() {
         document.getElementById('exportPNG').addEventListener('click', () => {
-            const title = this.graphRenderer.settings.title || 'graph';
+            const title = this.mode === 'heatmap'
+                ? (this.heatmapRenderer.settings.title || 'heatmap')
+                : (this.graphRenderer.settings.title || 'graph');
             const safeName = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            this.exportManager.exportPNG(`${safeName}.png`);
+            this._exportWithInfo('png', `${safeName}.png`);
         });
 
         document.getElementById('exportSVG').addEventListener('click', () => {
-            const title = this.graphRenderer.settings.title || 'graph';
+            const title = this.mode === 'heatmap'
+                ? (this.heatmapRenderer.settings.title || 'heatmap')
+                : (this.graphRenderer.settings.title || 'graph');
             const safeName = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            this.exportManager.exportSVG(`${safeName}.svg`);
+            this._exportWithInfo('svg', `${safeName}.svg`);
         });
 
         document.getElementById('copyClipboard').addEventListener('click', (e) => {
             this.exportManager.copyToClipboard(e.target);
         });
+    }
+
+    _exportWithInfo(format, filename) {
+        // For heatmap, temporarily render info into SVG if enabled
+        const infoEl = document.getElementById('heatmapInfo');
+        const showInfo = this.mode === 'heatmap' && infoEl && infoEl.style.display !== 'none';
+
+        if (showInfo) {
+            // Append info text to the SVG before export
+            const svgEl = document.getElementById('graphContainer').querySelector('svg');
+            if (svgEl) {
+                const svgW = parseFloat(svgEl.getAttribute('width'));
+                const svgH = parseFloat(svgEl.getAttribute('height'));
+                const infoText = infoEl.innerText || '';
+                const lines = infoText.split('\n').filter(l => l.trim());
+
+                const infoG = d3.select(svgEl).append('g')
+                    .attr('class', 'export-info')
+                    .attr('transform', `translate(10, ${svgH + 5})`);
+
+                lines.forEach((line, i) => {
+                    infoG.append('text')
+                        .attr('y', i * 14)
+                        .attr('font-size', '9px')
+                        .attr('fill', '#666')
+                        .attr('font-family', 'Arial')
+                        .text(line.trim());
+                });
+
+                const newH = svgH + lines.length * 14 + 10;
+                svgEl.setAttribute('height', newH);
+            }
+        }
+
+        // Use container-based export for heatmap mode
+        if (this.mode === 'heatmap') {
+            const svgEl = document.getElementById('graphContainer').querySelector('svg');
+            if (svgEl) {
+                this.exportManager._exportSvgEl(svgEl, format, filename);
+            }
+        } else {
+            if (format === 'png') {
+                this.exportManager.exportPNG(filename);
+            } else {
+                this.exportManager.exportSVG(filename);
+            }
+        }
+
+        // Restore SVG after a short delay
+        if (showInfo) {
+            setTimeout(() => this.updateGraph(), 500);
+        }
     }
 
     _bindDrawingTools() {
@@ -362,20 +433,57 @@ class App {
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const prevMode = this.mode;
+                if (btn.dataset.mode === prevMode) return;
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+
+                // Save current table data
+                this._saveTableData(prevMode);
+
                 this.mode = btn.dataset.mode;
                 this._applyMode();
-                if (this.mode !== prevMode) {
-                    if (this.mode === 'heatmap') {
-                        this.dataTable.loadHeatmapSampleData();
-                    } else {
-                        this.dataTable.loadSampleData();
-                    }
-                }
+
+                // Restore saved data or load sample
+                this._restoreTableData(this.mode);
                 this.updateGraph();
             });
         });
+    }
+
+    _saveTableData(mode) {
+        // Snapshot current table state
+        const headers = [];
+        this.dataTable.headerRow.querySelectorAll('th:not(.delete-col-header)').forEach(th => {
+            const clone = th.cloneNode(true);
+            const btn = clone.querySelector('.th-delete-btn');
+            if (btn) btn.remove();
+            headers.push(clone.textContent.trim());
+        });
+        const rows = [];
+        this.dataTable.tbody.querySelectorAll('tr').forEach(tr => {
+            const row = [];
+            tr.querySelectorAll('td:not(.row-delete-cell)').forEach(td => {
+                row.push(td.textContent.trim());
+            });
+            rows.push(row);
+        });
+        const key = mode === 'column' ? '_columnTableData' : '_heatmapTableData';
+        this[key] = { headers, rows, numRows: rows.length };
+    }
+
+    _restoreTableData(mode) {
+        const key = mode === 'column' ? '_columnTableData' : '_heatmapTableData';
+        const saved = this[key];
+        if (saved) {
+            this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows);
+        } else {
+            // Load defaults
+            if (mode === 'heatmap') {
+                this.dataTable.loadHeatmapSampleData();
+            } else {
+                this.dataTable.loadSampleData();
+            }
+        }
     }
 
     _applyMode() {
@@ -420,14 +528,60 @@ class App {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
         });
-        const legendTitleEl = document.getElementById('heatmapLegendTitle');
-        if (legendTitleEl) legendTitleEl.addEventListener('input', () => this.updateGraph());
 
         const csvBtn = document.getElementById('exportGroupedCSV');
         if (csvBtn) csvBtn.addEventListener('click', () => {
             const matrixData = this.dataTable.getMatrixData();
             this.heatmapRenderer.exportGroupedCSV(matrixData);
         });
+
+        // View as Column button - converts grouped heatmap data to column format
+        const viewColBtn = document.getElementById('viewAsColumn');
+        if (viewColBtn) viewColBtn.addEventListener('click', () => {
+            this._viewHeatmapAsColumn();
+        });
+    }
+
+    _viewHeatmapAsColumn() {
+        const matrixData = this.dataTable.getMatrixData();
+        const { colLabels, rowLabels, matrix } = matrixData;
+        const groups = this.heatmapRenderer._detectGroups(rowLabels);
+
+        // Save current heatmap data
+        this._saveTableData('heatmap');
+
+        // Build column data: each column header = "Marker (Group)", data = values
+        const headers = [];
+        const maxReps = Math.max(...groups.uniqueGroups.map(g => groups.groupNames[g].length));
+        const rowData = [];
+
+        for (let rep = 0; rep < maxReps; rep++) {
+            rowData.push([]);
+        }
+
+        for (let mi = 0; mi < colLabels.length; mi++) {
+            for (const group of groups.uniqueGroups) {
+                headers.push(group);
+                const indices = groups.groupNames[group];
+                for (let rep = 0; rep < maxReps; rep++) {
+                    if (rep < indices.length) {
+                        const ri = indices[rep];
+                        rowData[rep].push(matrix[ri][mi]);
+                    } else {
+                        rowData[rep].push('');
+                    }
+                }
+            }
+        }
+
+        // Switch to column mode
+        this._columnTableData = { headers, rows: rowData, numRows: Math.max(maxReps, 10) };
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.mode-btn[data-mode="column"]').classList.add('active');
+        this.mode = 'column';
+        this._applyMode();
+        this._restoreTableData('column');
+        this.updateGraph();
     }
 
     _getHeatmapSettings() {
@@ -440,8 +594,9 @@ class App {
             colorScheme: document.getElementById('heatmapColorScheme')?.value || 'RdBu',
             showValues: document.getElementById('heatmapShowValues')?.checked || false,
             showGroupBar: document.getElementById('heatmapShowGroupBar')?.checked || false,
-            showInfo: document.getElementById('heatmapShowInfo')?.checked ?? true,
-            legendTitle: document.getElementById('heatmapLegendTitle')?.value || '',
+            showInfo: document.getElementById('heatmapShowInfo')?.checked ?? false,
+            legendTitle: this.heatmapRenderer.settings.legendTitle,
+            groupColorOverrides: this.heatmapRenderer.settings.groupColorOverrides || {},
             title: this.heatmapRenderer.settings.title || 'Heatmap'
         };
     }

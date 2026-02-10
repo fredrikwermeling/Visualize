@@ -155,6 +155,44 @@ class ExportManager {
         img.src = url;
     }
 
+    _exportSvgEl(svgEl, format, filename) {
+        const cloned = svgEl.cloneNode(true);
+        this._inlineStyles(svgEl, cloned);
+
+        if (format === 'svg') {
+            cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            cloned.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+            const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bg.setAttribute('width', '100%');
+            bg.setAttribute('height', '100%');
+            bg.setAttribute('fill', 'white');
+            cloned.insertBefore(bg, cloned.firstChild);
+            const svgData = new XMLSerializer().serializeToString(cloned);
+            const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            this._downloadBlob(blob, filename);
+        } else {
+            const svgData = new XMLSerializer().serializeToString(cloned);
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            const img = new Image();
+            const scale = 2;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = svgEl.getAttribute('width') * scale;
+                canvas.height = svgEl.getAttribute('height') * scale;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.scale(scale, scale);
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                canvas.toBlob(blob => { this._downloadBlob(blob, filename); }, 'image/png');
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); alert('Failed to export PNG.'); };
+            img.src = url;
+        }
+    }
+
     _fallbackPNG(filename) {
         const container = this.graphRenderer.container;
         html2canvas(container, {

@@ -121,76 +121,76 @@
                 <div id="heatmapControls" class="heatmap-controls" style="display:none">
                     <div class="control-section">
                         <h3>Heatmap Settings</h3>
-                        <div class="control-group">
-                            <label>Cluster:</label>
-                            <select id="heatmapCluster">
-                                <option value="none">None</option>
-                                <option value="rows">Rows</option>
-                                <option value="cols">Columns</option>
-                                <option value="both">Both</option>
-                            </select>
+                        <div class="heatmap-grid">
+                            <div class="hm-ctrl">
+                                <label>Cluster</label>
+                                <select id="heatmapCluster">
+                                    <option value="none">None</option>
+                                    <option value="rows">Rows</option>
+                                    <option value="cols">Columns</option>
+                                    <option value="both">Both</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Linkage</label>
+                                <select id="heatmapLinkage">
+                                    <option value="average">Average</option>
+                                    <option value="complete">Complete</option>
+                                    <option value="single">Single</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Normalize</label>
+                                <select id="heatmapNormalize">
+                                    <option value="none">None</option>
+                                    <option value="all">Whole dataset</option>
+                                    <option value="row">Per row</option>
+                                    <option value="col">Per column</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Method</label>
+                                <select id="heatmapNormMethod">
+                                    <option value="zscore">Mean / SD</option>
+                                    <option value="robust">Median / MAD</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Winsorize</label>
+                                <select id="heatmapWinsorize">
+                                    <option value="none">None</option>
+                                    <option value="5">5–95%</option>
+                                    <option value="2.5">2.5–97.5%</option>
+                                    <option value="1">1–99%</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Colors</label>
+                                <select id="heatmapColorScheme">
+                                    <option value="RdBu">Red–Blue</option>
+                                    <option value="RdYlGn">Red–Ylw–Grn</option>
+                                    <option value="Viridis">Viridis</option>
+                                    <option value="YlOrRd">Yellow–Red</option>
+                                    <option value="BuPu">Blue–Purple</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Width</label>
+                                <input type="number" id="heatmapWidth" value="300" min="100" max="1200" step="50">
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Height</label>
+                                <input type="number" id="heatmapHeight" value="300" min="100" max="800" step="50">
+                            </div>
                         </div>
-                        <div class="control-group">
-                            <label>Linkage:</label>
-                            <select id="heatmapLinkage">
-                                <option value="average">Average</option>
-                                <option value="complete">Complete</option>
-                                <option value="single">Single</option>
-                            </select>
+                        <div class="hm-checks">
+                            <label><input type="checkbox" id="heatmapShowValues"> Values</label>
+                            <label><input type="checkbox" id="heatmapShowGroupBar"> Groups</label>
+                            <label><input type="checkbox" id="heatmapShowInfo"> Info</label>
                         </div>
-                        <div class="control-group">
-                            <label>Normalize:</label>
-                            <select id="heatmapNormalize">
-                                <option value="none">None</option>
-                                <option value="all">Whole dataset</option>
-                                <option value="row">Per row</option>
-                                <option value="col">Per column</option>
-                            </select>
-                        </div>
-                        <div class="control-group">
-                            <label>Method:</label>
-                            <select id="heatmapNormMethod">
-                                <option value="zscore">Mean / SD (z-score)</option>
-                                <option value="robust">Median / MAD (robust)</option>
-                            </select>
-                        </div>
-                        <div class="control-group">
-                            <label>Winsorize:</label>
-                            <select id="heatmapWinsorize">
-                                <option value="none">None</option>
-                                <option value="5">5th–95th percentile</option>
-                                <option value="2.5">2.5th–97.5th percentile</option>
-                                <option value="1">1st–99th percentile</option>
-                            </select>
-                        </div>
-                        <div class="control-group">
-                            <label>Colors:</label>
-                            <select id="heatmapColorScheme">
-                                <option value="RdBu">Red–Blue</option>
-                                <option value="RdYlGn">Red–Yellow–Green</option>
-                                <option value="Viridis">Viridis</option>
-                                <option value="YlOrRd">Yellow–Red</option>
-                                <option value="BuPu">Blue–Purple</option>
-                            </select>
-                        </div>
-                        <div class="control-group">
-                            <label>Cell values:</label>
-                            <input type="checkbox" id="heatmapShowValues">
-                        </div>
-                        <div class="control-group">
-                            <label>Group bar:</label>
-                            <input type="checkbox" id="heatmapShowGroupBar">
-                        </div>
-                        <div class="control-group">
-                            <label>Legend title:</label>
-                            <input type="text" id="heatmapLegendTitle" placeholder="e.g. Expression" value="" style="flex:1;padding:3px 6px;font-size:12px;border:1px solid #ddd;border-radius:3px">
-                        </div>
-                        <div class="control-group">
-                            <label>Show info:</label>
-                            <input type="checkbox" id="heatmapShowInfo" checked>
-                        </div>
-                        <div style="margin-top:6px">
-                            <button id="exportGroupedCSV" class="btn btn-primary" style="font-size:12px">Export Grouped CSV</button>
+                        <div class="hm-buttons">
+                            <button id="exportGroupedCSV" class="btn btn-primary" style="font-size:11px">Export CSV</button>
+                            <button id="viewAsColumn" class="btn btn-primary" style="font-size:11px">View as Column</button>
                         </div>
                     </div>
                 </div>
@@ -199,11 +199,11 @@
                     <div class="control-section">
                         <h3>Dimensions & Style</h3>
                         <div class="control-grid-2col">
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Width:</label>
                                 <input type="number" id="graphWidth" value="500" min="300" max="1200" step="50">
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Height:</label>
                                 <input type="number" id="graphHeight" value="500" min="200" max="800" step="50">
                             </div>

@@ -464,6 +464,9 @@ class HeatmapRenderer {
                 .attr('rx', 2)
                 .attr('cursor', 'pointer');
 
+            // Prevent drag on parent from capturing clicks on color rect
+            colorRect.on('mousedown', (event) => { event.stopPropagation(); });
+
             // Click to change group color
             colorRect.on('click', () => {
                 const picker = document.createElement('input');
@@ -497,6 +500,9 @@ class HeatmapRenderer {
                 .text(displayName);
 
             labelEl.append('title').text('Double-click to edit label');
+
+            // Prevent drag on parent from capturing clicks on label
+            labelEl.on('mousedown', (event) => { event.stopPropagation(); });
 
             // Double-click to edit group label with font controls
             ((groupName, el) => {

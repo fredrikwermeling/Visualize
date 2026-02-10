@@ -588,7 +588,7 @@ class DataTable {
             ['treat_2', 28, 48, 38, 79],
             ['treat_3', 33, 51, 31, 85]
         ];
-        this.setupTable(headers, 20, rowData);
+        this.setupTable(headers, 10, rowData);
 
         if (window.app) {
             window.app.updateGraph();

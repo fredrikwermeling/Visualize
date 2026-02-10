@@ -522,7 +522,7 @@ class App {
             const h3 = section.querySelector('h3');
             if (!h3) return;
             const title = h3.textContent.trim();
-            if (title === 'Statistics') {
+            if (title === 'Statistics' || title === 'Dimensions & Style') {
                 section.style.display = isHeatmap ? 'none' : '';
             }
         });

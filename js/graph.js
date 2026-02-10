@@ -4,8 +4,8 @@ class GraphRenderer {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.svg = null;
-        this.width = 500;
-        this.height = 500;
+        this.width = 300;
+        this.height = 300;
         this.margin = { top: 60, right: 30, bottom: 80, left: 70 };
 
         // Default settings

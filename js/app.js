@@ -7,8 +7,9 @@ class App {
         this.graphRenderer = new GraphRenderer('graphContainer');
         this.heatmapRenderer = new HeatmapRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
-        this.annotationManager = new AnnotationManager();
-        this.graphRenderer.annotationManager = this.annotationManager;
+        this.columnAnnotationManager = new AnnotationManager();
+        this.heatmapAnnotationManager = new AnnotationManager();
+        this.graphRenderer.annotationManager = this.columnAnnotationManager;
         this._undoStack = [];
         this.mode = 'column';
 
@@ -56,7 +57,7 @@ class App {
 
     _bindDimensionControls() {
         document.getElementById('graphWidth').addEventListener('input', (e) => {
-            const width = parseInt(e.target.value) || 500;
+            const width = parseInt(e.target.value) || 300;
             this.graphRenderer.setDimensions(width, this.graphRenderer.height);
             // Reset title position on dimension change
             this.graphRenderer.settings.titleOffset = { x: 0, y: 0 };
@@ -64,7 +65,7 @@ class App {
         });
 
         document.getElementById('graphHeight').addEventListener('input', (e) => {
-            const height = parseInt(e.target.value) || 500;
+            const height = parseInt(e.target.value) || 300;
             this.graphRenderer.setDimensions(this.graphRenderer.width, height);
             this.updateGraph();
         });
@@ -402,7 +403,8 @@ class App {
 
         toolButtons.forEach(id => {
             document.getElementById(id).addEventListener('click', () => {
-                this.annotationManager.setTool(toolMap[id]);
+                const mgr = this.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+                mgr.setTool(toolMap[id]);
                 this.updateGraph();
             });
         });
@@ -412,11 +414,13 @@ class App {
         });
 
         document.getElementById('drawDeleteSelected').addEventListener('click', () => {
-            this.annotationManager.deleteSelected();
+            const mgr = this.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+            mgr.deleteSelected();
         });
 
         document.getElementById('drawClearAll').addEventListener('click', () => {
-            this.annotationManager.clearAll();
+            const mgr = this.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+            mgr.clearAll();
         });
 
         // Ctrl+Z / Cmd+Z for undo
@@ -492,7 +496,6 @@ class App {
         // Column-specific controls (top-level elements)
         const columnEls = [
             document.querySelector('.graph-type-selector'),
-            document.getElementById('drawingToolbar'),
             document.getElementById('groupManager')
         ];
         columnEls.forEach(el => { if (el) el.style.display = isHeatmap ? 'none' : ''; });
@@ -561,7 +564,7 @@ class App {
 
         for (let mi = 0; mi < colLabels.length; mi++) {
             for (const group of groups.uniqueGroups) {
-                headers.push(group);
+                headers.push(`${colLabels[mi]} ${group}`);
                 const indices = groups.groupNames[group];
                 for (let rep = 0; rep < maxReps; rep++) {
                     if (rep < indices.length) {
@@ -648,9 +651,15 @@ class App {
 
     // --- Undo ---
 
+    get annotationManager() {
+        return this.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+    }
+
     saveUndoState() {
+        const mgr = this.annotationManager;
         const snapshot = {
-            annotations: JSON.parse(JSON.stringify(this.annotationManager.annotations)),
+            mode: this.mode,
+            annotations: JSON.parse(JSON.stringify(mgr.annotations)),
             settings: JSON.parse(JSON.stringify(this.graphRenderer.settings)),
             significance: JSON.parse(JSON.stringify(this.graphRenderer.significanceResults || []))
         };
@@ -661,9 +670,10 @@ class App {
     undo() {
         if (this._undoStack.length === 0) return;
         const snapshot = this._undoStack.pop();
-        this.annotationManager.annotations = snapshot.annotations;
-        this.annotationManager.selectedIndex = -1;
-        this.annotationManager._selectedBracketIdx = -1;
+        const mgr = snapshot.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+        mgr.annotations = snapshot.annotations;
+        mgr.selectedIndex = -1;
+        mgr._selectedBracketIdx = -1;
         // Restore settings (merge into existing object to keep references)
         Object.assign(this.graphRenderer.settings, snapshot.settings);
         this.graphRenderer.significanceResults = snapshot.significance;
@@ -679,6 +689,11 @@ class App {
             const settings = this._getHeatmapSettings();
             this.heatmapRenderer.render(matrixData, settings);
             this._updateHeatmapInfo(settings, infoEl);
+            // Draw annotations from the heatmap annotation manager
+            const heatSvg = d3.select(this.heatmapRenderer.container.querySelector('svg'));
+            if (!heatSvg.empty()) {
+                this.heatmapAnnotationManager.drawAnnotations(heatSvg, { top: 0, left: 0, right: 0, bottom: 0 });
+            }
             return;
         }
         if (infoEl) infoEl.style.display = 'none';

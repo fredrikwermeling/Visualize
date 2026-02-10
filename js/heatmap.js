@@ -21,8 +21,6 @@ class HeatmapRenderer {
         this._legendOffset = { x: 0, y: 0 };
         this._groupLegendOffset = { x: 0, y: 0 };
         this._legendTitleOffset = { x: 0, y: 0 };
-        // Text annotations on heatmap
-        this._annotations = [];
     }
 
     render(matrixData, settings) {
@@ -158,8 +156,6 @@ class HeatmapRenderer {
         const isWinsorized = this.settings.winsorize !== 'none';
         this._drawColorLegend(svg, colorScale, width - legendWidth - 5, marginTop, legendWidth - 10, cellAreaHeight, isWinsorized, legendTitle);
 
-        // Text annotations
-        this._drawAnnotations(svg, width, height);
     }
 
     _getAutoLegendTitle() {
@@ -801,112 +797,6 @@ class HeatmapRenderer {
         URL.revokeObjectURL(url);
     }
 
-    // --- Text Annotations ---
-
-    _drawAnnotations(svg, width, height) {
-        const self = this;
-        // Draw existing annotations
-        this._annotations.forEach((ann, idx) => {
-            const g = svg.append('g')
-                .attr('transform', `translate(${ann.x}, ${ann.y})`)
-                .attr('cursor', 'grab');
-
-            const textEl = g.append('text')
-                .attr('text-anchor', 'start')
-                .attr('font-size', `${ann.fontSize || 12}px`)
-                .attr('font-family', ann.fontFamily || 'Arial')
-                .attr('fill', ann.color || '#333')
-                .text(ann.text);
-
-            // Drag
-            g.call(d3.drag()
-                .on('drag', (event) => {
-                    ann.x += event.dx;
-                    ann.y += event.dy;
-                    g.attr('transform', `translate(${ann.x}, ${ann.y})`);
-                })
-            );
-
-            // Double-click to edit
-            textEl.on('dblclick', (event) => {
-                event.stopPropagation();
-                const bbox = textEl.node().getBoundingClientRect();
-                const cRect = self.container.getBoundingClientRect();
-
-                const popup = document.createElement('div');
-                popup.className = 'svg-edit-popup';
-                popup.style.left = (bbox.left - cRect.left + window.scrollX) + 'px';
-                popup.style.top = (bbox.top - cRect.top + window.scrollY - 30) + 'px';
-
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = ann.text;
-                input.className = 'svg-inline-edit';
-                input.style.width = '120px';
-                input.style.fontSize = '12px';
-
-                const sizeInput = document.createElement('input');
-                sizeInput.type = 'number';
-                sizeInput.value = ann.fontSize || 12;
-                sizeInput.min = 6;
-                sizeInput.max = 36;
-                sizeInput.style.width = '40px';
-                sizeInput.style.fontSize = '11px';
-                sizeInput.style.padding = '2px';
-                sizeInput.style.border = '1px solid #ccc';
-                sizeInput.style.borderRadius = '3px';
-
-                const delBtn = document.createElement('button');
-                delBtn.textContent = '\u00d7';
-                delBtn.className = 'svg-edit-btn';
-                delBtn.title = 'Delete';
-
-                const row = document.createElement('div');
-                row.style.display = 'flex';
-                row.style.gap = '4px';
-                row.style.alignItems = 'center';
-                row.appendChild(input);
-                row.appendChild(sizeInput);
-                row.appendChild(delBtn);
-                popup.appendChild(row);
-
-                self.container.style.position = 'relative';
-                self.container.appendChild(popup);
-                input.focus();
-                input.select();
-
-                const commit = () => {
-                    ann.text = input.value.trim() || 'Text';
-                    ann.fontSize = parseInt(sizeInput.value) || 12;
-                    popup.remove();
-                    if (window.app) window.app.updateGraph();
-                };
-
-                delBtn.addEventListener('click', () => {
-                    self._annotations.splice(idx, 1);
-                    popup.remove();
-                    if (window.app) window.app.updateGraph();
-                });
-
-                input.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); });
-                sizeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); });
-                popup.addEventListener('focusout', () => {
-                    setTimeout(() => {
-                        if (document.body.contains(popup) && !popup.contains(document.activeElement)) commit();
-                    }, 150);
-                });
-            });
-        });
-
-        // Double-click on empty area to add new text
-        svg.on('dblclick', (event) => {
-            // Only on empty SVG area
-            if (event.target.tagName !== 'svg' && event.target.tagName !== 'rect') return;
-            const [mx, my] = d3.pointer(event);
-            self._annotations.push({ x: mx, y: my, text: 'Text', fontSize: 12, fontFamily: 'Arial', color: '#333' });
-            if (window.app) window.app.updateGraph();
-        });
-    }
 
     _transpose(matrix) {
         if (matrix.length === 0) return [];

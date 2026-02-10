@@ -83,7 +83,6 @@ header {
     padding: 0;
     box-shadow: var(--shadow-md);
     border: 1px solid #ddd;
-    overflow: hidden;
 }
 
 .panel h2 {
@@ -94,6 +93,7 @@ header {
     font-weight: 600;
     padding: 10px 20px;
     border-bottom: none;
+    border-radius: 7px 7px 0 0;
 }
 
 /* Data Panel */

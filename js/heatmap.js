@@ -301,8 +301,10 @@ class HeatmapRenderer {
         const groupMap = [];
         const groupNames = {};
         rowLabels.forEach((label, i) => {
-            // Strip trailing _N, _number, -N, -number, or space+number
-            const group = label.replace(/[_\-\s]+\d+\s*$/, '').trim() || label;
+            // Split on the last underscore: everything before it is the group,
+            // everything after is the replicate ID (e.g. "ctrl5_q1" → group "ctrl5")
+            const lastUnderscore = label.lastIndexOf('_');
+            const group = lastUnderscore > 0 ? label.substring(0, lastUnderscore).trim() : label;
             groupMap.push(group);
             if (!groupNames[group]) groupNames[group] = [];
             groupNames[group].push(i);

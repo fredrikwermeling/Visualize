@@ -560,18 +560,21 @@ class DataTable {
     }
 
     loadSampleData() {
-        const headers = ['Group 1', 'Group 2', 'Group 3'];
-        // Column-oriented sample data transposed to row-oriented
+        const headers = ['Control', 'Treatment A', 'Treatment B'];
+        // Column-oriented sample data with realistic biological variability
         const rowData = [
-            [5.2, 7.1, 4.5],
-            [5.8, 6.8, 4.2],
-            [4.9, 7.5, 4.8],
-            [5.5, 7.2, 4.6],
-            [6.1, 6.9, 4.3],
-            [5.3, 7.4, 4.7],
-            [5.7, 7.0, 4.4]
+            [4.2, 8.1, 6.7],
+            [5.8, 6.3, 5.1],
+            [3.6, 9.4, 7.8],
+            [5.1, 7.7, 4.9],
+            [6.4, 5.9, 8.3],
+            [4.7, 8.8, 6.2],
+            [3.9, 7.2, 5.5],
+            [5.5, 10.1, 7.1],
+            [4.3, 6.6, 9.0],
+            [6.0, 8.5, 5.8]
         ];
-        this.setupTable(headers, 10, rowData);
+        this.setupTable(headers, 12, rowData);
 
         if (window.app) {
             window.app.updateGraph();

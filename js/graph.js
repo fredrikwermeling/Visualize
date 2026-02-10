@@ -17,7 +17,7 @@ class GraphRenderer {
             fontSize: 12,
             fontBold: false,
             fontItalic: false,
-            graphType: 'column-points-mean',
+            graphType: 'scatter-bar',
             yAxisMin: null,
             yAxisMax: null,
             yAxisTickStep: null,
@@ -363,6 +363,9 @@ class GraphRenderer {
             case 'column-bar-median':
                 this._drawBarMedianIQR(g, filteredData, groupScale, valueScale, isHorizontal);
                 break;
+            case 'scatter-bar':
+                this._drawScatterBar(g, filteredData, groupScale, valueScale, null, isHorizontal);
+                break;
             case 'scatter-bar-mean-sd':
                 this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sd', isHorizontal);
                 break;
@@ -417,6 +420,7 @@ class GraphRenderer {
                         case 'column-bar-mean': this._drawBarWithError(g, filteredData, groupScale, valueScale, 'sd', isHorizontal); break;
                         case 'column-bar-sem': this._drawBarWithError(g, filteredData, groupScale, valueScale, 'sem', isHorizontal); break;
                         case 'column-bar-median': this._drawBarMedianIQR(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        case 'scatter-bar': this._drawScatterBar(g, filteredData, groupScale, valueScale, null, isHorizontal); break;
                         case 'scatter-bar-mean-sd': this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sd', isHorizontal); break;
                         case 'scatter-bar-mean-sem': this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sem', isHorizontal); break;
                         case 'box-plot': this._drawBoxPlot(g, filteredData, groupScale, valueScale, isHorizontal); break;
@@ -1532,8 +1536,8 @@ class GraphRenderer {
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
             const meanVal = Statistics.mean(group.values);
-            const errorVal = errorType === 'sd'
-                ? Statistics.std(group.values) : Statistics.sem(group.values);
+            const errorVal = errorType ? (errorType === 'sd'
+                ? Statistics.std(group.values) : Statistics.sem(group.values)) : 0;
 
             if (isH) {
                 const gy = groupScale(group.label);
@@ -1547,7 +1551,7 @@ class GraphRenderer {
                     .style('cursor', 'pointer')
                     .on('click', (event) => this._openBarColorPicker(event, i));
 
-                if (group.values.length > 1) {
+                if (errorType && group.values.length > 1) {
                     const errorRight = meanVal + errorVal;
                     const errorLeft = ebDir === 'above' ? meanVal : Math.max(0, meanVal - errorVal);
                     const capWidth = bw * 0.2;
@@ -1587,7 +1591,7 @@ class GraphRenderer {
                     .style('cursor', 'pointer')
                     .on('click', (event) => this._openBarColorPicker(event, i));
 
-                if (group.values.length > 1) {
+                if (errorType && group.values.length > 1) {
                     const errorTop = meanVal + errorVal;
                     const errorBottom = ebDir === 'above' ? meanVal : Math.max(0, meanVal - errorVal);
                     const capWidth = bw * 0.2;

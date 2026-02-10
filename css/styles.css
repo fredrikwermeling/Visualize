@@ -52,22 +52,19 @@ body {
 
 /* Header */
 header {
-    background-color: var(--green-900);
-    color: white;
-    padding: 8px 20px;
-    border-radius: var(--radius-lg);
-    margin-bottom: 14px;
-    box-shadow: var(--shadow-md);
+    background: transparent;
+    padding: 12px 20px 4px;
+    margin-bottom: 10px;
 }
 
 .logo-container {
     display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 15px;
 }
 
 .logo {
-    height: 80px;
+    height: 120px;
     width: auto;
 }
 

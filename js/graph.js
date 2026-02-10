@@ -4,8 +4,8 @@ class GraphRenderer {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.svg = null;
-        this.width = 600;
-        this.height = 400;
+        this.width = 500;
+        this.height = 500;
         this.margin = { top: 60, right: 30, bottom: 80, left: 70 };
 
         // Default settings
@@ -26,8 +26,9 @@ class GraphRenderer {
             titleFont:  { family: 'Arial', size: 18, bold: true,  italic: false },
             xLabelFont: { family: 'Arial', size: 14, bold: false, italic: false },
             yLabelFont: { family: 'Arial', size: 14, bold: false, italic: false },
-            // Tick font
-            tickFont: { family: 'Arial', size: 12, bold: false, italic: false },
+            // Tick fonts (separate for x and y)
+            xTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
+            yTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             // Color
             colorTheme: 'default',
             colorOverrides: {},
@@ -437,7 +438,8 @@ class GraphRenderer {
     }
 
     _drawAxes(g, groupScale, valueScale, isHorizontal) {
-        const tf = this.settings.tickFont;
+        const xtf = this.settings.xTickFont;
+        const ytf = this.settings.yTickFont;
         const self = this;
         const activeTool = window.app?.annotationManager?.activeTool || 'none';
 
@@ -448,6 +450,15 @@ class GraphRenderer {
                 const [min, max] = valueScale.domain();
                 const tickVals = d3.range(min, max + step * 0.5, step);
                 axisGen.tickValues(tickVals);
+            }
+            // Custom tick formatting for log scales — avoid SI prefixes like "500m"
+            const scaleType = self.settings.yAxisScaleType;
+            if (scaleType === 'log10' || scaleType === 'log2') {
+                axisGen.tickFormat(d => {
+                    if (d >= 1) return d3.format(',')(d);
+                    if (d >= 0.01) return d3.format('.2f')(d);
+                    return d3.format('.1e')(d);
+                });
             }
             return axisGen;
         };
@@ -460,11 +471,11 @@ class GraphRenderer {
                 .call(configureValueAxis(d3.axisBottom(valueScale)));
 
             const xTickSel = xAxis.selectAll('text')
-                .style('font-family', tf.family)
-                .style('font-size', `${tf.size}px`)
-                .style('font-weight', tf.bold ? 'bold' : 'normal')
-                .style('font-style', tf.italic ? 'italic' : 'normal');
-            xTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event); });
+                .style('font-family', xtf.family)
+                .style('font-size', `${xtf.size}px`)
+                .style('font-weight', xtf.bold ? 'bold' : 'normal')
+                .style('font-style', xtf.italic ? 'italic' : 'normal');
+            xTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event, 'x'); });
 
             // Y axis = group axis (left)
             const yAxis = g.append('g')
@@ -475,11 +486,11 @@ class GraphRenderer {
                 yAxis.selectAll('.tick text').remove();
             } else {
                 const yTickSel = yAxis.selectAll('text')
-                    .style('font-family', tf.family)
-                    .style('font-size', `${tf.size}px`)
-                    .style('font-weight', tf.bold ? 'bold' : 'normal')
-                    .style('font-style', tf.italic ? 'italic' : 'normal');
-                yTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event); });
+                    .style('font-family', ytf.family)
+                    .style('font-size', `${ytf.size}px`)
+                    .style('font-weight', ytf.bold ? 'bold' : 'normal')
+                    .style('font-style', ytf.italic ? 'italic' : 'normal');
+                yTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event, 'y'); });
             }
         } else {
             // X axis = group axis (bottom)
@@ -493,11 +504,11 @@ class GraphRenderer {
             } else {
                 const angle = this.settings.xTickAngle || 0;
                 const xTicks = xAxis.selectAll('text')
-                    .style('font-family', tf.family)
-                    .style('font-size', `${tf.size}px`)
-                    .style('font-weight', tf.bold ? 'bold' : 'normal')
-                    .style('font-style', tf.italic ? 'italic' : 'normal');
-                xTicks.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event); });
+                    .style('font-family', xtf.family)
+                    .style('font-size', `${xtf.size}px`)
+                    .style('font-weight', xtf.bold ? 'bold' : 'normal')
+                    .style('font-style', xtf.italic ? 'italic' : 'normal');
+                xTicks.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event, 'x'); });
 
                 if (angle === 45) {
                     xTicks.attr('transform', 'rotate(-45)')
@@ -518,11 +529,11 @@ class GraphRenderer {
                 .call(configureValueAxis(d3.axisLeft(valueScale)));
 
             const yTickSel = yAxis.selectAll('text')
-                .style('font-family', tf.family)
-                .style('font-size', `${tf.size}px`)
-                .style('font-weight', tf.bold ? 'bold' : 'normal')
-                .style('font-style', tf.italic ? 'italic' : 'normal');
-            yTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event); });
+                .style('font-family', ytf.family)
+                .style('font-size', `${ytf.size}px`)
+                .style('font-weight', ytf.bold ? 'bold' : 'normal')
+                .style('font-style', ytf.italic ? 'italic' : 'normal');
+            yTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event, 'y'); });
         }
 
         g.selectAll('.domain').attr('stroke', '#333');
@@ -811,7 +822,7 @@ class GraphRenderer {
         return { toolbar, familySelect, sizeInput, boldBtn, italicBtn };
     }
 
-    _openTickFontPopup(event) {
+    _openTickFontPopup(event, axis) {
         const existing = document.querySelector('.svg-edit-popup');
         if (existing) existing.remove();
 
@@ -819,7 +830,7 @@ class GraphRenderer {
 
         const textEl = event.target;
         const rect = textEl.getBoundingClientRect();
-        const fontObj = this.settings.tickFont;
+        const fontObj = axis === 'y' ? this.settings.yTickFont : this.settings.xTickFont;
 
         const popup = document.createElement('div');
         popup.className = 'svg-edit-popup';

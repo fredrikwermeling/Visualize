@@ -402,7 +402,15 @@ class DataTable {
         cells.forEach(cell => {
             cell.textContent = '';
         });
-        
+
+        // Also clear headers back to defaults
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+        headers.forEach((th, i) => {
+            const btn = th.querySelector('.th-delete-btn');
+            th.textContent = `Group ${i + 1}`;
+            if (btn) th.appendChild(btn);
+        });
+
         if (window.app) {
             window.app.updateGraph();
         }

@@ -182,6 +182,10 @@
                             <input type="checkbox" id="heatmapShowGroupBar">
                         </div>
                         <div class="control-group">
+                            <label>Legend title:</label>
+                            <input type="text" id="heatmapLegendTitle" placeholder="e.g. Expression" value="" style="flex:1;padding:3px 6px;font-size:12px;border:1px solid #ddd;border-radius:3px">
+                        </div>
+                        <div class="control-group">
                             <label>Show info:</label>
                             <input type="checkbox" id="heatmapShowInfo" checked>
                         </div>
@@ -197,25 +201,25 @@
                         <div class="control-grid-2col">
                             <div class="control-group">
                                 <label>Width:</label>
-                                <input type="number" id="graphWidth" value="600" min="300" max="1200" step="50">
+                                <input type="number" id="graphWidth" value="500" min="300" max="1200" step="50">
                             </div>
                             <div class="control-group">
                                 <label>Height:</label>
-                                <input type="number" id="graphHeight" value="400" min="200" max="800" step="50">
+                                <input type="number" id="graphHeight" value="500" min="200" max="800" step="50">
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Y-Min:</label>
                                 <input type="number" id="yAxisMin" placeholder="Auto" step="any">
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Y-Max:</label>
                                 <input type="number" id="yAxisMax" placeholder="Auto" step="any">
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Y-Step:</label>
                                 <input type="number" id="yAxisTickStep" placeholder="Auto" min="0.1" step="any">
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Y-Scale:</label>
                                 <select id="yAxisScaleType">
                                     <option value="linear">Linear</option>
@@ -223,18 +227,18 @@
                                     <option value="log2">Log&#x2082;</option>
                                 </select>
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Err width:</label>
                                 <input type="number" id="errorBarWidth" value="1.5" min="0.5" max="5" step="0.5">
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Err bars:</label>
                                 <select id="errorBarDirection">
                                     <option value="both">Both</option>
                                     <option value="above">Above only</option>
                                 </select>
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Colors:</label>
                                 <select id="colorTheme">
                                     <option value="default">Default</option>
@@ -244,11 +248,11 @@
                                     <option value="colorblind">Colorblind-safe</option>
                                 </select>
                             </div>
-                            <div class="control-group" id="manualColorGroup">
+                            <div class="control-group column-only" id="manualColorGroup">
                                 <label>Per-group:</label>
                                 <div id="manualColorSwatches" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
                             </div>
-                            <div class="control-group">
+                            <div class="control-group column-only">
                                 <label>Orientation:</label>
                                 <select id="orientation">
                                     <option value="vertical">Vertical</option>
@@ -256,17 +260,17 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="control-group" style="margin-top:6px">
+                        <div class="control-group column-only" style="margin-top:6px">
                             <label>Show:</label>
                             <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showTitle" checked> Title</label>
                             <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showXLabel" checked> X</label>
                             <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showYLabel" checked> Y</label>
                         </div>
-                        <div class="control-group">
+                        <div class="control-group column-only">
                             <label>Legend:</label>
                             <input type="checkbox" id="showGroupLegend"> Color legend
                         </div>
-                        <div class="control-group">
+                        <div class="control-group column-only">
                             <label>Labels:</label>
                             <select id="groupLabelDisplay">
                                 <option value="axis">Under graph</option>
@@ -274,7 +278,7 @@
                                 <option value="both">Both</option>
                             </select>
                         </div>
-                        <div class="control-group">
+                        <div class="control-group column-only">
                             <label>X-angle:</label>
                             <select id="xTickAngle">
                                 <option value="0">Horizontal (0°)</option>
@@ -282,11 +286,11 @@
                                 <option value="90">Vertical (90°)</option>
                             </select>
                         </div>
-                        <div class="control-group">
+                        <div class="control-group column-only">
                             <label>Point size:</label>
                             <input type="number" id="pointSize" value="4" min="1" max="15" step="0.5">
                         </div>
-                        <div class="control-group">
+                        <div class="control-group column-only">
                             <label>Point shape:</label>
                             <select id="pointShape">
                                 <option value="circle">Circle</option>

@@ -12,8 +12,13 @@ class HeatmapRenderer {
             colorScheme: 'RdBu',
             showValues: false,
             showGroupBar: false,
+            legendTitle: '',
             title: 'Heatmap'
         };
+        // Drag offsets for movable elements
+        this._titleOffset = { x: 0, y: 0 };
+        this._legendOffset = { x: 0, y: 0 };
+        this._groupLegendOffset = { x: 0, y: 0 };
     }
 
     render(matrixData, settings) {
@@ -81,11 +86,12 @@ class HeatmapRenderer {
         const rowLabelWidth = Math.min(Math.max(maxRowLabel, 40), 120);
         const colLabelHeight = Math.min(Math.max(...colLabels.map(l => l.length)) * 5, 80);
         const legendWidth = 50;
+        const legendTitleExtra = this.settings.legendTitle ? 16 : 0;
 
         const marginTop = titleHeight + colDendroHeight + groupLegendHeight + 5;
         const marginLeft = rowDendroWidth + groupBarWidth + 5;
         const marginRight = rowLabelWidth + legendWidth + 15;
-        const marginBottom = colLabelHeight + 10;
+        const marginBottom = colLabelHeight + legendTitleExtra + 10;
 
         const cellAreaWidth = width - marginLeft - marginRight;
         const cellAreaHeight = height - marginTop - marginBottom;
@@ -146,7 +152,8 @@ class HeatmapRenderer {
         }
 
         // Color legend
-        this._drawColorLegend(svg, colorScale, width - legendWidth - 5, marginTop, legendWidth - 10, cellAreaHeight);
+        const isWinsorized = this.settings.winsorize !== 'none';
+        this._drawColorLegend(svg, colorScale, width - legendWidth - 5, marginTop, legendWidth - 10, cellAreaHeight, isWinsorized);
     }
 
     // --- Normalization ---
@@ -365,7 +372,27 @@ class HeatmapRenderer {
     }
 
     _drawGroupLegend(svg, groups, x, y, maxWidth) {
-        const g = svg.append('g').attr('transform', `translate(${x}, ${y})`);
+        const ox = this._groupLegendOffset.x;
+        const oy = this._groupLegendOffset.y;
+        const g = svg.append('g')
+            .attr('class', 'heatmap-group-legend')
+            .attr('transform', `translate(${x + ox}, ${y + oy})`)
+            .style('cursor', 'grab');
+
+        // Drag behavior
+        const self = this;
+        g.call(d3.drag()
+            .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
+            .on('drag', function(event) {
+                self._groupLegendOffset.x += event.dx;
+                self._groupLegendOffset.y += event.dy;
+                const nx = x + self._groupLegendOffset.x;
+                const ny = y + self._groupLegendOffset.y;
+                d3.select(this).attr('transform', `translate(${nx}, ${ny})`);
+            })
+            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+        );
+
         let xOff = 0;
 
         for (const name of groups.uniqueGroups) {
@@ -459,7 +486,7 @@ class HeatmapRenderer {
         drawNode(tree);
     }
 
-    _drawColorLegend(svg, colorScale, x, y, w, h) {
+    _drawColorLegend(svg, colorScale, x, y, w, h, isWinsorized) {
         const defs = svg.append('defs');
         const gradientId = 'heatmap-legend-grad';
         const gradient = defs.append('linearGradient')
@@ -477,7 +504,26 @@ class HeatmapRenderer {
                 .attr('stop-color', colorScale(val));
         }
 
-        const lg = svg.append('g').attr('transform', `translate(${x}, ${y})`);
+        const ox = this._legendOffset.x;
+        const oy = this._legendOffset.y;
+        const lg = svg.append('g')
+            .attr('class', 'heatmap-color-legend')
+            .attr('transform', `translate(${x + ox}, ${y + oy})`)
+            .style('cursor', 'grab');
+
+        // Drag behavior
+        const self = this;
+        lg.call(d3.drag()
+            .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
+            .on('drag', function(event) {
+                self._legendOffset.x += event.dx;
+                self._legendOffset.y += event.dy;
+                const nx = x + self._legendOffset.x;
+                const ny = y + self._legendOffset.y;
+                d3.select(this).attr('transform', `translate(${nx}, ${ny})`);
+            })
+            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+        );
 
         lg.append('rect')
             .attr('x', 0).attr('y', 0)
@@ -503,20 +549,61 @@ class HeatmapRenderer {
             .attr('font-size', '9px')
             .attr('fill', '#666')
             .text(fmt(maxVal));
+
+        // Winsorize annotation
+        if (isWinsorized) {
+            lg.append('text')
+                .attr('x', w / 2).attr('y', -14)
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '7px')
+                .attr('fill', '#999')
+                .text('(clipped)');
+        }
+
+        // Legend title
+        const legendTitle = this.settings.legendTitle;
+        if (legendTitle) {
+            lg.append('text')
+                .attr('x', w / 2).attr('y', h + 24)
+                .attr('text-anchor', 'middle')
+                .attr('font-size', '10px')
+                .attr('fill', '#555')
+                .attr('font-weight', '600')
+                .text(legendTitle);
+        }
     }
 
     _drawTitle(svg, width, title) {
+        const ox = this._titleOffset.x;
+        const oy = this._titleOffset.y;
         const titleEl = svg.append('text')
-            .attr('x', width / 2)
-            .attr('y', 18)
+            .attr('x', width / 2 + ox)
+            .attr('y', 18 + oy)
             .attr('text-anchor', 'middle')
             .attr('font-size', '16px')
             .attr('font-weight', 'bold')
             .attr('fill', '#333')
-            .attr('cursor', 'pointer')
+            .attr('cursor', 'grab')
             .text(title);
 
+        // Drag behavior
+        const self = this;
+        let wasDragged = false;
+        titleEl.call(d3.drag()
+            .on('start', function() { wasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
+            .on('drag', function(event) {
+                wasDragged = true;
+                self._titleOffset.x += event.dx;
+                self._titleOffset.y += event.dy;
+                d3.select(this)
+                    .attr('x', width / 2 + self._titleOffset.x)
+                    .attr('y', 18 + self._titleOffset.y);
+            })
+            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+        );
+
         titleEl.on('click', () => {
+            if (wasDragged) return;
             const bbox = titleEl.node().getBoundingClientRect();
             const containerRect = this.container.getBoundingClientRect();
 

@@ -381,26 +381,28 @@ class App {
     _applyMode() {
         const isHeatmap = this.mode === 'heatmap';
 
-        // Column-specific controls
+        // Column-specific controls (top-level elements)
         const columnEls = [
             document.querySelector('.graph-type-selector'),
             document.getElementById('drawingToolbar'),
-            document.getElementById('groupManager'),
-            document.getElementById('manualColorGroup')
+            document.getElementById('groupManager')
         ];
         columnEls.forEach(el => { if (el) el.style.display = isHeatmap ? 'none' : ''; });
 
+        // Hide all .column-only elements in heatmap mode
+        document.querySelectorAll('.column-only').forEach(el => {
+            el.style.display = isHeatmap ? 'none' : '';
+        });
+
         // Control sections inside .graph-controls
         const controlSections = document.querySelectorAll('.graph-controls .control-section');
-        controlSections.forEach((section, i) => {
+        controlSections.forEach(section => {
             const h3 = section.querySelector('h3');
             if (!h3) return;
             const title = h3.textContent.trim();
             if (title === 'Statistics') {
                 section.style.display = isHeatmap ? 'none' : '';
             }
-            // Dimensions & Style: hide column-specific rows in heatmap mode
-            // Export: always visible
         });
 
         // Heatmap controls
@@ -418,6 +420,8 @@ class App {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
         });
+        const legendTitleEl = document.getElementById('heatmapLegendTitle');
+        if (legendTitleEl) legendTitleEl.addEventListener('input', () => this.updateGraph());
 
         const csvBtn = document.getElementById('exportGroupedCSV');
         if (csvBtn) csvBtn.addEventListener('click', () => {
@@ -437,6 +441,7 @@ class App {
             showValues: document.getElementById('heatmapShowValues')?.checked || false,
             showGroupBar: document.getElementById('heatmapShowGroupBar')?.checked || false,
             showInfo: document.getElementById('heatmapShowInfo')?.checked ?? true,
+            legendTitle: document.getElementById('heatmapLegendTitle')?.value || '',
             title: this.heatmapRenderer.settings.title || 'Heatmap'
         };
     }

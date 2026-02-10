@@ -464,7 +464,7 @@ class GraphRenderer {
                 .style('font-size', `${tf.size}px`)
                 .style('font-weight', tf.bold ? 'bold' : 'normal')
                 .style('font-style', tf.italic ? 'italic' : 'normal');
-            if (activeTool === 'text') xTickSel.style('cursor', 'text').on('click', (event) => this._openTickFontPopup(event));
+            xTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event); });
 
             // Y axis = group axis (left)
             const yAxis = g.append('g')
@@ -479,7 +479,7 @@ class GraphRenderer {
                     .style('font-size', `${tf.size}px`)
                     .style('font-weight', tf.bold ? 'bold' : 'normal')
                     .style('font-style', tf.italic ? 'italic' : 'normal');
-                if (activeTool === 'text') yTickSel.style('cursor', 'text').on('click', (event) => this._openTickFontPopup(event));
+                yTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event); });
             }
         } else {
             // X axis = group axis (bottom)
@@ -497,7 +497,7 @@ class GraphRenderer {
                     .style('font-size', `${tf.size}px`)
                     .style('font-weight', tf.bold ? 'bold' : 'normal')
                     .style('font-style', tf.italic ? 'italic' : 'normal');
-                if (activeTool === 'text') xTicks.style('cursor', 'text').on('click', (event) => this._openTickFontPopup(event));
+                xTicks.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event); });
 
                 if (angle === 45) {
                     xTicks.attr('transform', 'rotate(-45)')
@@ -522,7 +522,7 @@ class GraphRenderer {
                 .style('font-size', `${tf.size}px`)
                 .style('font-weight', tf.bold ? 'bold' : 'normal')
                 .style('font-style', tf.italic ? 'italic' : 'normal');
-            if (activeTool === 'text') yTickSel.style('cursor', 'text').on('click', (event) => this._openTickFontPopup(event));
+            yTickSel.on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event); });
         }
 
         g.selectAll('.domain').attr('stroke', '#333');
@@ -592,13 +592,12 @@ class GraphRenderer {
         const activeTool = window.app?.annotationManager?.activeTool || 'none';
 
         const _applyLabelInteraction = (el, labelType, offsetKey) => {
-            if (activeTool === 'text') {
-                el.style('cursor', 'text')
-                    .on('click', (event) => this._startInlineEdit(event, labelType));
-            } else if (activeTool === 'none') {
-                el.style('cursor', 'grab');
-                this._makeLabelDrag(el, offsetKey);
-            }
+            el.style('cursor', 'grab');
+            this._makeLabelDrag(el, offsetKey);
+            el.on('dblclick', (event) => {
+                event.stopPropagation();
+                this._startInlineEdit(event, labelType);
+            });
         };
 
         // Graph title
@@ -2112,12 +2111,8 @@ class GraphRenderer {
                 .style('font-style', lf.italic ? 'italic' : 'normal')
                 .style('fill', '#333')
                 .text(label);
-            if (activeTool === 'text') {
-                textEl.style('cursor', 'text')
-                    .on('click', (event) => { event.stopPropagation(); this._editLegendLabel(event, i, group.label); });
-            } else if (activeTool === 'none') {
-                textEl.style('cursor', 'grab');
-            }
+            textEl.style('cursor', 'grab')
+                .on('dblclick', (event) => { event.stopPropagation(); this._editLegendLabel(event, i, group.label); });
         });
     }
 

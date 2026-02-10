@@ -585,6 +585,51 @@ class App {
         this._applyMode();
         this._restoreTableData('column');
         this.updateGraph();
+
+        // Auto-run unpaired t-tests per marker when exactly 2 groups
+        if (groups.uniqueGroups.length === 2) {
+            const data = this.dataTable.getData();
+            const numGroups = 2;
+            const pairs = [];
+            const testName = "Unpaired t-test (Welch's)";
+            let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">${testName} — per marker</span></div>`;
+            html += `<div class="result-item"><span class="result-label">Groups:</span> <span class="result-value">${groups.uniqueGroups.join(' vs ')}</span></div>`;
+            html += `<hr style="margin:8px 0;border-color:#eee">`;
+
+            for (let mi = 0; mi < colLabels.length; mi++) {
+                const idx1 = mi * numGroups;
+                const idx2 = mi * numGroups + 1;
+                if (idx1 >= data.length || idx2 >= data.length) continue;
+                const g1 = data[idx1];
+                const g2 = data[idx2];
+                if (g1.values.length < 2 || g2.values.length < 2) continue;
+
+                try {
+                    const result = Statistics.tTest(g1.values, g2.values, false);
+                    const sigLevel = Statistics.getSignificanceLevel(result.p);
+                    const pFormatted = Statistics.formatPValue(result.p);
+                    const isSignificant = result.p < 0.05;
+
+                    pairs.push({
+                        group1Index: idx1,
+                        group2Index: idx2,
+                        pValue: result.p,
+                        significanceLabel: sigLevel
+                    });
+
+                    html += `<div class="result-item"><span class="result-value"><b>${colLabels[mi]}:</b> ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
+                } catch (e) {
+                    html += `<div class="result-item"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
+                }
+            }
+
+            document.getElementById('testType').value = 't-test-unpaired';
+            document.getElementById('postHocGroup').style.display = 'none';
+            this.graphRenderer.updateSettings({ statsTestName: testName });
+            this._showStatsResult(html);
+            this.graphRenderer.setSignificance(pairs);
+            this.updateGraph();
+        }
     }
 
     _getHeatmapSettings() {

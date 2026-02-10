@@ -18,7 +18,9 @@ class HeatmapRenderer {
             titleFont: { family: 'Arial', size: 16, bold: true, italic: false },
             legendTitleFont: { family: 'Arial', size: 10, bold: false, italic: false },
             groupLabelFont: { family: 'Arial', size: 10, bold: false, italic: false },
-            groupLabelOverrides: {}  // { groupName: 'overriddenText' }
+            groupLabelOverrides: {},  // { groupName: 'overriddenText' }
+            colOrder: [],       // manual column order (array of col label strings); empty = data order
+            hiddenCols: []      // columns to hide from the heatmap (array of col label strings)
         };
         // Drag offsets for movable elements
         this._titleOffset = { x: 0, y: 0 };
@@ -31,9 +33,25 @@ class HeatmapRenderer {
         Object.assign(this.settings, settings);
         this.container.innerHTML = '';
 
-        const { colLabels, rowLabels, matrix } = matrixData;
-        if (!matrix || matrix.length === 0 || matrix[0].length === 0) {
+        const { colLabels: rawColLabels, rowLabels, matrix: rawMatrix } = matrixData;
+        // Store raw column labels for the column manager UI
+        this._rawColLabels = rawColLabels;
+        if (!rawMatrix || rawMatrix.length === 0 || rawMatrix[0].length === 0) {
             this.container.innerHTML = '<div class="empty-state"><h3>Enter numeric data to generate heatmap</h3></div>';
+            return;
+        }
+
+        // Filter out hidden columns
+        const hiddenCols = this.settings.hiddenCols || [];
+        let visibleColIndices = rawColLabels.map((_, i) => i);
+        if (hiddenCols.length > 0) {
+            visibleColIndices = visibleColIndices.filter(i => !hiddenCols.includes(rawColLabels[i]));
+        }
+        const colLabels = visibleColIndices.map(i => rawColLabels[i]);
+        const matrix = rawMatrix.map(row => visibleColIndices.map(i => row[i]));
+
+        if (matrix.length === 0 || matrix[0].length === 0) {
+            this.container.innerHTML = '<div class="empty-state"><h3>All columns are hidden</h3></div>';
             return;
         }
 
@@ -58,6 +76,24 @@ class HeatmapRenderer {
             const transposed = this._transpose(normMatrix);
             colTree = HierarchicalClustering.cluster(transposed, this.settings.linkage);
             if (colTree) colOrder = HierarchicalClustering.leafOrder(colTree);
+        }
+
+        // Apply manual column order when not clustering columns
+        const manualColOrder = this.settings.colOrder || [];
+        if (manualColOrder.length > 0 && !(clusterMode === 'cols' || clusterMode === 'both')) {
+            // Build index mapping: colLabels[i] -> desired position
+            const labelToIdx = {};
+            colLabels.forEach((label, i) => { labelToIdx[label] = i; });
+            const ordered = [];
+            // First add columns in manual order that exist
+            manualColOrder.forEach(label => {
+                if (labelToIdx[label] !== undefined) ordered.push(labelToIdx[label]);
+            });
+            // Then add any new columns not in manual order
+            colLabels.forEach((label, i) => {
+                if (!manualColOrder.includes(label)) ordered.push(i);
+            });
+            colOrder = ordered;
         }
 
         // Get all numeric values for color scale (from winsorized display data)

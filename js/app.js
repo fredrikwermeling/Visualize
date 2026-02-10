@@ -507,6 +507,10 @@ class App {
         ];
         columnEls.forEach(el => { if (el) el.style.display = isHeatmap ? 'none' : ''; });
 
+        // Heatmap-specific: column order manager
+        const heatmapColMgr = document.getElementById('heatmapColManager');
+        if (heatmapColMgr) heatmapColMgr.style.display = isHeatmap ? '' : 'none';
+
         // Hide all .column-only elements in heatmap mode
         document.querySelectorAll('.column-only').forEach(el => {
             el.style.display = isHeatmap ? 'none' : '';
@@ -741,6 +745,7 @@ class App {
             const settings = this._getHeatmapSettings();
             this.heatmapRenderer.render(matrixData, settings);
             this._updateHeatmapInfo(settings, infoEl);
+            this._updateHeatmapColManager(matrixData);
             // Draw annotations from the heatmap annotation manager
             const heatSvg = d3.select(this.heatmapRenderer.container.querySelector('svg'));
             if (!heatSvg.empty()) {
@@ -925,6 +930,133 @@ class App {
                 settings.groupOrder = newOrder;
                 this.updateGraph();
             });
+        });
+    }
+
+    _updateHeatmapColManager(matrixData) {
+        const container = document.getElementById('heatmapColManager');
+        const listEl = document.getElementById('heatmapColList');
+        if (!container || !listEl) return;
+
+        const allColLabels = this.heatmapRenderer._rawColLabels || matrixData.colLabels || [];
+        if (allColLabels.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = '';
+
+        const settings = this.heatmapRenderer.settings;
+        const hiddenCols = settings.hiddenCols || [];
+        const clusteringCols = (settings.cluster === 'cols' || settings.cluster === 'both');
+
+        // Determine display order
+        let orderedLabels;
+        if (!clusteringCols && settings.colOrder && settings.colOrder.length > 0) {
+            const knownSet = new Set(settings.colOrder);
+            orderedLabels = [...settings.colOrder.filter(l => allColLabels.includes(l))];
+            allColLabels.forEach(l => {
+                if (!knownSet.has(l)) orderedLabels.push(l);
+            });
+        } else {
+            orderedLabels = [...allColLabels];
+        }
+
+        listEl.innerHTML = '';
+        orderedLabels.forEach((label, idx) => {
+            const isHidden = hiddenCols.includes(label);
+
+            const item = document.createElement('div');
+            item.className = 'group-item' + (isHidden ? ' hidden' : '');
+            item.draggable = !clusteringCols;
+            item.dataset.label = label;
+            item.dataset.idx = idx;
+
+            const handle = document.createElement('span');
+            handle.className = 'drag-handle';
+            handle.textContent = clusteringCols ? '\u{1F512}' : '\u2261';
+            if (clusteringCols) handle.title = 'Disable column clustering to reorder';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'group-label';
+            labelSpan.textContent = label;
+
+            const eyeBtn = document.createElement('button');
+            eyeBtn.className = 'visibility-btn';
+            eyeBtn.textContent = isHidden ? '\u{1F6AB}' : '\u{1F441}';
+            eyeBtn.title = isHidden ? 'Show column' : 'Hide column';
+            eyeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isHidden) {
+                    settings.hiddenCols = hiddenCols.filter(l => l !== label);
+                } else {
+                    settings.hiddenCols = [...hiddenCols, label];
+                }
+                this.updateGraph();
+            });
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-group-btn';
+            delBtn.textContent = '\u00d7';
+            delBtn.title = 'Delete column from table';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Find column index in table by matching header label
+                const matrixData = this.dataTable.getMatrixData();
+                const headerCells = this.dataTable.headerRow.querySelectorAll('th:not(.delete-col-header)');
+                let colIdx = -1;
+                headerCells.forEach((th, i) => {
+                    const clone = th.cloneNode(true);
+                    const btn = clone.querySelector('.th-delete-btn');
+                    if (btn) btn.remove();
+                    if (clone.textContent.trim() === label) colIdx = i;
+                });
+                if (colIdx >= 0) {
+                    // Also remove from colOrder/hiddenCols
+                    settings.colOrder = (settings.colOrder || []).filter(l => l !== label);
+                    settings.hiddenCols = (settings.hiddenCols || []).filter(l => l !== label);
+                    this.dataTable.deleteColumn(colIdx);
+                }
+            });
+
+            item.appendChild(handle);
+            item.appendChild(labelSpan);
+            item.appendChild(eyeBtn);
+            item.appendChild(delBtn);
+            listEl.appendChild(item);
+
+            // Drag events (only when not clustering columns)
+            if (!clusteringCols) {
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', idx.toString());
+                    item.style.opacity = '0.5';
+                });
+                item.addEventListener('dragend', () => {
+                    item.style.opacity = '';
+                    listEl.querySelectorAll('.group-item').forEach(el => el.classList.remove('drag-over'));
+                });
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    item.classList.add('drag-over');
+                });
+                item.addEventListener('dragleave', () => {
+                    item.classList.remove('drag-over');
+                });
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                    const toIdx = idx;
+                    if (fromIdx === toIdx) return;
+
+                    const newOrder = [...orderedLabels];
+                    const [moved] = newOrder.splice(fromIdx, 1);
+                    newOrder.splice(toIdx, 0, moved);
+                    settings.colOrder = newOrder;
+                    this.updateGraph();
+                });
+            }
         });
     }
 

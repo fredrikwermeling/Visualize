@@ -717,6 +717,10 @@ class GraphRenderer {
         let startX, startY, origOffset, didDrag;
 
         selection.call(d3.drag()
+            .filter(function (event) {
+                // Allow default for double-click so dblclick handler fires
+                return !event.ctrlKey && !event.button && event.detail < 2;
+            })
             .on('start', function (event) {
                 event.sourceEvent.stopPropagation();
                 if (window.app) window.app.saveUndoState();
@@ -2196,6 +2200,9 @@ class GraphRenderer {
         let startX, startY, origOffset, origLegendX, origLegendY, origItemTransform, didDrag;
 
         return d3.drag()
+            .filter(function (event) {
+                return !event.ctrlKey && !event.button && event.detail < 2;
+            })
             .on('start', function (event) {
                 event.sourceEvent.stopPropagation();
                 if (window.app) window.app.saveUndoState();

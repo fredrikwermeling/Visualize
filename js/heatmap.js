@@ -706,6 +706,7 @@ class HeatmapRenderer {
         const self = this;
         let legendDragged = false;
         lg.call(d3.drag()
+            .filter(function(event) { return !event.ctrlKey && !event.button && event.detail < 2; })
             .on('start', function() { legendDragged = false; d3.select(this).style('cursor', 'grabbing'); })
             .on('drag', function(event) {
                 legendDragged = true;
@@ -785,6 +786,7 @@ class HeatmapRenderer {
             let ltDragged = false;
             const ltSelf = this;
             ltEl.call(d3.drag()
+                .filter(function(event) { return !event.ctrlKey && !event.button && event.detail < 2; })
                 .on('start', function() { ltDragged = false; })
                 .on('drag', (event) => {
                     ltDragged = true;
@@ -999,6 +1001,7 @@ class HeatmapRenderer {
         const self = this;
         let wasDragged = false;
         titleEl.call(d3.drag()
+            .filter(function(event) { return !event.ctrlKey && !event.button && event.detail < 2; })
             .on('start', function() { wasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
             .on('drag', function(event) {
                 wasDragged = true;

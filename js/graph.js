@@ -626,6 +626,10 @@ class GraphRenderer {
                 event.stopPropagation();
                 this._startInlineEdit(event, labelType);
             });
+            // Show selection highlight if this label is selected for nudging
+            if (this._nudgeOffsetKey === offsetKey) {
+                this._drawSelectionHighlight(this.svg, el);
+            }
         };
 
         // Graph title
@@ -780,11 +784,40 @@ class GraphRenderer {
             document.removeEventListener('mousedown', this._labelNudgeDeselect);
             this._labelNudgeHandler = null;
             this._labelNudgeDeselect = null;
+            if (window.app) window.app.updateGraph();
         };
         // Delay binding so the current click doesn't immediately deselect
         setTimeout(() => {
             document.addEventListener('mousedown', this._labelNudgeDeselect);
         }, 0);
+
+        // Trigger re-render to show selection highlight
+        if (window.app) window.app.updateGraph();
+    }
+
+    _drawSelectionHighlight(parentSvg, el) {
+        if (!el || !el.node()) return;
+        const bbox = el.node().getBBox();
+        const ctm = el.node().getCTM();
+        const svgEl = parentSvg.node();
+        const svgCTM = svgEl.getCTM() || svgEl.getScreenCTM();
+        // Transform bbox to SVG coordinates
+        const pt1 = svgEl.createSVGPoint();
+        pt1.x = bbox.x; pt1.y = bbox.y;
+        const pt2 = svgEl.createSVGPoint();
+        pt2.x = bbox.x + bbox.width; pt2.y = bbox.y + bbox.height;
+        const inv = svgCTM.inverse();
+        const t1 = pt1.matrixTransform(ctm).matrixTransform(inv);
+        const t2 = pt2.matrixTransform(ctm).matrixTransform(inv);
+        parentSvg.append('rect')
+            .attr('class', 'selection-highlight')
+            .attr('x', t1.x - 3).attr('y', t1.y - 3)
+            .attr('width', t2.x - t1.x + 6).attr('height', t2.y - t1.y + 6)
+            .attr('fill', 'none')
+            .attr('stroke', '#5E8C31')
+            .attr('stroke-width', 1.5)
+            .attr('stroke-dasharray', '4,3')
+            .attr('pointer-events', 'none');
     }
 
     _createFontToolbar(fontObj) {
@@ -2064,17 +2097,24 @@ class GraphRenderer {
     }
 
     _drawStatsLegend(g) {
-        // Draw as a centered single line below the x-axis label
+        // Draw as a centered single line below the x-axis labels
         const plotCenterX = this.innerWidth / 2;
         let legendText = '* p < 0.05    ** p < 0.01    *** p < 0.001';
         if (this.settings.statsTestName) {
             legendText += '    |    ' + this.settings.statsTestName;
         }
 
+        // Position below x-axis labels: base 35 + extra for angled labels
+        const isH = this.settings.orientation === 'horizontal';
+        let legendY = this.innerHeight + 35;
+        if (!isH && this._effectiveAngle > 0) {
+            legendY += this._effectiveAngle === 90 ? 50 : 30;
+        }
+
         g.append('text')
             .attr('class', 'stats-legend')
             .attr('x', plotCenterX)
-            .attr('y', this.innerHeight + 35)
+            .attr('y', legendY)
             .attr('text-anchor', 'middle')
             .style('font-family', this.settings.fontFamily)
             .style('font-size', '10px')
@@ -2140,6 +2180,11 @@ class GraphRenderer {
             textEl.style('cursor', 'grab')
                 .on('dblclick', (event) => { event.stopPropagation(); this._editLegendLabel(event, i, group.label); });
         });
+
+        // Show selection highlight if legend is selected for nudging
+        if (this._nudgeOffsetKey === 'groupLegendOffset') {
+            this._drawSelectionHighlight(this.svg, legendG);
+        }
     }
 
     _makeLegendDrag(mode, itemIndex) {

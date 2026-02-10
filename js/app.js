@@ -533,7 +533,7 @@ class App {
     }
 
     _bindHeatmapControls() {
-        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme'];
+        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme', 'heatmapColLabelAngle'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
@@ -636,7 +636,9 @@ class App {
 
             document.getElementById('testType').value = 't-test-unpaired';
             document.getElementById('postHocGroup').style.display = 'none';
-            this.graphRenderer.updateSettings({ statsTestName: testName });
+            this._updateTestDescription();
+            this.graphRenderer.updateSettings({ statsTestName: testName, showStatsLegend: true });
+            document.getElementById('showStatsLegend').checked = true;
             this._showStatsResult(html);
             this.graphRenderer.setSignificance(pairs);
             this.updateGraph();
@@ -656,7 +658,8 @@ class App {
             showInfo: document.getElementById('heatmapShowInfo')?.checked ?? false,
             legendTitle: this.heatmapRenderer.settings.legendTitle,
             groupColorOverrides: this.heatmapRenderer.settings.groupColorOverrides || {},
-            title: this.heatmapRenderer.settings.title || 'Heatmap'
+            title: this.heatmapRenderer.settings.title || 'Heatmap',
+            colLabelAngle: parseInt(document.getElementById('heatmapColLabelAngle')?.value) || 45
         };
     }
 

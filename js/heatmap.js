@@ -20,7 +20,8 @@ class HeatmapRenderer {
             groupLabelFont: { family: 'Arial', size: 10, bold: false, italic: false },
             groupLabelOverrides: {},  // { groupName: 'overriddenText' }
             colOrder: [],       // manual column order (array of col label strings); empty = data order
-            hiddenCols: []      // columns to hide from the heatmap (array of col label strings)
+            hiddenCols: [],     // columns to hide from the heatmap (array of col label strings)
+            colLabelAngle: 45   // angle for column labels (0, 45, 90)
         };
         // Drag offsets for movable elements
         this._titleOffset = { x: 0, y: 0 };
@@ -129,7 +130,13 @@ class HeatmapRenderer {
         // Measure label sizes
         const maxRowLabel = Math.max(...rowLabels.map(l => l.length)) * 7;
         const rowLabelWidth = Math.min(Math.max(maxRowLabel, 40), 120);
-        const colLabelHeight = Math.min(Math.max(...colLabels.map(l => l.length)) * 5, 80);
+        const colAngle = this.settings.colLabelAngle ?? 45;
+        const maxColLabelLen = Math.max(...colLabels.map(l => l.length));
+        const colLabelHeight = colAngle === 0
+            ? 16  // horizontal: just one line of text
+            : colAngle === 90
+                ? Math.min(maxColLabelLen * 7, 120)  // vertical: full text length
+                : Math.min(maxColLabelLen * 5, 80);   // angled: diagonal projection
         const legendWidth = 50;
         const legendTitleExtra = legendTitle ? 16 : 0;
 
@@ -391,17 +398,31 @@ class HeatmapRenderer {
     _drawColLabels(g, labels, order, xScale, yOffset) {
         const bandWidth = xScale.bandwidth();
         const fontSize = Math.min(bandWidth * 0.8, 12);
+        const angle = this.settings.colLabelAngle ?? 45;
 
         for (const i of order) {
-            g.append('text')
-                .attr('x', xScale(i) + bandWidth / 2)
-                .attr('y', yOffset + 4)
-                .attr('text-anchor', 'start')
-                .attr('dominant-baseline', 'hanging')
+            const cx = xScale(i) + bandWidth / 2;
+            const cy = yOffset + 4;
+            const el = g.append('text')
                 .attr('font-size', fontSize + 'px')
                 .attr('fill', '#333')
-                .attr('transform', `rotate(45, ${xScale(i) + bandWidth / 2}, ${yOffset + 4})`)
                 .text(labels[i]);
+
+            if (angle === 0) {
+                el.attr('x', cx).attr('y', cy)
+                    .attr('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'hanging');
+            } else if (angle === 90) {
+                el.attr('x', cx).attr('y', cy)
+                    .attr('text-anchor', 'end')
+                    .attr('dominant-baseline', 'middle')
+                    .attr('transform', `rotate(90, ${cx}, ${cy})`);
+            } else {
+                el.attr('x', cx).attr('y', cy)
+                    .attr('text-anchor', 'start')
+                    .attr('dominant-baseline', 'hanging')
+                    .attr('transform', `rotate(${angle}, ${cx}, ${cy})`);
+            }
         }
     }
 
@@ -433,23 +454,32 @@ class HeatmapRenderer {
             .attr('transform', `translate(${x + ox}, ${y + oy})`)
             .style('cursor', 'grab');
 
+        g.append('title').text('Drag to move. Click to select for arrow-key nudging.');
+
         // Drag behavior — filter out clicks on interactive children (rect, text)
         const self = this;
+        let glWasDragged = false;
         g.call(d3.drag()
             .filter((event) => {
                 const tag = event.target.tagName;
                 if (tag === 'rect' || tag === 'text') return false;
                 return !event.ctrlKey && !event.button;
             })
-            .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
+            .on('start', function() { glWasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
             .on('drag', function(event) {
+                glWasDragged = true;
                 self._groupLegendOffset.x += event.dx;
                 self._groupLegendOffset.y += event.dy;
                 const nx = x + self._groupLegendOffset.x;
                 const ny = y + self._groupLegendOffset.y;
                 d3.select(this).attr('transform', `translate(${nx}, ${ny})`);
             })
-            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                if (!glWasDragged) {
+                    self._selectForNudge(self._groupLegendOffset, svg);
+                }
+            })
         );
 
         let xOff = 0;
@@ -570,6 +600,11 @@ class HeatmapRenderer {
             xOff += 13 + displayName.length * 6 + 12;
             if (xOff > maxWidth) break;
         }
+
+        // Show selection highlight if group legend is selected for nudging
+        if (this._selectedNudgeOffset === this._groupLegendOffset) {
+            this._drawSelectionHighlight(svg, g);
+        }
     }
 
     _drawDendrogram(g, tree, scale, orientation, span, depth) {
@@ -667,17 +702,29 @@ class HeatmapRenderer {
 
         // Drag behavior
         const self = this;
+        let legendDragged = false;
         lg.call(d3.drag()
-            .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
+            .on('start', function() { legendDragged = false; d3.select(this).style('cursor', 'grabbing'); })
             .on('drag', function(event) {
+                legendDragged = true;
                 self._legendOffset.x += event.dx;
                 self._legendOffset.y += event.dy;
                 const nx = x + self._legendOffset.x;
                 const ny = y + self._legendOffset.y;
                 d3.select(this).attr('transform', `translate(${nx}, ${ny})`);
             })
-            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                if (!legendDragged) {
+                    self._selectForNudge(self._legendOffset, svg);
+                }
+            })
         );
+
+        // Show selection highlight if color legend is selected for nudging
+        if (this._selectedNudgeOffset === this._legendOffset) {
+            this._drawSelectionHighlight(svg, lg);
+        }
 
         lg.append('rect')
             .attr('x', 0).attr('y', 0)
@@ -734,6 +781,7 @@ class HeatmapRenderer {
 
             // Drag
             let ltDragged = false;
+            const ltSelf = this;
             ltEl.call(d3.drag()
                 .on('start', function() { ltDragged = false; })
                 .on('drag', (event) => {
@@ -743,11 +791,20 @@ class HeatmapRenderer {
                     ltEl.attr('x', w / 2 + this._legendTitleOffset.x)
                         .attr('y', h + 24 + this._legendTitleOffset.y);
                 })
+                .on('end', () => {
+                    if (!ltDragged) {
+                        ltSelf._selectForNudge(ltSelf._legendTitleOffset, svg);
+                    }
+                })
             );
+
+            // Show selection highlight if legend title is selected for nudging
+            if (this._selectedNudgeOffset === this._legendTitleOffset) {
+                this._drawSelectionHighlight(svg, ltEl);
+            }
 
             // Double-click to edit with font toolbar
             ltEl.on('dblclick', () => {
-                if (ltDragged) { ltDragged = false; return; }
                 const existing = document.querySelector('.svg-edit-popup');
                 if (existing) existing.remove();
 
@@ -806,6 +863,67 @@ class HeatmapRenderer {
                 if (window.app) window.app.updateGraph();
             });
         }
+    }
+
+    _selectForNudge(offsetObj, svg) {
+        this._selectedNudgeOffset = offsetObj;
+
+        if (this._nudgeHandler) {
+            document.removeEventListener('keydown', this._nudgeHandler);
+        }
+        this._nudgeHandler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+            if (!this._selectedNudgeOffset) return;
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : 2;
+            if (e.key === 'ArrowUp') this._selectedNudgeOffset.y -= step;
+            else if (e.key === 'ArrowDown') this._selectedNudgeOffset.y += step;
+            else if (e.key === 'ArrowLeft') this._selectedNudgeOffset.x -= step;
+            else if (e.key === 'ArrowRight') this._selectedNudgeOffset.x += step;
+            if (window.app) window.app.updateGraph();
+        };
+        document.addEventListener('keydown', this._nudgeHandler);
+
+        if (this._nudgeDeselect) {
+            document.removeEventListener('mousedown', this._nudgeDeselect);
+        }
+        this._nudgeDeselect = (e) => {
+            if (e.target.closest && e.target.closest('text, rect')) return;
+            this._selectedNudgeOffset = null;
+            document.removeEventListener('keydown', this._nudgeHandler);
+            document.removeEventListener('mousedown', this._nudgeDeselect);
+            this._nudgeHandler = null;
+            this._nudgeDeselect = null;
+            if (window.app) window.app.updateGraph();
+        };
+        setTimeout(() => document.addEventListener('mousedown', this._nudgeDeselect), 0);
+
+        if (window.app) window.app.updateGraph();
+    }
+
+    _drawSelectionHighlight(svg, el) {
+        if (!el || !el.node()) return;
+        const bbox = el.node().getBBox();
+        const ctm = el.node().getCTM();
+        const svgEl = svg.node();
+        const svgCTM = svgEl.getCTM() || svgEl.getScreenCTM();
+        const pt1 = svgEl.createSVGPoint();
+        pt1.x = bbox.x; pt1.y = bbox.y;
+        const pt2 = svgEl.createSVGPoint();
+        pt2.x = bbox.x + bbox.width; pt2.y = bbox.y + bbox.height;
+        const inv = svgCTM.inverse();
+        const t1 = pt1.matrixTransform(ctm).matrixTransform(inv);
+        const t2 = pt2.matrixTransform(ctm).matrixTransform(inv);
+        svg.append('rect')
+            .attr('class', 'selection-highlight')
+            .attr('x', t1.x - 3).attr('y', t1.y - 3)
+            .attr('width', t2.x - t1.x + 6).attr('height', t2.y - t1.y + 6)
+            .attr('fill', 'none')
+            .attr('stroke', '#5E8C31')
+            .attr('stroke-width', 1.5)
+            .attr('stroke-dasharray', '4,3')
+            .attr('pointer-events', 'none');
     }
 
     _createFontToolbar(fontObj) {
@@ -888,11 +1006,20 @@ class HeatmapRenderer {
                     .attr('x', width / 2 + self._titleOffset.x)
                     .attr('y', 18 + self._titleOffset.y);
             })
-            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                if (!wasDragged) {
+                    self._selectForNudge(self._titleOffset, svg);
+                }
+            })
         );
 
+        // Show selection highlight if title is selected for nudging
+        if (this._selectedNudgeOffset === this._titleOffset) {
+            this._drawSelectionHighlight(svg, titleEl);
+        }
+
         titleEl.on('dblclick', () => {
-            if (wasDragged) { wasDragged = false; return; }
             const existing = document.querySelector('.svg-edit-popup');
             if (existing) existing.remove();
 

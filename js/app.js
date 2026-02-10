@@ -409,15 +409,21 @@ class App {
     }
 
     _bindHeatmapControls() {
-        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapColorScheme'];
+        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
         });
-        const showVals = document.getElementById('heatmapShowValues');
-        if (showVals) showVals.addEventListener('change', () => this.updateGraph());
-        const showInfo = document.getElementById('heatmapShowInfo');
-        if (showInfo) showInfo.addEventListener('change', () => this.updateGraph());
+        ['heatmapShowValues', 'heatmapShowGroupBar', 'heatmapShowInfo'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', () => this.updateGraph());
+        });
+
+        const csvBtn = document.getElementById('exportGroupedCSV');
+        if (csvBtn) csvBtn.addEventListener('click', () => {
+            const matrixData = this.dataTable.getMatrixData();
+            this.heatmapRenderer.exportGroupedCSV(matrixData);
+        });
     }
 
     _getHeatmapSettings() {
@@ -425,8 +431,11 @@ class App {
             cluster: document.getElementById('heatmapCluster')?.value || 'none',
             linkage: document.getElementById('heatmapLinkage')?.value || 'average',
             normalize: document.getElementById('heatmapNormalize')?.value || 'none',
+            normMethod: document.getElementById('heatmapNormMethod')?.value || 'zscore',
+            winsorize: document.getElementById('heatmapWinsorize')?.value || 'none',
             colorScheme: document.getElementById('heatmapColorScheme')?.value || 'RdBu',
             showValues: document.getElementById('heatmapShowValues')?.checked || false,
+            showGroupBar: document.getElementById('heatmapShowGroupBar')?.checked || false,
             showInfo: document.getElementById('heatmapShowInfo')?.checked ?? true,
             title: this.heatmapRenderer.settings.title || 'Heatmap'
         };
@@ -443,13 +452,19 @@ class App {
         const clusterLabels = { none: 'None', rows: 'Rows', cols: 'Columns', both: 'Both' };
         const linkageLabels = { average: 'Average (UPGMA)', complete: 'Complete', single: 'Single' };
         const normalizeLabels = { none: 'None', all: 'Whole dataset', row: 'Per row', col: 'Per column' };
+        const methodLabels = { zscore: 'Mean / SD (z-score)', robust: 'Median / MAD (robust)' };
+        const winsorizeLabels = { none: 'None', '5': '5th\u201395th percentile', '2.5': '2.5th\u201397.5th percentile', '1': '1st\u201399th percentile' };
         const colorLabels = { RdBu: 'Red\u2013Blue', RdYlGn: 'Red\u2013Yellow\u2013Green', Viridis: 'Viridis', YlOrRd: 'Yellow\u2013Red', BuPu: 'Blue\u2013Purple' };
 
+        const isRobust = settings.normMethod === 'robust';
+        const centerWord = isRobust ? 'median' : 'mean';
+        const spreadWord = isRobust ? 'MAD (median absolute deviation \u00d7 1.4826)' : 'standard deviation';
+
         const normalizeExplanations = {
-            none: 'Raw values are used directly. Colors reflect the original data scale from minimum to maximum. No z-score transformation is applied.',
-            all: 'Z-score across the entire dataset: z = (value \u2212 global mean) / global SD, computed from all values in the matrix. A z-score of 0 = the overall average, +1 = one SD above average, \u22121 = one SD below. This preserves relative differences between both rows and columns while putting everything on a standard scale.',
-            row: 'Z-score per row: z = (value \u2212 row mean) / row SD. Each row is independently scaled (mean = 0, SD = 1). This highlights which columns are relatively high or low within each row, but erases differences in overall row magnitude.',
-            col: 'Z-score per column: z = (value \u2212 column mean) / column SD. Each column is independently scaled (mean = 0, SD = 1). This highlights which rows are relatively high or low within each column, but erases differences in overall column magnitude.'
+            none: 'Raw values are used directly. Colors reflect the original data scale from minimum to maximum. No transformation is applied.',
+            all: `Normalized across the entire dataset: (value \u2212 global ${centerWord}) / global ${spreadWord}. A score of 0 = the overall ${centerWord}. This preserves relative differences between both rows and columns while putting everything on a standard scale.`,
+            row: `Normalized per row: (value \u2212 row ${centerWord}) / row ${spreadWord}. Each row is independently scaled. This highlights which columns are relatively high or low within each row, but erases differences in overall row magnitude.`,
+            col: `Normalized per column: (value \u2212 column ${centerWord}) / column ${spreadWord}. Each column is independently scaled. This highlights which rows are relatively high or low within each column, but erases differences in overall column magnitude.`
         };
 
         let html = '<h4>Heatmap Settings</h4>';
@@ -459,6 +474,12 @@ class App {
         }
         html += '</span></div>';
         html += `<div class="info-row"><span class="info-label">Normalization:</span><span>${normalizeLabels[settings.normalize] || 'None'}</span></div>`;
+        if (settings.normalize !== 'none') {
+            html += `<div class="info-row"><span class="info-label">Method:</span><span>${methodLabels[settings.normMethod] || settings.normMethod}</span></div>`;
+        }
+        if (settings.winsorize !== 'none') {
+            html += `<div class="info-row"><span class="info-label">Winsorization:</span><span>${winsorizeLabels[settings.winsorize]} \u2014 extreme values are capped at these percentiles to reduce outlier influence on the color scale</span></div>`;
+        }
         html += `<div class="info-row"><span class="info-label">Color scheme:</span><span>${colorLabels[settings.colorScheme] || settings.colorScheme}</span></div>`;
         html += `<div class="info-explain">${normalizeExplanations[settings.normalize] || ''}</div>`;
 

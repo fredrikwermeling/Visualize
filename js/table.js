@@ -571,17 +571,14 @@ class DataTable {
     }
 
     loadHeatmapSampleData() {
-        const headers = ['Row ID', 'Condition A', 'Condition B', 'Condition C', 'Condition D'];
-        const rowLabels = ['Gene A', 'Gene B', 'Gene C', 'Gene D', 'Gene E', 'Gene F', 'Gene G', 'Gene H'];
+        const headers = ['Sample', 'CD14', 'CD101', 'CD124', 'CD45'];
         const rowData = [
-            ['Gene A', 2.1, 5.4, 1.8, 4.2],
-            ['Gene B', 8.3, 3.1, 7.6, 2.9],
-            ['Gene C', 1.5, 6.8, 3.2, 7.1],
-            ['Gene D', 9.0, 2.4, 8.5, 1.6],
-            ['Gene E', 4.7, 4.9, 5.1, 5.3],
-            ['Gene F', 3.2, 8.7, 2.0, 9.1],
-            ['Gene G', 6.5, 1.3, 7.9, 3.8],
-            ['Gene H', 1.1, 7.2, 4.4, 6.6]
+            ['ctrl_1', 12, 23, 67, 45],
+            ['ctrl_2', 14, 32, 64, 48],
+            ['ctrl_3', 11, 28, 71, 42],
+            ['treat_1', 31, 54, 34, 82],
+            ['treat_2', 28, 48, 38, 79],
+            ['treat_3', 33, 51, 31, 85]
         ];
         this.setupTable(headers, 20, rowData);
 

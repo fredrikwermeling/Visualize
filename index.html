@@ -148,6 +148,22 @@
                             </select>
                         </div>
                         <div class="control-group">
+                            <label>Method:</label>
+                            <select id="heatmapNormMethod">
+                                <option value="zscore">Mean / SD (z-score)</option>
+                                <option value="robust">Median / MAD (robust)</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Winsorize:</label>
+                            <select id="heatmapWinsorize">
+                                <option value="none">None</option>
+                                <option value="5">5th–95th percentile</option>
+                                <option value="2.5">2.5th–97.5th percentile</option>
+                                <option value="1">1st–99th percentile</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
                             <label>Colors:</label>
                             <select id="heatmapColorScheme">
                                 <option value="RdBu">Red–Blue</option>
@@ -162,8 +178,15 @@
                             <input type="checkbox" id="heatmapShowValues">
                         </div>
                         <div class="control-group">
+                            <label>Group bar:</label>
+                            <input type="checkbox" id="heatmapShowGroupBar">
+                        </div>
+                        <div class="control-group">
                             <label>Show info:</label>
                             <input type="checkbox" id="heatmapShowInfo" checked>
+                        </div>
+                        <div style="margin-top:6px">
+                            <button id="exportGroupedCSV" class="btn btn-primary" style="font-size:12px">Export Grouped CSV</button>
                         </div>
                     </div>
                 </div>

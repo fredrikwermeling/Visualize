@@ -205,9 +205,7 @@ class HeatmapRenderer {
         const norm = this.settings.normalize;
         const method = this.settings.normMethod;
         if (norm === 'none') return 'Value';
-        const prefix = norm === 'row' ? 'Row ' : norm === 'col' ? 'Col ' : '';
-        const suffix = method === 'robust' ? 'Robust Z' : 'Z-score';
-        return prefix + suffix;
+        return method === 'robust' ? 'Robust Z' : 'Z-score';
     }
 
     // --- Normalization ---
@@ -435,9 +433,14 @@ class HeatmapRenderer {
             .attr('transform', `translate(${x + ox}, ${y + oy})`)
             .style('cursor', 'grab');
 
-        // Drag behavior
+        // Drag behavior — filter out clicks on interactive children (rect, text)
         const self = this;
         g.call(d3.drag()
+            .filter((event) => {
+                const tag = event.target.tagName;
+                if (tag === 'rect' || tag === 'text') return false;
+                return !event.ctrlKey && !event.button;
+            })
             .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
             .on('drag', function(event) {
                 self._groupLegendOffset.x += event.dx;
@@ -464,14 +467,14 @@ class HeatmapRenderer {
                 .attr('rx', 2)
                 .attr('cursor', 'pointer');
 
-            // Prevent drag on parent from capturing clicks on color rect
-            colorRect.on('mousedown', (event) => { event.stopPropagation(); });
-
             // Click to change group color
-            colorRect.on('click', () => {
+            colorRect.on('click', (event) => {
+                event.stopPropagation();
                 const picker = document.createElement('input');
                 picker.type = 'color';
-                picker.value = color;
+                // Convert D3 color to hex for the picker
+                const c = d3.color(color);
+                picker.value = c ? c.formatHex() : '#000000';
                 picker.style.position = 'absolute';
                 picker.style.opacity = '0';
                 document.body.appendChild(picker);
@@ -500,9 +503,6 @@ class HeatmapRenderer {
                 .text(displayName);
 
             labelEl.append('title').text('Double-click to edit label');
-
-            // Prevent drag on parent from capturing clicks on label
-            labelEl.on('mousedown', (event) => { event.stopPropagation(); });
 
             // Double-click to edit group label with font controls
             ((groupName, el) => {

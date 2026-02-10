@@ -1888,8 +1888,7 @@ class GraphRenderer {
                 const bracketG = g.append('g')
                     .attr('class', 'bracket-group')
                     .attr('data-bracket-idx', idx)
-                    .style('cursor', 'pointer')
-                    .on('dblclick', (event) => this._openBracketNudge(event, idx));
+                    .style('cursor', 'pointer');
 
                 bracketG.append('line')
                     .attr('x1', bracketX - tickWidth).attr('x2', bracketX)
@@ -1933,8 +1932,7 @@ class GraphRenderer {
                 const bracketG = g.append('g')
                     .attr('class', 'bracket-group')
                     .attr('data-bracket-idx', idx)
-                    .style('cursor', 'pointer')
-                    .on('dblclick', (event) => this._openBracketNudge(event, idx));
+                    .style('cursor', 'pointer');
 
                 bracketG.append('line')
                     .attr('x1', x1).attr('x2', x1)

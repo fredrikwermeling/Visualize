@@ -456,6 +456,30 @@ class AnnotationManager {
                     return;
                 }
 
+                // Arrow key movement for selected significance bracket
+                if (this._selectedBracketIdx >= 0 && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    const renderer = window.app?.graphRenderer;
+                    if (renderer && renderer.significanceResults[this._selectedBracketIdx]) {
+                        e.preventDefault();
+                        const step = e.shiftKey ? 10 : 2;
+                        const isH = renderer.settings.orientation === 'horizontal';
+                        let delta = 0;
+                        if (isH) {
+                            if (e.key === 'ArrowRight') delta = step;
+                            else if (e.key === 'ArrowLeft') delta = -step;
+                        } else {
+                            if (e.key === 'ArrowUp') delta = -step;
+                            else if (e.key === 'ArrowDown') delta = step;
+                        }
+                        if (delta !== 0) {
+                            renderer.significanceResults[this._selectedBracketIdx].yOffset =
+                                (renderer.significanceResults[this._selectedBracketIdx].yOffset || 0) + delta;
+                            if (window.app) window.app.updateGraph();
+                        }
+                    }
+                    return;
+                }
+
                 // Arrow key movement for selected annotation
                 if (this.selectedIndex >= 0 && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
                     const step = e.shiftKey ? 10 : 2;

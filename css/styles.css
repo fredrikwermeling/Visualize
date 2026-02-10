@@ -3,21 +3,21 @@
    Matching the Correlate app design language
    ============================================================ */
 
-/* CSS Custom Properties */
+/* CSS Custom Properties — olive-green palette matching the logo */
 :root {
-    --green-900: #14532d;
-    --green-800: #166534;
-    --green-700: #15803d;
-    --green-600: #16a34a;
-    --green-500: #22c55e;
-    --green-200: #bbf7d0;
-    --green-100: #dcfce7;
-    --green-50:  #f0fdf4;
+    --green-900: #2d5016;
+    --green-800: #3d6b1e;
+    --green-700: #4e7d25;
+    --green-600: #5e8c31;
+    --green-500: #7aa83a;
+    --green-200: #c8e09a;
+    --green-100: #ddeeb5;
+    --green-50:  #f0f7e0;
     --gray-600:  #4b5563;
     --gray-500:  #6b7280;
     --gray-200:  #e5e7eb;
     --gray-100:  #f3f4f6;
-    --brand-green: #5a9f4a;
+    --brand-green: #5e8c31;
     --text-primary: #1f2937;
     --text-secondary: #4b5563;
     --bg-white: #ffffff;
@@ -279,7 +279,7 @@ tr:hover .row-delete-btn {
 .graph-type-selector select:focus {
     outline: none;
     border-color: var(--green-500);
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    box-shadow: 0 0 0 3px rgba(94, 140, 49, 0.2);
 }
 
 /* Graph Container */
@@ -358,7 +358,7 @@ tr:hover .row-delete-btn {
 .control-group select:focus {
     outline: none;
     border-color: var(--green-500);
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    box-shadow: 0 0 0 3px rgba(94, 140, 49, 0.2);
 }
 
 .control-group input[type="checkbox"] {
@@ -385,7 +385,7 @@ tr:hover .row-delete-btn {
 
 .btn-primary:hover {
     background-color: var(--green-700);
-    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+    box-shadow: 0 2px 8px rgba(94, 140, 49, 0.35);
 }
 
 .btn-secondary {
@@ -562,7 +562,7 @@ tr:hover .row-delete-btn {
 .svg-edit-toolbar input[type="number"]:focus {
     outline: none;
     border-color: var(--green-500);
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    box-shadow: 0 0 0 3px rgba(94, 140, 49, 0.2);
 }
 
 .svg-edit-font-family {
@@ -615,7 +615,7 @@ tr:hover .row-delete-btn {
 
 .svg-inline-edit:focus {
     border-color: var(--green-600);
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+    box-shadow: 0 0 0 3px rgba(94, 140, 49, 0.25);
 }
 
 /* Clickable SVG labels */
@@ -903,7 +903,7 @@ tr:hover .row-delete-btn {
 .hm-ctrl input[type="number"]:focus {
     outline: none;
     border-color: var(--green-500);
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    box-shadow: 0 0 0 3px rgba(94, 140, 49, 0.2);
 }
 
 .hm-checks {

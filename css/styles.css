@@ -1,3 +1,34 @@
+/* ============================================================
+   Visualize — Modern Design System
+   Matching the Correlate app design language
+   ============================================================ */
+
+/* CSS Custom Properties */
+:root {
+    --green-900: #14532d;
+    --green-800: #166534;
+    --green-700: #15803d;
+    --green-600: #16a34a;
+    --green-500: #22c55e;
+    --green-200: #bbf7d0;
+    --green-100: #dcfce7;
+    --green-50:  #f0fdf4;
+    --gray-600:  #4b5563;
+    --gray-500:  #6b7280;
+    --gray-200:  #e5e7eb;
+    --gray-100:  #f3f4f6;
+    --brand-green: #5a9f4a;
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --bg-white: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+}
+
 /* Reset and Base Styles */
 * {
     margin: 0;
@@ -6,9 +37,9 @@
 }
 
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f5f5f5;
-    color: #333;
+    font-family: 'Open Sans', sans-serif;
+    background-color: var(--bg-white);
+    color: var(--text-primary);
     line-height: 1.6;
 }
 
@@ -21,12 +52,12 @@ body {
 
 /* Header */
 header {
-    background-color: #3D6B2E;
+    background-color: var(--green-900);
     color: white;
-    padding: 10px 16px;
-    border-radius: 8px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 8px 20px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-md);
 }
 
 .logo-container {
@@ -36,7 +67,7 @@ header {
 }
 
 .logo {
-    height: 120px;
+    height: 80px;
     width: auto;
 }
 
@@ -48,20 +79,24 @@ header {
     align-items: start;
 }
 
-/* Panels */
+/* Panels — Correlate card treatment */
 .panel {
-    background: white;
-    border-radius: 8px;
-    padding: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    background: var(--bg-white);
+    border-radius: var(--radius-lg);
+    padding: 0;
+    box-shadow: var(--shadow-md);
+    border: 1px solid #ddd;
+    overflow: hidden;
 }
 
 .panel h2 {
-    color: #3D6B2E;
-    margin-bottom: 8px;
-    font-size: 1.2em;
-    border-bottom: 2px solid #5E8C31;
-    padding-bottom: 6px;
+    background: var(--green-600);
+    color: white;
+    margin: 0;
+    font-size: 1.05em;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-bottom: none;
 }
 
 /* Data Panel */
@@ -71,17 +106,53 @@ header {
 }
 
 .data-panel h2 {
-    font-size: 1em;
-    margin-bottom: 6px;
-    padding-bottom: 4px;
+    font-size: 0.95em;
+    padding: 8px 16px;
+}
+
+/* Inner panel content needs padding */
+.data-panel .mode-selector,
+.data-panel .table-container,
+.data-panel .table-controls,
+.data-panel .group-manager {
+    margin-left: 12px;
+    margin-right: 12px;
+}
+
+.data-panel .mode-selector {
+    margin-top: 12px;
+}
+
+.data-panel .table-controls {
+    margin-bottom: 12px;
+}
+
+.graph-panel .graph-type-selector,
+.graph-panel .drawing-toolbar,
+.graph-panel .graph-container,
+.graph-panel .heatmap-info,
+.graph-panel .graph-controls,
+.graph-panel .heatmap-controls,
+.graph-panel > input[type="hidden"] {
+    margin-left: 14px;
+    margin-right: 14px;
+}
+
+.graph-panel .graph-type-selector {
+    margin-top: 14px;
+}
+
+.graph-panel .graph-controls,
+.graph-panel .heatmap-controls {
+    margin-bottom: 14px;
 }
 
 /* Table Styles */
 .table-container {
     overflow-x: auto;
     margin-bottom: 6px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
     max-height: 600px;
     overflow-y: auto;
 }
@@ -93,9 +164,9 @@ header {
 }
 
 .data-table th {
-    background-color: #5E8C31;
-    color: white;
-    padding: 4px 6px;
+    background-color: var(--green-50);
+    color: var(--green-800);
+    padding: 8px 12px;
     font-weight: 600;
     font-size: 12px;
     position: sticky;
@@ -103,10 +174,11 @@ header {
     z-index: 10;
     text-align: center;
     min-width: 60px;
+    border-bottom: 2px solid var(--green-200);
 }
 
 .data-table th:hover {
-    background-color: #4B7A28;
+    background-color: var(--green-100);
 }
 
 /* Column delete button - removed from header, now in group manager */
@@ -152,24 +224,24 @@ tr:hover .row-delete-btn {
     width: 18px;
     min-width: 18px !important;
     padding: 0 !important;
-    background-color: #5E8C31 !important;
+    background-color: var(--green-50) !important;
     border: none;
 }
 
 .data-table td {
-    padding: 3px 4px;
-    border: 1px solid #ddd;
+    padding: 4px 6px;
+    border: 1px solid var(--gray-200);
     text-align: center;
     font-size: 12px;
 }
 
 .data-table td[contenteditable="true"]:focus {
-    outline: 2px solid #5E8C31;
-    background-color: #f0f8e8;
+    outline: 2px solid var(--green-500);
+    background-color: var(--green-50);
 }
 
 .data-table td[contenteditable="true"]:hover {
-    background-color: #f8f9fa;
+    background-color: var(--gray-100);
 }
 
 /* Table Controls */
@@ -187,30 +259,38 @@ tr:hover .row-delete-btn {
 /* Graph Panel */
 .graph-type-selector {
     margin-bottom: 10px;
-    padding: 8px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
+    padding: 10px 12px;
+    background-color: var(--gray-100);
+    border-radius: var(--radius-md);
 }
 
 .graph-type-selector label {
     font-weight: 600;
     margin-right: 10px;
+    color: var(--text-secondary);
 }
 
 .graph-type-selector select {
-    padding: 5px 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
     font-size: 13px;
     min-width: 250px;
+    font-family: 'Open Sans', sans-serif;
+}
+
+.graph-type-selector select:focus {
+    outline: none;
+    border-color: var(--green-500);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
 }
 
 /* Graph Container */
 .graph-container {
     background: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 10px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 14px;
     margin-bottom: 10px;
     min-height: 300px;
     display: flex;
@@ -238,16 +318,17 @@ tr:hover .row-delete-btn {
 }
 
 .control-section {
-    padding: 8px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    border-left: 4px solid #5E8C31;
+    padding: 10px 12px;
+    background-color: var(--gray-100);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--green-500);
 }
 
 .control-section h3 {
-    color: #3D6B2E;
+    color: var(--green-800);
     margin-bottom: 6px;
     font-size: 0.95em;
+    font-weight: 600;
 }
 
 .control-group {
@@ -260,60 +341,64 @@ tr:hover .row-delete-btn {
 .control-group label {
     flex: 0 0 100px;
     font-weight: 500;
-    color: #555;
+    color: var(--text-secondary);
 }
 
 .control-group input[type="text"],
 .control-group input[type="number"],
 .control-group select {
     flex: 1;
-    padding: 5px 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
     font-size: 13px;
+    font-family: 'Open Sans', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .control-group input[type="text"]:focus,
 .control-group input[type="number"]:focus,
 .control-group select:focus {
     outline: none;
-    border-color: #5E8C31;
-    box-shadow: 0 0 0 2px rgba(94, 140, 49, 0.15);
+    border-color: var(--green-500);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
 }
 
 .control-group input[type="checkbox"] {
     margin-right: 5px;
+    accent-color: var(--green-600);
 }
 
 /* Buttons */
 .btn {
-    padding: 6px 14px;
+    padding: 10px 24px;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+    font-family: 'Open Sans', sans-serif;
 }
 
 .btn-primary {
-    background-color: #5E8C31;
+    background-color: var(--green-600);
     color: white;
 }
 
 .btn-primary:hover {
-    background-color: #4B7A28;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    background-color: var(--green-700);
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
 }
 
 .btn-secondary {
-    background-color: #95a5a6;
-    color: white;
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+    border: 1px solid var(--gray-200);
 }
 
 .btn-secondary:hover {
-    background-color: #7f8c8d;
+    background-color: var(--gray-200);
 }
 
 .btn:active {
@@ -323,6 +408,12 @@ tr:hover .row-delete-btn {
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Small buttons (table controls, heatmap buttons) */
+.table-controls .btn,
+.hm-buttons .btn {
+    padding: 6px 12px;
 }
 
 /* 2-column grid for dimension controls */
@@ -346,8 +437,9 @@ tr:hover .row-delete-btn {
     margin-top: 8px;
     padding: 10px;
     background-color: white;
-    border-radius: 4px;
-    border: 1px solid #ddd;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-200);
+    border-left: 4px solid var(--green-500);
     min-height: 60px;
 }
 
@@ -362,11 +454,11 @@ tr:hover .row-delete-btn {
 
 .stats-results .result-label {
     font-weight: 600;
-    color: #3D6B2E;
+    color: var(--green-800);
 }
 
 .stats-results .result-value {
-    color: #555;
+    color: var(--text-secondary);
 }
 
 .stats-results .significant {
@@ -396,7 +488,7 @@ tr:hover .row-delete-btn {
     justify-content: center;
     align-items: center;
     min-height: 300px;
-    color: #7f8c8d;
+    color: var(--gray-500);
     font-size: 1.2em;
 }
 
@@ -404,12 +496,12 @@ tr:hover .row-delete-btn {
 .empty-state {
     text-align: center;
     padding: 40px;
-    color: #7f8c8d;
+    color: var(--gray-500);
 }
 
 .empty-state h3 {
     margin-bottom: 10px;
-    color: #95a5a6;
+    color: var(--gray-500);
 }
 
 /* Tooltips */
@@ -418,7 +510,7 @@ tr:hover .row-delete-btn {
     padding: 8px 12px;
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 12px;
     pointer-events: none;
     z-index: 1000;
@@ -447,10 +539,10 @@ tr:hover .row-delete-btn {
     flex-direction: column;
     gap: 4px;
     background: white;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    padding: 6px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 8px;
+    box-shadow: var(--shadow-lg);
 }
 
 /* Toolbar row */
@@ -462,10 +554,18 @@ tr:hover .row-delete-btn {
 
 .svg-edit-toolbar select,
 .svg-edit-toolbar input[type="number"] {
-    padding: 2px 4px;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+    padding: 4px 6px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
     font-size: 12px;
+    font-family: 'Open Sans', sans-serif;
+}
+
+.svg-edit-toolbar select:focus,
+.svg-edit-toolbar input[type="number"]:focus {
+    outline: none;
+    border-color: var(--green-500);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
 }
 
 .svg-edit-font-family {
@@ -480,42 +580,45 @@ tr:hover .row-delete-btn {
 .svg-edit-btn {
     width: 26px;
     height: 26px;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
     background: #fff;
     cursor: pointer;
     font-size: 13px;
     line-height: 24px;
     text-align: center;
     padding: 0;
-    color: #555;
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .svg-edit-btn:hover {
-    background: #e8f5e0;
+    background: var(--green-50);
+    border-color: var(--green-200);
 }
 
 .svg-edit-btn.active {
-    background: #5E8C31;
+    background: var(--green-600);
     color: white;
-    border-color: #5E8C31;
+    border-color: var(--green-600);
 }
 
 /* SVG Inline Edit Input (inside popup) */
 .svg-inline-edit {
-    border: 2px solid #5E8C31;
-    border-radius: 3px;
+    border: 2px solid var(--green-500);
+    border-radius: var(--radius-sm);
     padding: 2px 6px;
     font-size: 14px;
     background: white;
     text-align: center;
     min-width: 80px;
     outline: none;
+    font-family: 'Open Sans', sans-serif;
 }
 
 .svg-inline-edit:focus {
-    border-color: #4B7A28;
-    box-shadow: 0 0 0 3px rgba(94, 140, 49, 0.2);
+    border-color: var(--green-600);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
 }
 
 /* Clickable SVG labels */
@@ -549,26 +652,26 @@ tr:hover .row-delete-btn {
 }
 
 .table-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--gray-100);
 }
 
 .table-container::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
+    background: var(--gray-500);
+    border-radius: var(--radius-sm);
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: var(--gray-600);
 }
 
 /* Drawing Toolbar */
 .drawing-toolbar {
     display: flex;
     gap: 4px;
-    padding: 4px 8px;
-    background: #f8f9fa;
-    border: 1px solid #ddd;
-    border-radius: 4px 4px 0 0;
+    padding: 6px 10px;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     border-bottom: none;
     align-items: center;
 }
@@ -576,8 +679,8 @@ tr:hover .row-delete-btn {
 .draw-tool-btn {
     width: 30px;
     height: 30px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
     background: white;
     cursor: pointer;
     font-size: 16px;
@@ -586,22 +689,25 @@ tr:hover .row-delete-btn {
     justify-content: center;
     padding: 0;
     line-height: 1;
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .draw-tool-btn:hover {
-    background: #e8f5e0;
+    background: var(--green-50);
+    border-color: var(--green-200);
 }
 
 .draw-tool-btn.active {
-    background: #5E8C31;
+    background: var(--green-600);
     color: white;
-    border-color: #5E8C31;
+    border-color: var(--green-600);
 }
 
 .drawing-separator {
     width: 1px;
     height: 20px;
-    background: #ddd;
+    background: var(--gray-200);
     margin: 0 4px;
 }
 
@@ -621,8 +727,9 @@ tr:hover .row-delete-btn {
 
 .group-manager h3 {
     font-size: 0.9em;
-    color: #3D6B2E;
+    color: var(--green-800);
     margin: 6px 0 4px;
+    font-weight: 600;
 }
 
 .group-list {
@@ -636,8 +743,8 @@ tr:hover .row-delete-btn {
     align-items: center;
     gap: 6px;
     padding: 4px 6px;
-    background: #f8f9fa;
-    border-radius: 4px;
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
     font-size: 13px;
     cursor: grab;
     user-select: none;
@@ -646,12 +753,12 @@ tr:hover .row-delete-btn {
 }
 
 .group-item:hover {
-    background: #e8f5e0;
+    background: var(--green-50);
 }
 
 .group-item.drag-over {
-    border-color: #5E8C31;
-    background: #e8f5e0;
+    border-color: var(--green-500);
+    background: var(--green-50);
 }
 
 .group-item.hidden {
@@ -660,7 +767,7 @@ tr:hover .row-delete-btn {
 
 .group-item .drag-handle {
     cursor: grab;
-    color: #999;
+    color: var(--gray-500);
     font-size: 14px;
     flex-shrink: 0;
 }
@@ -677,7 +784,7 @@ tr:hover .row-delete-btn {
     height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
-    border: 1px solid #ccc;
+    border: 1px solid var(--gray-200);
 }
 
 .group-item .visibility-btn {
@@ -717,29 +824,30 @@ tr:hover .row-delete-btn {
     display: flex;
     gap: 0;
     margin-bottom: 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     overflow: hidden;
-    border: 1px solid #ccc;
+    border: 1px solid var(--gray-200);
 }
 
 .mode-btn {
     flex: 1;
-    padding: 6px 12px;
+    padding: 8px 14px;
     border: none;
-    background: #e0e0e0;
-    color: #555;
+    background: var(--gray-100);
+    color: var(--gray-600);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
+    font-family: 'Open Sans', sans-serif;
 }
 
 .mode-btn:hover {
-    background: #d0d0d0;
+    background: var(--green-50);
 }
 
 .mode-btn.active {
-    background: #5E8C31;
+    background: var(--green-600);
     color: white;
 }
 
@@ -749,16 +857,17 @@ tr:hover .row-delete-btn {
 }
 
 .heatmap-controls .control-section {
-    padding: 8px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    border-left: 4px solid #5E8C31;
+    padding: 10px 12px;
+    background-color: var(--gray-100);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--green-500);
 }
 
 .heatmap-controls .control-section h3 {
-    color: #3D6B2E;
+    color: var(--green-800);
     margin-bottom: 6px;
     font-size: 0.95em;
+    font-weight: 600;
 }
 
 .heatmap-grid {
@@ -777,18 +886,27 @@ tr:hover .row-delete-btn {
 .hm-ctrl label {
     flex: 0 0 60px;
     font-weight: 500;
-    color: #555;
+    color: var(--text-secondary);
     font-size: 11px;
 }
 
 .hm-ctrl select,
 .hm-ctrl input[type="number"] {
     flex: 1;
-    padding: 2px 4px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
+    padding: 4px 6px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
     font-size: 11px;
     min-width: 0;
+    font-family: 'Open Sans', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.hm-ctrl select:focus,
+.hm-ctrl input[type="number"]:focus {
+    outline: none;
+    border-color: var(--green-500);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
 }
 
 .hm-checks {
@@ -802,7 +920,11 @@ tr:hover .row-delete-btn {
     display: flex;
     align-items: center;
     gap: 3px;
-    color: #555;
+    color: var(--text-secondary);
+}
+
+.hm-checks input[type="checkbox"] {
+    accent-color: var(--green-600);
 }
 
 .hm-buttons {
@@ -813,20 +935,21 @@ tr:hover .row-delete-btn {
 
 /* Heatmap Info Panel */
 .heatmap-info {
-    background: #f8f9fa;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
     padding: 10px 14px;
     margin-bottom: 10px;
     font-size: 12px;
     line-height: 1.6;
-    color: #444;
+    color: var(--text-secondary);
 }
 
 .heatmap-info h4 {
-    color: #3D6B2E;
+    color: var(--green-800);
     font-size: 13px;
     margin: 0 0 6px;
+    font-weight: 600;
 }
 
 .heatmap-info .info-row {
@@ -837,14 +960,14 @@ tr:hover .row-delete-btn {
 
 .heatmap-info .info-label {
     font-weight: 600;
-    color: #555;
+    color: var(--text-secondary);
     min-width: 90px;
 }
 
 .heatmap-info .info-explain {
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid var(--gray-200);
     font-style: italic;
-    color: #666;
+    color: var(--gray-500);
 }

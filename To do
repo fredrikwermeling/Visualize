@@ -11,6 +11,9 @@
 - add a header related to selecting graph (column and heat map at the moment, but more in the furture). 
 - when going from heatmap to "show legend in graph", it says "Standard choice for all pairwise comparisons after ANOVA". I dont understand this semtece, it seems wrong. the T test used in this setup is only for giving a quick idea if something is differnt. 
 
+export values from heatmap tocsv or heatmap. need to export all decimals inlcuded in thee input list 
+grphs needs to manage negative values, and directly adjust graph to them. also by defulat make a faint line at 0 when showing both + and - data
+
 - cancer survival graph and two-way ANOVA.
 - likely need to have another table that opens if selected. 
 - Make a standalone app for a computer? Does this allow for connecting graph in powerpoint to the software and back again?

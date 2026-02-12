@@ -42,6 +42,7 @@ class GraphRenderer {
             // Stats legend
             showStatsLegend: false,
             statsTestName: '',
+            statsLegendOffset: { x: 0, y: 0 },
             // Group color legend
             showGroupLegend: false,
             groupLegendLabels: {},
@@ -109,11 +110,19 @@ class GraphRenderer {
     }
 
     get innerWidth() {
-        return this.width - this.margin.left - this.margin.right;
+        return this.width;
     }
 
     get innerHeight() {
-        return this.height - this.margin.top - this.margin.bottom;
+        return this.height;
+    }
+
+    get svgWidth() {
+        return this.width + this.margin.left + this.margin.right;
+    }
+
+    get svgHeight() {
+        return this.height + this.margin.top + this.margin.bottom;
     }
 
     _getColor(index) {
@@ -265,7 +274,7 @@ class GraphRenderer {
         // Auto-detect label overlap and set angle in vertical mode
         if (!isHorizontal && this.settings.xTickAngle === 0) {
             const labels = filteredData.map(d => d.label);
-            const bandW = (this.width - this.margin.left - this.margin.right) / (labels.length || 1);
+            const bandW = this.width / (labels.length || 1);
             const maxLabelPx = Math.max(...labels.map(l => l.length * 7.5));
             if (maxLabelPx > bandW * 0.9 && labels.length > 1) {
                 this._autoAngled = true;
@@ -293,11 +302,11 @@ class GraphRenderer {
             this.margin.right += this.settings.GROUP_LEGEND_WIDTH;
         }
 
-        // Create SVG
+        // Create SVG (total size = plot area + margins)
         this.svg = d3.select(this.container)
             .append('svg')
-            .attr('width', this.width)
-            .attr('height', this.height)
+            .attr('width', this.svgWidth)
+            .attr('height', this.svgHeight)
             .attr('class', 'graph-svg');
 
         const g = this.svg.append('g')
@@ -684,7 +693,7 @@ class GraphRenderer {
                 const xLabelEl = this.svg.append('text')
                     .attr('class', 'axis-label x-label')
                     .attr('x', plotCenterX + xOff.x)
-                    .attr('y', this.height - 10 + xOff.y)
+                    .attr('y', this.svgHeight - 10 + xOff.y)
                     .attr('text-anchor', 'middle')
                     .style('font-family', yf.family)
                     .style('font-size', `${yf.size}px`)
@@ -713,7 +722,7 @@ class GraphRenderer {
                 const xLabelEl = this.svg.append('text')
                     .attr('class', 'axis-label x-label')
                     .attr('x', plotCenterX + xOff.x)
-                    .attr('y', this.height - 10 + xOff.y)
+                    .attr('y', this.svgHeight - 10 + xOff.y)
                     .attr('text-anchor', 'middle')
                     .style('font-family', xf.family)
                     .style('font-size', `${xf.size}px`)
@@ -2133,29 +2142,44 @@ class GraphRenderer {
     }
 
     _drawStatsLegend(g) {
-        // Draw as a centered single line below the x-axis labels
+        const off = this.settings.statsLegendOffset;
         const plotCenterX = this.innerWidth / 2;
         let legendText = '* p < 0.05    ** p < 0.01    *** p < 0.001';
         if (this.settings.statsTestName) {
             legendText += '    |    ' + this.settings.statsTestName;
         }
 
-        // Position below x-axis labels: base 35 + extra for angled labels
         const isH = this.settings.orientation === 'horizontal';
         let legendY = this.innerHeight + 35;
         if (!isH && this._effectiveAngle > 0) {
             legendY += this._effectiveAngle === 90 ? 50 : 30;
         }
 
-        g.append('text')
+        const el = g.append('text')
             .attr('class', 'stats-legend')
-            .attr('x', plotCenterX)
-            .attr('y', legendY)
+            .attr('x', plotCenterX + off.x)
+            .attr('y', legendY + off.y)
             .attr('text-anchor', 'middle')
             .style('font-family', this.settings.fontFamily)
             .style('font-size', '10px')
             .style('fill', '#666')
+            .style('cursor', 'grab')
             .text(legendText);
+
+        // Make draggable
+        const self = this;
+        el.call(d3.drag()
+            .filter(function(event) { return !event.ctrlKey && !event.button && event.detail < 2; })
+            .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
+            .on('drag', function(event) {
+                self.settings.statsLegendOffset.x += event.dx;
+                self.settings.statsLegendOffset.y += event.dy;
+                d3.select(this)
+                    .attr('x', plotCenterX + self.settings.statsLegendOffset.x)
+                    .attr('y', legendY + self.settings.statsLegendOffset.y);
+            })
+            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+        );
     }
 
     _drawGroupLegend(g, data) {

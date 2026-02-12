@@ -334,21 +334,24 @@ class DataTable {
                 dataRows = parsed;
             }
 
-            // In heatmap mode: detect first text column as Group ID
+            // In heatmap mode: detect leading text columns as Group/Sample IDs
             // In column mode: no ID detection
             const isHeatmap = window.app && window.app.mode === 'heatmap';
-            let groupColIdx = -1;
+            let idColCount = 0;
             if (isHeatmap && dataRows.length > 0) {
-                let textCount = 0, numCount = 0;
-                for (const row of dataRows) {
-                    const v = (row[0] || '').trim();
-                    if (v === '') continue;
-                    if (isNaN(parseFloat(v))) textCount++;
-                    else numCount++;
+                // Check up to 2 leading columns for text (non-numeric) content
+                for (let col = 0; col < Math.min(2, numCols); col++) {
+                    let textCount = 0, numCount = 0;
+                    for (const row of dataRows) {
+                        const v = (row[col] || '').trim();
+                        if (v === '') continue;
+                        if (isNaN(parseFloat(v))) textCount++;
+                        else numCount++;
+                    }
+                    if (textCount > 0 && textCount >= numCount) idColCount = col + 1;
+                    else break;
                 }
-                if (textCount > 0 && textCount >= numCount) groupColIdx = 0;
             }
-            const idColCount = groupColIdx >= 0 ? 1 : 0;
 
             const dataColCount = numCols - idColCount;
             const dataHeaderLabels = hasHeader ? headerLabels.slice(idColCount) : Array.from({ length: dataColCount }, (_, i) => `Group ${i + 1}`);
@@ -382,10 +385,11 @@ class DataTable {
             const bodyRows = this.tbody.querySelectorAll('tr');
             dataRows.forEach((rowData, r) => {
                 if (r >= bodyRows.length) return;
-                // Fill Group ID cell if detected
-                if (groupColIdx >= 0) {
+                // Fill ID cells (Group and optionally Sample)
+                if (idColCount > 0) {
                     const idCells = bodyRows[r].querySelectorAll('td.id-cell');
                     if (idCells[0]) idCells[0].textContent = rowData[0] || '';
+                    if (idColCount > 1 && idCells[1]) idCells[1].textContent = rowData[1] || '';
                 }
                 // Fill data cells
                 const dataCells = bodyRows[r].querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');

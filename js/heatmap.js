@@ -534,71 +534,79 @@ class HeatmapRenderer {
     }
 
     _drawGroupLegend(svg, groups, x, y, maxWidth) {
+        const ox = this._groupLegendOffset.x;
+        const oy = this._groupLegendOffset.y;
         const g = svg.append('g')
             .attr('class', 'heatmap-group-legend')
-            .attr('transform', `translate(${x}, ${y})`);
+            .attr('transform', `translate(${x + ox}, ${y + oy})`)
+            .style('cursor', 'grab');
+
+        g.append('title').text('Drag to move. Double-click text to edit.');
+
+        // Whole-legend drag (same pattern as title)
+        const self = this;
+        let wasDragged = false;
+        g.call(d3.drag()
+            .filter(function(event) { return !event.ctrlKey && !event.button && event.detail < 2; })
+            .on('start', function() { wasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
+            .on('drag', function(event) {
+                wasDragged = true;
+                self._groupLegendOffset.x += event.dx;
+                self._groupLegendOffset.y += event.dy;
+                d3.select(this).attr('transform',
+                    `translate(${x + self._groupLegendOffset.x}, ${y + self._groupLegendOffset.y})`);
+            })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                if (!wasDragged) {
+                    self._selectForNudge(self._groupLegendOffset, svg);
+                }
+            })
+        );
+
+        // Selection highlight
+        if (this._selectedNudgeOffset === this._groupLegendOffset) {
+            this._drawSelectionHighlight(svg, g);
+        }
 
         let xOff = 0;
-        const itemOffsets = this.settings.groupLabelItemOffsets || {};
+        const glf = this.settings.groupLabelFont;
 
         for (const name of groups.uniqueGroups) {
             const color = groups.groupColors(name);
-            const io = itemOffsets[name] || { x: 0, y: 0 };
-            const glf = this.settings.groupLabelFont;
             const displayName = (this.settings.groupLabelOverrides && this.settings.groupLabelOverrides[name]) || name;
 
-            const itemG = g.append('g')
-                .attr('transform', `translate(${xOff + io.x}, ${io.y})`)
-                .style('cursor', 'grab');
-
-            // Per-item drag
-            ((gName, itemEl) => {
-                let wasDragged = false;
-                itemEl.call(d3.drag()
-                    .filter(event => !event.ctrlKey && !event.button && event.detail < 2)
-                    .on('start', function() { wasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
-                    .on('drag', function(event) {
-                        wasDragged = true;
-                        if (!itemOffsets[gName]) itemOffsets[gName] = { x: 0, y: 0 };
-                        itemOffsets[gName].x += event.dx;
-                        itemOffsets[gName].y += event.dy;
-                        self.settings.groupLabelItemOffsets = itemOffsets;
-                        d3.select(this).attr('transform',
-                            `translate(${xOff + itemOffsets[gName].x}, ${itemOffsets[gName].y})`);
-                    })
-                    .on('end', function() { d3.select(this).style('cursor', 'grab'); })
-                );
-            })(name, itemG);
-
-            const colorRect = itemG.append('rect')
-                .attr('x', 0).attr('y', 0)
+            const colorRect = g.append('rect')
+                .attr('x', xOff).attr('y', 0)
                 .attr('width', 10).attr('height', 10)
                 .attr('fill', color).attr('rx', 2)
                 .attr('cursor', 'pointer');
 
             // Click to change group color
-            colorRect.on('click', (event) => {
-                event.stopPropagation();
-                const picker = document.createElement('input');
-                picker.type = 'color';
-                const c = d3.color(color);
-                picker.value = c ? c.formatHex() : '#000000';
-                picker.style.position = 'absolute';
-                picker.style.opacity = '0';
-                document.body.appendChild(picker);
-                picker.addEventListener('input', (e) => {
-                    if (!this.settings.groupColorOverrides) this.settings.groupColorOverrides = {};
-                    this.settings.groupColorOverrides[name] = e.target.value;
-                    if (window.app) window.app.updateGraph();
+            ((gName, rect, col) => {
+                rect.append('title').text('Click to change color');
+                rect.on('click', (event) => {
+                    event.stopPropagation();
+                    const picker = document.createElement('input');
+                    picker.type = 'color';
+                    const c = d3.color(col);
+                    picker.value = c ? c.formatHex() : '#000000';
+                    picker.style.position = 'absolute';
+                    picker.style.opacity = '0';
+                    document.body.appendChild(picker);
+                    picker.addEventListener('input', (e) => {
+                        if (!self.settings.groupColorOverrides) self.settings.groupColorOverrides = {};
+                        self.settings.groupColorOverrides[gName] = e.target.value;
+                        if (window.app) window.app.updateGraph();
+                    });
+                    picker.addEventListener('change', () => picker.remove());
+                    picker.addEventListener('blur', () => setTimeout(() => picker.remove(), 200));
+                    picker.click();
                 });
-                picker.addEventListener('change', () => picker.remove());
-                picker.addEventListener('blur', () => setTimeout(() => picker.remove(), 200));
-                picker.click();
-            });
-            colorRect.append('title').text('Click to change color');
+            })(name, colorRect, color);
 
-            const labelEl = itemG.append('text')
-                .attr('x', 13).attr('y', 9)
+            const labelEl = g.append('text')
+                .attr('x', xOff + 13).attr('y', 9)
                 .attr('font-size', glf.size + 'px')
                 .attr('font-family', glf.family)
                 .attr('font-weight', glf.bold ? 'bold' : 'normal')
@@ -617,20 +625,20 @@ class HeatmapRenderer {
                     if (existing) existing.remove();
 
                     const bbox = el.node().getBoundingClientRect();
-                    const fontObj = this.settings.groupLabelFont;
+                    const fontObj = self.settings.groupLabelFont;
 
                     const popup = document.createElement('div');
                     popup.className = 'svg-edit-popup';
                     popup.style.left = (bbox.left + window.scrollX - 20) + 'px';
                     popup.style.top = (bbox.bottom + window.scrollY + 4) + 'px';
 
-                    const { toolbar, familySelect, sizeInput, boldBtn, italicBtn } = this._createFontToolbar(fontObj);
+                    const { toolbar, familySelect, sizeInput, boldBtn, italicBtn } = self._createFontToolbar(fontObj);
                     popup.appendChild(toolbar);
 
                     const input = document.createElement('input');
                     input.type = 'text';
                     input.className = 'svg-inline-edit';
-                    const currentOverride = (this.settings.groupLabelOverrides && this.settings.groupLabelOverrides[groupName]) || groupName;
+                    const currentOverride = (self.settings.groupLabelOverrides && self.settings.groupLabelOverrides[groupName]) || groupName;
                     input.value = currentOverride;
                     popup.appendChild(input);
 
@@ -640,15 +648,15 @@ class HeatmapRenderer {
 
                     const commit = () => {
                         const newText = input.value.trim();
-                        if (!this.settings.groupLabelOverrides) this.settings.groupLabelOverrides = {};
+                        if (!self.settings.groupLabelOverrides) self.settings.groupLabelOverrides = {};
                         if (newText && newText !== groupName) {
-                            this.settings.groupLabelOverrides[groupName] = newText;
+                            self.settings.groupLabelOverrides[groupName] = newText;
                         } else {
-                            delete this.settings.groupLabelOverrides[groupName];
+                            delete self.settings.groupLabelOverrides[groupName];
                         }
-                        this.settings.groupLabelFont = {
+                        self.settings.groupLabelFont = {
                             family: familySelect.value,
-                            size: parseInt(sizeInput.value) || 10,
+                            size: parseInt(sizeInput.value) || 15,
                             bold: boldBtn.classList.contains('active'),
                             italic: italicBtn.classList.contains('active')
                         };
@@ -672,10 +680,9 @@ class HeatmapRenderer {
                 });
             })(name, labelEl);
 
-            xOff += 13 + displayName.length * 6 + 12;
+            xOff += 13 + displayName.length * (glf.size * 0.6) + 12;
             if (xOff > maxWidth) break;
         }
-
     }
 
     _drawDendrogram(g, tree, scale, orientation, span, depth) {

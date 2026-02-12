@@ -46,6 +46,13 @@ class App {
             this.dataTable.clearData();
             this._clearStats();
         });
+        document.getElementById('addTestData').addEventListener('click', () => {
+            if (this.mode === 'heatmap') {
+                this.dataTable.loadHeatmapSampleData();
+            } else {
+                this.dataTable.loadSampleData();
+            }
+        });
     }
 
     _bindGraphControls() {
@@ -170,6 +177,12 @@ class App {
         // Point shape
         document.getElementById('pointShape').addEventListener('change', (e) => {
             this.graphRenderer.updateSettings({ pointShape: e.target.value });
+            this.updateGraph();
+        });
+
+        // Point spread mode
+        document.getElementById('pointSpread').addEventListener('change', (e) => {
+            this.graphRenderer.updateSettings({ pointSpread: e.target.value });
             this.updateGraph();
         });
 

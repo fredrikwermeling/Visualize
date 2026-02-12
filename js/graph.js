@@ -66,7 +66,8 @@ class GraphRenderer {
             // Group ordering & visibility
             groupOrder: [],      // array of group labels in display order; empty = use data order
             hiddenGroups: [],     // array of group labels to hide from graph
-            centerLineWidth: 1.0  // fraction of bandwidth for mean/median line (0.1–1.0)
+            centerLineWidth: 1.0,  // fraction of bandwidth for mean/median line (0.1–1.0)
+            pointSpread: 'jitter'  // 'jitter' or 'beeswarm'
         };
 
         // Color themes
@@ -167,6 +168,33 @@ class GraphRenderer {
                 .attr('stroke-width', strokeWidth).attr('opacity', opacity);
             return sel;
         }
+    }
+
+    // Compute point offsets: jitter (random) or beeswarm (non-overlapping)
+    _pointOffsets(values, maxWidth, valueScale) {
+        if (this.settings.pointSpread === 'beeswarm') {
+            const r = this.settings.pointSize;
+            const diameter = r * 2 + 1;
+            const positions = [];
+            const placed = [];
+            values.forEach((v) => {
+                const vPos = valueScale(v);
+                let bestOff = 0;
+                for (let off = 0; Math.abs(off) <= maxWidth / 2; off = off <= 0 ? -off + diameter : -off) {
+                    let collision = false;
+                    for (const p of placed) {
+                        const dv = vPos - p.vPos;
+                        const do2 = off - p.off;
+                        if (Math.sqrt(dv * dv + do2 * do2) < diameter) { collision = true; break; }
+                    }
+                    if (!collision) { bestOff = off; break; }
+                }
+                placed.push({ vPos, off: bestOff });
+                positions.push(bestOff);
+            });
+            return positions;
+        }
+        return values.map(() => (Math.random() - 0.5) * maxWidth);
     }
 
     // Returns color for a group at display position i, using the original data index for stable colors
@@ -1083,7 +1111,7 @@ class GraphRenderer {
             if (isH) {
                 const cyBase = groupScale(group.label) + bw / 2;
                 const jitterWidth = Math.min(bw * 0.3, 30);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
 
                 this._drawDataPoints(g, group.values,
                     d => valueScale(d),
@@ -1100,7 +1128,7 @@ class GraphRenderer {
             } else {
                 const cxBase = groupScale(group.label) + bw / 2;
                 const jitterWidth = Math.min(bw * 0.3, 30);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
 
                 this._drawDataPoints(g, group.values,
                     (d, idx) => cxBase + jitters[idx],
@@ -1168,7 +1196,7 @@ class GraphRenderer {
 
                 // Points
                 const jitterWidth = Math.min(bw * 0.3, 20);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
                 this._drawDataPoints(g, group.values,
                     d => valueScale(d),
                     (d, j) => cy + jitters[j],
@@ -1215,7 +1243,7 @@ class GraphRenderer {
 
                 // Points
                 const jitterWidth = Math.min(bw * 0.3, 20);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
                 this._drawDataPoints(g, group.values,
                     (d, j) => cx + jitters[j],
                     d => valueScale(d),
@@ -1373,7 +1401,7 @@ class GraphRenderer {
                     .attr('stroke', '#fff').attr('stroke-width', 2);
 
                 const jitterWidth = Math.min(violinWidth * 0.3, 10);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
                 this._drawDataPoints(g, group.values,
                     d => valueScale(d),
                     (d, j) => cy + jitters[j],
@@ -1402,7 +1430,7 @@ class GraphRenderer {
                     .attr('stroke', '#fff').attr('stroke-width', 2);
 
                 const jitterWidth = Math.min(violinWidth * 0.3, 10);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
                 this._drawDataPoints(g, group.values,
                     (d, j) => cx + jitters[j],
                     d => valueScale(d),
@@ -1420,7 +1448,7 @@ class GraphRenderer {
             if (isH) {
                 const cyBase = groupScale(group.label) + bw / 2;
                 const jitterWidth = Math.min(bw * 0.35, 35);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
 
                 this._drawDataPoints(g, group.values,
                     d => valueScale(d),
@@ -1429,7 +1457,7 @@ class GraphRenderer {
             } else {
                 const cxBase = groupScale(group.label) + bw / 2;
                 const jitterWidth = Math.min(bw * 0.35, 35);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
 
                 this._drawDataPoints(g, group.values,
                     (d, j) => cxBase + jitters[j],
@@ -1483,7 +1511,7 @@ class GraphRenderer {
                 }
 
                 const jitterWidth = Math.min(bw * 0.3, 20);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
                 this._drawDataPoints(g, group.values,
                     d => valueScale(d),
                     (d, j) => cy + jitters[j],
@@ -1523,7 +1551,7 @@ class GraphRenderer {
                 }
 
                 const jitterWidth = Math.min(bw * 0.3, 20);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
                 this._drawDataPoints(g, group.values,
                     (d, j) => cx + jitters[j],
                     d => valueScale(d),
@@ -1577,7 +1605,7 @@ class GraphRenderer {
                 }
 
                 const jitterWidth = Math.min(bw * 0.35, 25);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
                 this._drawDataPoints(g, group.values,
                     d => valueScale(d),
                     (d, j) => cy + jitters[j],
@@ -1617,7 +1645,7 @@ class GraphRenderer {
                 }
 
                 const jitterWidth = Math.min(bw * 0.35, 25);
-                const jitters = group.values.map(() => (Math.random() - 0.5) * jitterWidth);
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
                 this._drawDataPoints(g, group.values,
                     (d, j) => cx + jitters[j],
                     d => valueScale(d),

@@ -15,14 +15,16 @@ class HeatmapRenderer {
             legendTitle: null,  // null = auto-generate, '' = hidden, string = custom
             title: 'Heatmap',
             groupColorOverrides: {},  // { groupName: '#color' }
-            titleFont: { family: 'Aptos Display', size: 16, bold: true, italic: false },
-            legendTitleFont: { family: 'Aptos Display', size: 10, bold: false, italic: false },
-            groupLabelFont: { family: 'Aptos Display', size: 10, bold: false, italic: false },
+            titleFont: { family: 'Aptos Display', size: 18, bold: true, italic: false },
+            legendTitleFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
+            groupLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
             groupLabelOverrides: {},  // { groupName: 'overriddenText' }
             groupLabelItemOffsets: {},  // { groupName: {x,y} } per-item drag offsets
             groupColorTheme: 'default',  // color theme for group bar
             colOrder: [],       // manual column order (array of col label strings); empty = data order
             hiddenCols: [],     // columns to hide from the heatmap (array of col label strings)
+            rowOrder: [],       // manual row order (array of row label strings); empty = data order
+            hiddenRows: [],     // rows to hide from the heatmap (array of row label strings)
             colLabelAngle: 45   // angle for column labels (0, 45, 90)
         };
         // Drag offsets for movable elements
@@ -36,13 +38,27 @@ class HeatmapRenderer {
         Object.assign(this.settings, settings);
         this.container.innerHTML = '';
 
-        const { colLabels: rawColLabels, rowLabels, matrix: rawMatrix } = matrixData;
+        const { colLabels: rawColLabels, rowLabels, matrix: rawMatrix, groupAssignments } = matrixData;
         // Store raw column labels for the column manager UI
         this._rawColLabels = rawColLabels;
+        this._groupAssignments = groupAssignments || [];
         if (!rawMatrix || rawMatrix.length === 0 || rawMatrix[0].length === 0) {
             this.container.innerHTML = '<div class="empty-state"><h3>Enter numeric data to generate heatmap</h3></div>';
             return;
         }
+
+        // Store raw row labels for the row manager UI
+        this._rawRowLabels = rowLabels;
+
+        // Filter out hidden rows
+        const hiddenRows = this.settings.hiddenRows || [];
+        let visibleRowIndices = rowLabels.map((_, i) => i);
+        if (hiddenRows.length > 0) {
+            visibleRowIndices = visibleRowIndices.filter(i => !hiddenRows.includes(rowLabels[i]));
+        }
+        const filteredRowLabels = visibleRowIndices.map(i => rowLabels[i]);
+        const filteredGroupAssignments = visibleRowIndices.map(i => this._groupAssignments[i]);
+        const filteredRawMatrix = visibleRowIndices.map(i => rawMatrix[i]);
 
         // Filter out hidden columns
         const hiddenCols = this.settings.hiddenCols || [];
@@ -51,10 +67,10 @@ class HeatmapRenderer {
             visibleColIndices = visibleColIndices.filter(i => !hiddenCols.includes(rawColLabels[i]));
         }
         const colLabels = visibleColIndices.map(i => rawColLabels[i]);
-        const matrix = rawMatrix.map(row => visibleColIndices.map(i => row[i]));
+        const matrix = filteredRawMatrix.map(row => visibleColIndices.map(i => row[i]));
 
         if (matrix.length === 0 || matrix[0].length === 0) {
-            this.container.innerHTML = '<div class="empty-state"><h3>All columns are hidden</h3></div>';
+            this.container.innerHTML = '<div class="empty-state"><h3>All rows/columns are hidden</h3></div>';
             return;
         }
 
@@ -65,7 +81,7 @@ class HeatmapRenderer {
         const displayMatrix = this._winsorize(normMatrix, this.settings.winsorize);
 
         // Store for CSV export
-        this._lastExport = { colLabels, rowLabels, normMatrix, rowOrder: null, colOrder: null };
+        this._lastExport = { colLabels, rowLabels: filteredRowLabels, normMatrix, rowOrder: null, colOrder: null };
 
         // Clustering (on normalized, non-winsorized data)
         let rowOrder = Array.from({ length: normMatrix.length }, (_, i) => i);
@@ -102,6 +118,21 @@ class HeatmapRenderer {
             colOrder = ordered;
         }
 
+        // Apply manual row order when not clustering rows
+        const manualRowOrder = this.settings.rowOrder || [];
+        if (manualRowOrder.length > 0 && !(clusterMode === 'rows' || clusterMode === 'both')) {
+            const labelToIdx = {};
+            filteredRowLabels.forEach((label, i) => { labelToIdx[label] = i; });
+            const ordered = [];
+            manualRowOrder.forEach(label => {
+                if (labelToIdx[label] !== undefined) ordered.push(labelToIdx[label]);
+            });
+            filteredRowLabels.forEach((label, i) => {
+                if (!manualRowOrder.includes(label)) ordered.push(i);
+            });
+            rowOrder = ordered;
+        }
+
         // Update stored export data with final ordering
         this._lastExport.rowOrder = rowOrder;
         this._lastExport.colOrder = colOrder;
@@ -121,7 +152,7 @@ class HeatmapRenderer {
         const colorScale = this._buildColorScale(allValues, this.settings.colorScheme);
 
         // Group detection
-        const groups = this.settings.showGroupBar ? this._detectGroups(rowLabels) : null;
+        const groups = this.settings.showGroupBar ? this._detectGroups(filteredRowLabels, filteredGroupAssignments) : null;
 
         // Auto-generate legend title
         const legendTitle = this._getAutoLegendTitle();
@@ -137,7 +168,7 @@ class HeatmapRenderer {
         const groupLegendHeight = (groups && groups.uniqueGroups.length > 1) ? 20 : 0;
 
         // Measure label sizes
-        const maxRowLabel = Math.max(...rowLabels.map(l => l.length)) * 7;
+        const maxRowLabel = Math.max(...filteredRowLabels.map(l => l.length)) * 7;
         const rowLabelWidth = Math.min(Math.max(maxRowLabel, 40), 120);
         const colAngle = this.settings.colLabelAngle ?? 45;
         const maxColLabelLen = Math.max(...colLabels.map(l => l.length));
@@ -181,11 +212,21 @@ class HeatmapRenderer {
         const cellGroup = svg.append('g')
             .attr('transform', `translate(${marginLeft}, ${marginTop})`);
 
+        // Tooltip element
+        let tooltip = document.getElementById('heatmap-tooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'heatmap-tooltip';
+            tooltip.className = 'heatmap-tooltip';
+            document.body.appendChild(tooltip);
+        }
+        this._tooltip = tooltip;
+
         // Draw cells (use displayMatrix for colors)
-        this._drawCells(cellGroup, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale);
+        this._drawCells(cellGroup, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale, colLabels, filteredRowLabels, matrix);
 
         // Row labels (right of matrix)
-        this._drawRowLabels(cellGroup, rowLabels, rowOrder, yScale, cellAreaWidth);
+        this._drawRowLabels(cellGroup, filteredRowLabels, rowOrder, yScale, cellAreaWidth);
 
         // Column labels (bottom, angled 45deg)
         this._drawColLabels(cellGroup, colLabels, colOrder, xScale, cellAreaHeight);
@@ -306,14 +347,18 @@ class HeatmapRenderer {
 
     // --- Group Detection ---
 
-    _detectGroups(rowLabels) {
+    _detectGroups(rowLabels, groupAssignments) {
         const groupMap = [];
         const groupNames = {};
         rowLabels.forEach((label, i) => {
-            // Split on the last underscore: everything before it is the group,
-            // everything after is the replicate ID (e.g. "ctrl5_q1" → group "ctrl5")
-            const lastUnderscore = label.lastIndexOf('_');
-            const group = lastUnderscore > 0 ? label.substring(0, lastUnderscore).trim() : label;
+            let group;
+            if (groupAssignments && groupAssignments[i] && groupAssignments[i].trim()) {
+                group = groupAssignments[i].trim();
+            } else {
+                // Fallback: split on the last underscore
+                const lastUnderscore = label.lastIndexOf('_');
+                group = lastUnderscore > 0 ? label.substring(0, lastUnderscore).trim() : label;
+            }
             groupMap.push(group);
             if (!groupNames[group]) groupNames[group] = [];
             groupNames[group].push(i);
@@ -355,11 +400,13 @@ class HeatmapRenderer {
 
     // --- Drawing ---
 
-    _drawCells(g, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale) {
+    _drawCells(g, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale, colLabels, rowLabels, rawMatrix) {
         const cellWidth = xScale.bandwidth();
         const cellHeight = yScale.bandwidth();
         const showValues = this.settings.showValues;
         const fontSize = Math.min(cellWidth, cellHeight, 12) * 0.7;
+        const tooltip = this._tooltip;
+        const hasNorm = this.settings.normalize !== 'none';
 
         for (const ri of rowOrder) {
             for (const ci of colOrder) {
@@ -369,7 +416,7 @@ class HeatmapRenderer {
                 const x = xScale(ci);
                 const y = yScale(ri);
 
-                g.append('rect')
+                const rect = g.append('rect')
                     .attr('x', x)
                     .attr('y', y)
                     .attr('width', cellWidth)
@@ -377,6 +424,26 @@ class HeatmapRenderer {
                     .attr('fill', colorScale(displayVal))
                     .attr('stroke', '#fff')
                     .attr('stroke-width', 0.5);
+
+                // Tooltip events
+                if (tooltip && colLabels && rowLabels) {
+                    rect.on('mouseover', () => {
+                            const rawVal = rawMatrix ? rawMatrix[ri][ci] : NaN;
+                            const normVal = normMatrix[ri][ci];
+                            let html = `<b>${rowLabels[ri]}</b><br>${colLabels[ci]}`;
+                            if (!isNaN(rawVal)) html += `<br>Raw: ${rawVal}`;
+                            if (hasNorm && !isNaN(normVal)) html += `<br>Norm: ${normVal.toFixed(3)}`;
+                            tooltip.innerHTML = html;
+                            tooltip.style.display = 'block';
+                        })
+                        .on('mousemove', (event) => {
+                            tooltip.style.left = (event.pageX + 12) + 'px';
+                            tooltip.style.top = (event.pageY - 10) + 'px';
+                        })
+                        .on('mouseout', () => {
+                            tooltip.style.display = 'none';
+                        });
+                }
 
                 if (showValues && fontSize >= 5) {
                     const rgb = d3.rgb(colorScale(displayVal));
@@ -392,6 +459,7 @@ class HeatmapRenderer {
                         .attr('dominant-baseline', 'central')
                         .attr('font-size', fontSize + 'px')
                         .attr('fill', textColor)
+                        .attr('pointer-events', 'none')
                         .text(isNaN(actual) ? '' : actual.toFixed(1));
                 }
             }
@@ -466,40 +534,9 @@ class HeatmapRenderer {
     }
 
     _drawGroupLegend(svg, groups, x, y, maxWidth) {
-        const ox = this._groupLegendOffset.x;
-        const oy = this._groupLegendOffset.y;
         const g = svg.append('g')
             .attr('class', 'heatmap-group-legend')
-            .attr('transform', `translate(${x + ox}, ${y + oy})`)
-            .style('cursor', 'grab');
-
-        g.append('title').text('Drag to move. Click to select for arrow-key nudging.');
-
-        // Drag behavior — filter out clicks on interactive children (rect, text)
-        const self = this;
-        let glWasDragged = false;
-        g.call(d3.drag()
-            .filter((event) => {
-                const tag = event.target.tagName;
-                if (tag === 'rect' || tag === 'text') return false;
-                return !event.ctrlKey && !event.button;
-            })
-            .on('start', function() { glWasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
-            .on('drag', function(event) {
-                glWasDragged = true;
-                self._groupLegendOffset.x += event.dx;
-                self._groupLegendOffset.y += event.dy;
-                const nx = x + self._groupLegendOffset.x;
-                const ny = y + self._groupLegendOffset.y;
-                d3.select(this).attr('transform', `translate(${nx}, ${ny})`);
-            })
-            .on('end', function() {
-                d3.select(this).style('cursor', 'grab');
-                if (!glWasDragged) {
-                    self._selectForNudge(self._groupLegendOffset, svg);
-                }
-            })
-        );
+            .attr('transform', `translate(${x}, ${y})`);
 
         let xOff = 0;
         const itemOffsets = this.settings.groupLabelItemOffsets || {};
@@ -639,10 +676,6 @@ class HeatmapRenderer {
             if (xOff > maxWidth) break;
         }
 
-        // Show selection highlight if group legend is selected for nudging
-        if (this._selectedNudgeOffset === this._groupLegendOffset) {
-            this._drawSelectionHighlight(svg, g);
-        }
     }
 
     _drawDendrogram(g, tree, scale, orientation, span, depth) {
@@ -1118,8 +1151,8 @@ class HeatmapRenderer {
     // --- CSV Export ---
 
     exportGroupedCSV(matrixData) {
-        const { colLabels, rowLabels, matrix } = matrixData;
-        const groups = this._detectGroups(rowLabels);
+        const { colLabels, rowLabels, matrix, groupAssignments } = matrixData;
+        const groups = this._detectGroups(rowLabels, groupAssignments);
 
         // Build: for each column (marker), sub-columns per group
         // Header row 1: marker names spanning groups

@@ -53,6 +53,7 @@ class DataTable {
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.checked = true;
+        cb.style.visibility = 'hidden';
         cb.title = 'Toggle row on/off';
         cb.addEventListener('change', () => {
             row.classList.toggle('row-disabled', !cb.checked);
@@ -76,6 +77,8 @@ class DataTable {
             cell.textContent = '';
             cell.addEventListener('blur', (e) => {
                 this.validateCell(e.target);
+                clearTimeout(this._toggleVisTimer);
+                this._toggleVisTimer = setTimeout(() => this._updateToggleVisibility(), 100);
             });
             row.appendChild(cell);
         }
@@ -103,6 +106,19 @@ class DataTable {
             delTh.className = 'delete-col-header';
             this.headerRow.appendChild(delTh);
         }
+    }
+
+    _updateToggleVisibility() {
+        const rows = this.tbody.querySelectorAll('tr');
+        rows.forEach(row => {
+            const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
+            let hasData = false;
+            for (const cell of dataCells) {
+                if (cell.textContent.trim() !== '') { hasData = true; break; }
+            }
+            const cb = row.querySelector('.row-toggle-cell input');
+            if (cb) cb.style.visibility = hasData ? 'visible' : 'hidden';
+        });
     }
 
     validateCell(cell) {
@@ -382,6 +398,7 @@ class DataTable {
             this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col) .th-delete-btn').forEach(b => b.remove());
             this._addDeleteColumnHeaders();
             this._updateDeleteButtonVisibility();
+            this._updateToggleVisibility();
             this.setupHeaderEditing();
 
             if (window.app) window.app.updateGraph();
@@ -515,6 +532,7 @@ class DataTable {
         const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
         const matrix = [];
         const rowLabels = [];
+        const groupAssignments = [];
         let rowNum = 1;
 
         rows.forEach(row => {
@@ -539,6 +557,7 @@ class DataTable {
             }
             if (hasAny) {
                 matrix.push(rowData);
+                groupAssignments.push(groupVal);
                 // Build row label from Group/Sample columns
                 if (groupVal && sampleVal) {
                     rowLabels.push(groupVal + '_' + sampleVal);
@@ -553,7 +572,7 @@ class DataTable {
             rowNum++;
         });
 
-        return { colLabels, rowLabels, matrix };
+        return { colLabels, rowLabels, matrix, groupAssignments };
     }
 
     // headers: data column headers, rowData: array of arrays (data only),
@@ -620,6 +639,7 @@ class DataTable {
 
         this._addDeleteColumnHeaders();
         this._updateDeleteButtonVisibility();
+        this._updateToggleVisibility();
         this.setupHeaderEditing();
     }
 

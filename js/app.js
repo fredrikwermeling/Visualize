@@ -532,9 +532,12 @@ class App {
     _applyMode() {
         const isHeatmap = this.mode === 'heatmap';
 
-        // Show/hide ID columns
+        // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
-        if (table) table.classList.toggle('hide-id-cols', !isHeatmap);
+        if (table) {
+            table.classList.toggle('hide-id-cols', !isHeatmap);
+            table.classList.toggle('hide-row-toggles', !isHeatmap);
+        }
 
         // Column-specific controls (top-level elements)
         const columnEls = [
@@ -543,9 +546,11 @@ class App {
         ];
         columnEls.forEach(el => { if (el) el.style.display = isHeatmap ? 'none' : ''; });
 
-        // Heatmap-specific: column order manager
+        // Heatmap-specific: column/row order managers
         const heatmapColMgr = document.getElementById('heatmapColManager');
         if (heatmapColMgr) heatmapColMgr.style.display = isHeatmap ? '' : 'none';
+        const heatmapRowMgr = document.getElementById('heatmapRowManager');
+        if (heatmapRowMgr) heatmapRowMgr.style.display = isHeatmap ? '' : 'none';
 
         // Hide all .column-only elements in heatmap mode
         document.querySelectorAll('.column-only').forEach(el => {
@@ -599,8 +604,8 @@ class App {
 
     _viewHeatmapAsColumn() {
         const matrixData = this.dataTable.getMatrixData();
-        const { colLabels, rowLabels, matrix } = matrixData;
-        const groups = this.heatmapRenderer._detectGroups(rowLabels);
+        const { colLabels, rowLabels, matrix, groupAssignments } = matrixData;
+        const groups = this.heatmapRenderer._detectGroups(rowLabels, groupAssignments);
 
         // Save current heatmap data
         this._saveTableData('heatmap');
@@ -703,7 +708,9 @@ class App {
             title: this.heatmapRenderer.settings.title || 'Heatmap',
             colLabelAngle: parseInt(document.getElementById('heatmapColLabelAngle')?.value ?? 45),
             groupColorTheme: document.getElementById('heatmapGroupColorTheme')?.value || 'default',
-            groupLabelItemOffsets: this.heatmapRenderer.settings.groupLabelItemOffsets || {}
+            groupLabelItemOffsets: this.heatmapRenderer.settings.groupLabelItemOffsets || {},
+            rowOrder: this.heatmapRenderer.settings.rowOrder || [],
+            hiddenRows: this.heatmapRenderer.settings.hiddenRows || []
         };
     }
 
@@ -793,6 +800,7 @@ class App {
             this.heatmapRenderer.render(matrixData, settings);
             this._updateHeatmapInfo(settings, infoEl);
             this._updateHeatmapColManager(matrixData);
+            this._updateHeatmapRowManager(matrixData);
             // Draw annotations from the heatmap annotation manager
             const heatSvg = d3.select(this.heatmapRenderer.container.querySelector('svg'));
             if (!heatSvg.empty()) {
@@ -1101,6 +1109,108 @@ class App {
                     const [moved] = newOrder.splice(fromIdx, 1);
                     newOrder.splice(toIdx, 0, moved);
                     settings.colOrder = newOrder;
+                    this.updateGraph();
+                });
+            }
+        });
+    }
+
+    _updateHeatmapRowManager(matrixData) {
+        const container = document.getElementById('heatmapRowManager');
+        const listEl = document.getElementById('heatmapRowList');
+        if (!container || !listEl) return;
+
+        const allRowLabels = this.heatmapRenderer._rawRowLabels || matrixData.rowLabels || [];
+        if (allRowLabels.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = '';
+
+        const settings = this.heatmapRenderer.settings;
+        const hiddenRows = settings.hiddenRows || [];
+        const clusteringRows = (settings.cluster === 'rows' || settings.cluster === 'both');
+
+        // Determine display order
+        let orderedLabels;
+        if (!clusteringRows && settings.rowOrder && settings.rowOrder.length > 0) {
+            const knownSet = new Set(settings.rowOrder);
+            orderedLabels = [...settings.rowOrder.filter(l => allRowLabels.includes(l))];
+            allRowLabels.forEach(l => {
+                if (!knownSet.has(l)) orderedLabels.push(l);
+            });
+        } else {
+            orderedLabels = [...allRowLabels];
+        }
+
+        listEl.innerHTML = '';
+        orderedLabels.forEach((label, idx) => {
+            const isHidden = hiddenRows.includes(label);
+
+            const item = document.createElement('div');
+            item.className = 'group-item' + (isHidden ? ' hidden' : '');
+            item.draggable = !clusteringRows;
+            item.dataset.label = label;
+            item.dataset.idx = idx;
+
+            const handle = document.createElement('span');
+            handle.className = 'drag-handle';
+            handle.textContent = clusteringRows ? '\u{1F512}' : '\u2261';
+            if (clusteringRows) handle.title = 'Disable row clustering to reorder';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'group-label';
+            labelSpan.textContent = label;
+
+            const eyeBtn = document.createElement('button');
+            eyeBtn.className = 'visibility-btn';
+            eyeBtn.textContent = isHidden ? '\u{1F6AB}' : '\u{1F441}';
+            eyeBtn.title = isHidden ? 'Show row' : 'Hide row';
+            eyeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isHidden) {
+                    settings.hiddenRows = hiddenRows.filter(l => l !== label);
+                } else {
+                    settings.hiddenRows = [...hiddenRows, label];
+                }
+                this.updateGraph();
+            });
+
+            item.appendChild(handle);
+            item.appendChild(labelSpan);
+            item.appendChild(eyeBtn);
+            listEl.appendChild(item);
+
+            // Drag events (only when not clustering rows)
+            if (!clusteringRows) {
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', idx.toString());
+                    item.style.opacity = '0.5';
+                });
+                item.addEventListener('dragend', () => {
+                    item.style.opacity = '';
+                    listEl.querySelectorAll('.group-item').forEach(el => el.classList.remove('drag-over'));
+                });
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    item.classList.add('drag-over');
+                });
+                item.addEventListener('dragleave', () => {
+                    item.classList.remove('drag-over');
+                });
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                    const toIdx = idx;
+                    if (fromIdx === toIdx) return;
+
+                    const newOrder = [...orderedLabels];
+                    const [moved] = newOrder.splice(fromIdx, 1);
+                    newOrder.splice(toIdx, 0, moved);
+                    settings.rowOrder = newOrder;
                     this.updateGraph();
                 });
             }

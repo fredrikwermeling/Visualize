@@ -201,6 +201,12 @@ header {
     display: none;
 }
 
+/* Hide row toggles in column mode */
+.data-table.hide-row-toggles th.row-toggle-col,
+.data-table.hide-row-toggles td.row-toggle-cell {
+    display: none;
+}
+
 /* Row toggle */
 .data-table th.row-toggle-col {
     width: 24px;
@@ -997,6 +1003,21 @@ tr:hover .row-delete-btn {
 }
 
 /* Heatmap Info Panel */
+/* Heatmap Tooltip */
+.heatmap-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 1000;
+    white-space: nowrap;
+    line-height: 1.5;
+    display: none;
+}
+
 .heatmap-info {
     background: var(--gray-100);
     border: 1px solid var(--gray-200);

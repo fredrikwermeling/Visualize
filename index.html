@@ -283,63 +283,63 @@
                                 <div id="manualColorSwatches" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
                             </div>
                             <div class="control-group column-only">
-                                <label>Orientation:</label>
+                                <label>Orient:</label>
                                 <select id="orientation">
                                     <option value="vertical">Vertical</option>
                                     <option value="horizontal">Horizontal</option>
                                 </select>
                             </div>
-                        </div>
-                        <div class="control-group column-only" style="margin-top:6px">
-                            <label>Show:</label>
-                            <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showTitle" checked> Title</label>
-                            <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showXLabel" checked> X</label>
-                            <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showYLabel" checked> Y</label>
-                        </div>
-                        <div class="control-group column-only">
-                            <label>Legend:</label>
-                            <input type="checkbox" id="showGroupLegend"> Color legend
-                        </div>
-                        <div class="control-group column-only">
-                            <label>Labels:</label>
-                            <select id="groupLabelDisplay">
-                                <option value="axis">Under graph</option>
-                                <option value="legend">Legend only</option>
-                                <option value="both">Both</option>
-                            </select>
-                        </div>
-                        <div class="control-group column-only">
-                            <label>X-angle:</label>
-                            <select id="xTickAngle">
-                                <option value="0">Horizontal (0°)</option>
-                                <option value="45">Angled (45°)</option>
-                                <option value="90">Vertical (90°)</option>
-                            </select>
-                        </div>
-                        <div class="control-group column-only">
-                            <label>Point size:</label>
-                            <input type="number" id="pointSize" value="6" min="0.5" step="0.5">
-                        </div>
-                        <div class="control-group column-only">
-                            <label>Point shape:</label>
-                            <select id="pointShape">
-                                <option value="circle">Circle</option>
-                                <option value="square">Square</option>
-                                <option value="triangle">Triangle</option>
-                                <option value="diamond">Diamond</option>
-                                <option value="cross">Cross (+)</option>
-                            </select>
-                        </div>
-                        <div class="control-group column-only">
-                            <label>Point spread:</label>
-                            <select id="pointSpread">
-                                <option value="jitter">Jitter (overlap)</option>
-                                <option value="beeswarm">Beeswarm (no overlap)</option>
-                            </select>
-                        </div>
-                        <div class="control-group column-only">
-                            <label>Bar width:</label>
-                            <input type="number" id="centerLineWidth" value="1" min="0.1" step="0.1">
+                            <div class="control-group column-only">
+                                <label>X-angle:</label>
+                                <select id="xTickAngle">
+                                    <option value="0">0°</option>
+                                    <option value="45">45°</option>
+                                    <option value="90">90°</option>
+                                </select>
+                            </div>
+                            <div class="control-group column-only">
+                                <label>Pt size:</label>
+                                <input type="number" id="pointSize" value="6" min="0.5" step="0.5">
+                            </div>
+                            <div class="control-group column-only">
+                                <label>Pt shape:</label>
+                                <select id="pointShape">
+                                    <option value="circle">Circle</option>
+                                    <option value="square">Square</option>
+                                    <option value="triangle">Triangle</option>
+                                    <option value="diamond">Diamond</option>
+                                    <option value="cross">Cross (+)</option>
+                                </select>
+                            </div>
+                            <div class="control-group column-only">
+                                <label>Spread:</label>
+                                <select id="pointSpread">
+                                    <option value="jitter">Jitter</option>
+                                    <option value="beeswarm">Beeswarm</option>
+                                </select>
+                            </div>
+                            <div class="control-group column-only">
+                                <label>Bar width:</label>
+                                <input type="number" id="centerLineWidth" value="1" min="0.1" step="0.1">
+                            </div>
+                            <div class="control-group column-only">
+                                <label>Labels:</label>
+                                <select id="groupLabelDisplay">
+                                    <option value="axis">Under graph</option>
+                                    <option value="legend">Legend only</option>
+                                    <option value="both">Both</option>
+                                </select>
+                            </div>
+                            <div class="control-group column-only">
+                                <label>Legend:</label>
+                                <label style="font-size:12px;display:flex;align-items:center;gap:2px;flex:1"><input type="checkbox" id="showGroupLegend"> Color</label>
+                            </div>
+                            <div class="control-group column-only span-2">
+                                <label>Show:</label>
+                                <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showTitle" checked> Title</label>
+                                <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showXLabel" checked> X</label>
+                                <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showYLabel" checked> Y</label>
+                            </div>
                         </div>
                     </div>
 

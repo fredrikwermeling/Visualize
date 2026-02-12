@@ -546,7 +546,7 @@ class App {
     }
 
     _bindHeatmapControls() {
-        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme', 'heatmapColLabelAngle'];
+        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme', 'heatmapColLabelAngle', 'heatmapGroupColorTheme'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());

@@ -329,15 +329,16 @@ tr:hover .row-delete-btn {
 }
 
 .control-group {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .control-group label {
-    flex: 0 0 100px;
+    flex: 0 0 70px;
     font-weight: 500;
+    font-size: 12px;
     color: var(--text-secondary);
 }
 
@@ -345,10 +346,11 @@ tr:hover .row-delete-btn {
 .control-group input[type="number"],
 .control-group select {
     flex: 1;
-    padding: 8px 12px;
+    min-width: 0;
+    padding: 5px 8px;
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-md);
-    font-size: 13px;
+    font-size: 12px;
     font-family: 'Open Sans', sans-serif;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -417,16 +419,20 @@ tr:hover .row-delete-btn {
 .control-grid-2col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4px 12px;
+    gap: 2px 10px;
 }
 
 .control-grid-2col .control-group {
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .control-grid-2col .control-group label {
     flex: 0 0 auto;
     min-width: 50px;
+}
+
+.control-grid-2col .span-2 {
+    grid-column: span 2;
 }
 
 /* Stats Results */

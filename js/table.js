@@ -467,22 +467,25 @@ class DataTable {
             allColLabels.push(clone.textContent.trim() || 'Unnamed');
         });
 
-        // First pass: check if first column is text (row labels)
+        // First pass: check which leading columns are text (group/sample IDs)
         const rows = this.tbody.querySelectorAll('tr');
-        let firstColTextCount = 0;
-        let firstColNumCount = 0;
+        const colTextCounts = [0, 0];
+        const colNumCounts = [0, 0];
         rows.forEach(row => {
             const cells = row.querySelectorAll('td:not(.row-delete-cell)');
-            if (cells.length === 0) return;
-            const val = cells[0].textContent.trim();
-            if (val === '') return;
-            if (isNaN(parseFloat(val))) firstColTextCount++;
-            else firstColNumCount++;
+            for (let c = 0; c < 2 && c < cells.length; c++) {
+                const val = cells[c].textContent.trim();
+                if (val === '') continue;
+                if (isNaN(parseFloat(val))) colTextCounts[c]++;
+                else colNumCounts[c]++;
+            }
         });
 
-        const firstColIsLabels = firstColTextCount > 0 && firstColTextCount >= firstColNumCount;
-        const dataColStart = firstColIsLabels ? 1 : 0;
-        const colLabels = firstColIsLabels ? allColLabels.slice(1) : allColLabels;
+        const col0IsText = colTextCounts[0] > 0 && colTextCounts[0] >= colNumCounts[0];
+        const col1IsText = col0IsText && colTextCounts[1] > 0 && colTextCounts[1] >= colNumCounts[1];
+        const textColCount = col1IsText ? 2 : (col0IsText ? 1 : 0);
+        const dataColStart = textColCount;
+        const colLabels = allColLabels.slice(textColCount);
 
         const matrix = [];
         const rowLabels = [];
@@ -504,7 +507,12 @@ class DataTable {
             }
             if (hasAny) {
                 matrix.push(rowData);
-                if (firstColIsLabels && cells.length > 0) {
+                if (textColCount === 2 && cells.length > 1) {
+                    // Group_Sample format
+                    const group = cells[0].textContent.trim();
+                    const sample = cells[1].textContent.trim();
+                    rowLabels.push((group || 'Group') + '_' + (sample || rowNum));
+                } else if (textColCount === 1 && cells.length > 0) {
                     const label = cells[0].textContent.trim();
                     rowLabels.push(label || 'Row ' + rowNum);
                 } else {

@@ -178,6 +178,23 @@ header {
     background-color: var(--green-100);
 }
 
+.data-table th.id-col {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+    font-size: 11px;
+    min-width: 45px;
+    max-width: 70px;
+    border-bottom-color: var(--gray-200);
+}
+
+.data-table td.id-cell {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+    font-size: 11px;
+    min-width: 45px;
+    max-width: 70px;
+}
+
 /* Column delete button - removed from header, now in group manager */
 .th-delete-btn {
     display: none;

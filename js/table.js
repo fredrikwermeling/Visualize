@@ -46,6 +46,15 @@ class DataTable {
 
     _createRow(numCols) {
         const row = document.createElement('tr');
+        // ID cells (Group, Sample) — no validation
+        for (let j = 0; j < 2; j++) {
+            const idCell = document.createElement('td');
+            idCell.className = 'id-cell';
+            idCell.contentEditable = true;
+            idCell.textContent = '';
+            row.appendChild(idCell);
+        }
+        // Data cells
         for (let j = 0; j < numCols; j++) {
             const cell = document.createElement('td');
             cell.contentEditable = true;
@@ -96,8 +105,8 @@ class DataTable {
     }
 
     _dataColCount() {
-        // Count only data th's (not the delete-col-header)
-        return this.headerRow.querySelectorAll('th:not(.delete-col-header)').length;
+        // Count only data th's (not id-col or delete-col-header)
+        return this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)').length;
     }
 
     _updateDeleteButtonVisibility() {
@@ -118,16 +127,16 @@ class DataTable {
     deleteColumn(colIndex) {
         if (this._dataColCount() <= 2) return;
 
-        // Remove header (recalculate actual th elements)
-        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+        // Remove data header (skip id-col)
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
         if (headers[colIndex]) {
             headers[colIndex].remove();
         }
 
-        // Remove corresponding td from each body row
+        // Remove corresponding data td from each body row (skip id-cells)
         const rows = this.tbody.querySelectorAll('tr');
         rows.forEach(row => {
-            const cells = row.querySelectorAll('td:not(.row-delete-cell)');
+            const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.id-cell)');
             if (cells[colIndex]) {
                 cells[colIndex].remove();
             }
@@ -150,11 +159,10 @@ class DataTable {
     }
 
     _rebindColumnDeleteButtons() {
-        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
         headers.forEach((th, idx) => {
             const btn = th.querySelector('.th-delete-btn');
             if (btn) {
-                // Replace to remove old listener
                 const newBtn = btn.cloneNode(true);
                 btn.replaceWith(newBtn);
                 newBtn.addEventListener('click', (e) => {
@@ -296,19 +304,34 @@ class DataTable {
                 dataRows = parsed;
             }
 
-            // Resize table to match pasted data
-            // Set headers
-            const existingHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
-            const delColHeader = this.headerRow.querySelector('.delete-col-header');
+            // Detect how many leading columns are non-numeric (group/sample IDs)
+            let idColCount = 0;
+            if (dataRows.length > 0) {
+                for (let c = 0; c < Math.min(2, numCols); c++) {
+                    let textCount = 0, numCount = 0;
+                    for (const row of dataRows) {
+                        const v = (row[c] || '').trim();
+                        if (v === '') continue;
+                        if (isNaN(parseFloat(v))) textCount++;
+                        else numCount++;
+                    }
+                    if (textCount > 0 && textCount >= numCount) idColCount++;
+                    else break;
+                }
+            }
 
-            // Remove existing data headers
+            const dataColCount = numCols - idColCount;
+            const dataHeaderLabels = hasHeader ? headerLabels.slice(idColCount) : Array.from({ length: dataColCount }, (_, i) => `Group ${i + 1}`);
+
+            // Remove existing data headers (keep id-col)
+            const existingHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
+            const delColHeader = this.headerRow.querySelector('.delete-col-header');
             existingHeaders.forEach(h => h.remove());
 
-            // Create new headers
-            for (let c = 0; c < numCols; c++) {
+            for (let c = 0; c < dataColCount; c++) {
                 const th = document.createElement('th');
                 th.contentEditable = true;
-                th.textContent = headerLabels[c] || `Group ${c + 1}`;
+                th.textContent = dataHeaderLabels[c] || `Group ${c + 1}`;
                 if (delColHeader) {
                     this.headerRow.insertBefore(th, delColHeader);
                 } else {
@@ -316,29 +339,33 @@ class DataTable {
                 }
             }
 
-            // Ensure we have enough rows
+            // Rebuild rows
             const neededRows = Math.max(dataRows.length, 1);
             this.numRows = neededRows;
             this.tbody.innerHTML = '';
             for (let r = 0; r < neededRows; r++) {
-                const row = this._createRow(numCols);
+                const row = this._createRow(dataColCount);
                 this.tbody.appendChild(row);
             }
 
-            // Fill in data
+            // Fill data
             const bodyRows = this.tbody.querySelectorAll('tr');
             dataRows.forEach((rowData, r) => {
                 if (r >= bodyRows.length) return;
-                const cells = bodyRows[r].querySelectorAll('td:not(.row-delete-cell)');
-                rowData.forEach((val, c) => {
-                    if (c < cells.length) {
-                        cells[c].textContent = val;
-                    }
-                });
+                // Fill ID cells
+                const idCells = bodyRows[r].querySelectorAll('td.id-cell');
+                for (let c = 0; c < idColCount && c < idCells.length; c++) {
+                    idCells[c].textContent = rowData[c] || '';
+                }
+                // Fill data cells
+                const dataCells = bodyRows[r].querySelectorAll('td:not(.id-cell):not(.row-delete-cell)');
+                for (let c = 0; c < dataColCount && c < dataCells.length; c++) {
+                    dataCells[c].textContent = rowData[idColCount + c] || '';
+                }
             });
 
-            // Rebuild delete buttons and update
-            this.headerRow.querySelectorAll('th:not(.delete-col-header) .th-delete-btn').forEach(b => b.remove());
+            // Rebuild delete buttons
+            this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col) .th-delete-btn').forEach(b => b.remove());
             this._addDeleteColumnHeaders();
             this._updateDeleteButtonVisibility();
             this.setupHeaderEditing();
@@ -398,13 +425,14 @@ class DataTable {
     }
 
     clearData() {
+        // Clear all cells (including id-cells)
         const cells = this.tbody.querySelectorAll('td:not(.row-delete-cell)');
         cells.forEach(cell => {
             cell.textContent = '';
         });
 
-        // Also clear headers back to defaults
-        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+        // Clear data headers back to defaults (skip id-col)
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
         headers.forEach((th, i) => {
             const btn = th.querySelector('.th-delete-btn');
             th.textContent = `Group ${i + 1}`;
@@ -420,23 +448,22 @@ class DataTable {
         const data = [];
         const headers = [];
 
-        // Get headers (data columns only)
-        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+        // Get headers (data columns only, skip id-col)
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
         headerCells.forEach(th => {
-            // Get only text content, not the button text
             const clone = th.cloneNode(true);
             const btn = clone.querySelector('.th-delete-btn');
             if (btn) btn.remove();
             headers.push(clone.textContent.trim() || 'Unnamed');
         });
 
-        // Get data for each column
+        // Get data for each column (skip id-cells)
         for (let colIndex = 0; colIndex < headers.length; colIndex++) {
             const columnData = [];
             const rows = this.tbody.querySelectorAll('tr');
 
             rows.forEach(row => {
-                const cells = row.querySelectorAll('td:not(.row-delete-cell)');
+                const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.id-cell)');
                 const cell = cells[colIndex];
                 if (!cell) return;
                 const value = cell.textContent.trim();
@@ -458,45 +485,33 @@ class DataTable {
     }
 
     getMatrixData() {
-        const allColLabels = [];
-        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+        // Collect data column headers (skip id-col headers)
+        const colLabels = [];
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
         headerCells.forEach(th => {
             const clone = th.cloneNode(true);
             const btn = clone.querySelector('.th-delete-btn');
             if (btn) btn.remove();
-            allColLabels.push(clone.textContent.trim() || 'Unnamed');
+            colLabels.push(clone.textContent.trim() || 'Unnamed');
         });
 
-        // First pass: check which leading columns are text (group/sample IDs)
         const rows = this.tbody.querySelectorAll('tr');
-        const colTextCounts = [0, 0];
-        const colNumCounts = [0, 0];
-        rows.forEach(row => {
-            const cells = row.querySelectorAll('td:not(.row-delete-cell)');
-            for (let c = 0; c < 2 && c < cells.length; c++) {
-                const val = cells[c].textContent.trim();
-                if (val === '') continue;
-                if (isNaN(parseFloat(val))) colTextCounts[c]++;
-                else colNumCounts[c]++;
-            }
-        });
-
-        const col0IsText = colTextCounts[0] > 0 && colTextCounts[0] >= colNumCounts[0];
-        const col1IsText = col0IsText && colTextCounts[1] > 0 && colTextCounts[1] >= colNumCounts[1];
-        const textColCount = col1IsText ? 2 : (col0IsText ? 1 : 0);
-        const dataColStart = textColCount;
-        const colLabels = allColLabels.slice(textColCount);
-
         const matrix = [];
         const rowLabels = [];
         let rowNum = 1;
 
         rows.forEach(row => {
-            const cells = row.querySelectorAll('td:not(.row-delete-cell)');
+            // ID cells
+            const idCells = row.querySelectorAll('td.id-cell');
+            const groupVal = idCells[0] ? idCells[0].textContent.trim() : '';
+            const sampleVal = idCells[1] ? idCells[1].textContent.trim() : '';
+
+            // Data cells (everything except id-cell and row-delete-cell)
+            const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell)');
             const rowData = [];
             let hasAny = false;
-            for (let c = dataColStart; c < cells.length; c++) {
-                const value = cells[c].textContent.trim();
+            for (let c = 0; c < dataCells.length; c++) {
+                const value = dataCells[c].textContent.trim();
                 if (value === '') {
                     rowData.push(NaN);
                 } else {
@@ -507,14 +522,13 @@ class DataTable {
             }
             if (hasAny) {
                 matrix.push(rowData);
-                if (textColCount === 2 && cells.length > 1) {
-                    // Group_Sample format
-                    const group = cells[0].textContent.trim();
-                    const sample = cells[1].textContent.trim();
-                    rowLabels.push((group || 'Group') + '_' + (sample || rowNum));
-                } else if (textColCount === 1 && cells.length > 0) {
-                    const label = cells[0].textContent.trim();
-                    rowLabels.push(label || 'Row ' + rowNum);
+                // Build row label from Group/Sample columns
+                if (groupVal && sampleVal) {
+                    rowLabels.push(groupVal + '_' + sampleVal);
+                } else if (groupVal) {
+                    rowLabels.push(groupVal);
+                } else if (sampleVal) {
+                    rowLabels.push(sampleVal);
                 } else {
                     rowLabels.push('Row ' + rowNum);
                 }
@@ -525,11 +539,25 @@ class DataTable {
         return { colLabels, rowLabels, matrix };
     }
 
-    setupTable(headers, numRows, rowData) {
-        // Rebuild headers
-        const existingHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header)');
+    // headers: data column headers, rowData: array of arrays (data only),
+    // idData: optional array of [group, sample] per row
+    setupTable(headers, numRows, rowData, idData) {
+        // Remove existing data headers (keep id-col headers)
+        const existingDataHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
         const delColHeader = this.headerRow.querySelector('.delete-col-header');
-        existingHeaders.forEach(h => h.remove());
+        existingDataHeaders.forEach(h => h.remove());
+
+        // Ensure id-col headers exist
+        const idCols = this.headerRow.querySelectorAll('th.id-col');
+        if (idCols.length === 0) {
+            const ref = this.headerRow.firstChild;
+            ['Group', 'Sample'].forEach(label => {
+                const th = document.createElement('th');
+                th.className = 'id-col';
+                th.textContent = label;
+                this.headerRow.insertBefore(th, ref);
+            });
+        }
 
         for (const label of headers) {
             const th = document.createElement('th');
@@ -550,14 +578,25 @@ class DataTable {
             this.tbody.appendChild(row);
         }
 
-        // Fill data: rowData is array of arrays, each inner array = one row's cell values
+        // Fill ID data
+        if (idData) {
+            const bodyRows = this.tbody.querySelectorAll('tr');
+            idData.forEach((ids, r) => {
+                if (r >= bodyRows.length) return;
+                const idCells = bodyRows[r].querySelectorAll('td.id-cell');
+                if (ids[0] !== undefined && idCells[0]) idCells[0].textContent = ids[0];
+                if (ids[1] !== undefined && idCells[1]) idCells[1].textContent = ids[1];
+            });
+        }
+
+        // Fill data cells
         if (rowData) {
             const bodyRows = this.tbody.querySelectorAll('tr');
             rowData.forEach((rd, r) => {
                 if (r >= bodyRows.length) return;
-                const cells = bodyRows[r].querySelectorAll('td:not(.row-delete-cell)');
+                const dataCells = bodyRows[r].querySelectorAll('td:not(.id-cell):not(.row-delete-cell)');
                 rd.forEach((val, c) => {
-                    if (c < cells.length) cells[c].textContent = val;
+                    if (c < dataCells.length) dataCells[c].textContent = val;
                 });
             });
         }
@@ -590,16 +629,20 @@ class DataTable {
     }
 
     loadHeatmapSampleData() {
-        const headers = ['Sample', 'CD14', 'CD101', 'CD124', 'CD45'];
-        const rowData = [
-            ['ctrl_1', 12, 23, 67, 45],
-            ['ctrl_2', 14, 32, 64, 48],
-            ['ctrl_3', 11, 28, 71, 42],
-            ['treat_1', 31, 54, 34, 82],
-            ['treat_2', 28, 48, 38, 79],
-            ['treat_3', 33, 51, 31, 85]
+        const headers = ['CD14', 'CD101', 'CD124', 'CD45'];
+        const idData = [
+            ['ctrl', '1'], ['ctrl', '2'], ['ctrl', '3'],
+            ['treat', '1'], ['treat', '2'], ['treat', '3']
         ];
-        this.setupTable(headers, 10, rowData);
+        const rowData = [
+            [12, 23, 67, 45],
+            [14, 32, 64, 48],
+            [11, 28, 71, 42],
+            [31, 54, 34, 82],
+            [28, 48, 38, 79],
+            [33, 51, 31, 85]
+        ];
+        this.setupTable(headers, 10, rowData, idData);
 
         if (window.app) {
             window.app.updateGraph();

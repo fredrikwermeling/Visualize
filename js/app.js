@@ -477,29 +477,48 @@ class App {
     _saveTableData(mode) {
         // Snapshot current table state
         const headers = [];
-        this.dataTable.headerRow.querySelectorAll('th:not(.delete-col-header)').forEach(th => {
+        this.dataTable.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)').forEach(th => {
             const clone = th.cloneNode(true);
             const btn = clone.querySelector('.th-delete-btn');
             if (btn) btn.remove();
             headers.push(clone.textContent.trim());
         });
         const rows = [];
+        const idData = [];
+        const disabledRows = [];
         this.dataTable.tbody.querySelectorAll('tr').forEach(tr => {
             const row = [];
-            tr.querySelectorAll('td:not(.row-delete-cell)').forEach(td => {
+            tr.querySelectorAll('td:not(.row-delete-cell):not(.id-cell):not(.row-toggle-cell)').forEach(td => {
                 row.push(td.textContent.trim());
             });
             rows.push(row);
+            const idCells = tr.querySelectorAll('td.id-cell');
+            idData.push([
+                idCells[0] ? idCells[0].textContent.trim() : '',
+                idCells[1] ? idCells[1].textContent.trim() : ''
+            ]);
+            disabledRows.push(tr.classList.contains('row-disabled'));
         });
         const key = mode === 'column' ? '_columnTableData' : '_heatmapTableData';
-        this[key] = { headers, rows, numRows: rows.length };
+        this[key] = { headers, rows, idData, disabledRows, numRows: rows.length };
     }
 
     _restoreTableData(mode) {
         const key = mode === 'column' ? '_columnTableData' : '_heatmapTableData';
         const saved = this[key];
         if (saved) {
-            this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows);
+            this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows, saved.idData);
+            // Restore disabled rows
+            if (saved.disabledRows) {
+                const trs = this.dataTable.tbody.querySelectorAll('tr');
+                saved.disabledRows.forEach((disabled, i) => {
+                    if (disabled && trs[i]) {
+                        trs[i].classList.add('row-disabled');
+                        const cb = trs[i].querySelector('.row-toggle-cell input');
+                        if (cb) cb.checked = false;
+                    }
+                });
+            }
         } else {
             // Load defaults
             if (mode === 'heatmap') {
@@ -512,6 +531,10 @@ class App {
 
     _applyMode() {
         const isHeatmap = this.mode === 'heatmap';
+
+        // Show/hide ID columns
+        const table = document.getElementById('dataTable');
+        if (table) table.classList.toggle('hide-id-cols', !isHeatmap);
 
         // Column-specific controls (top-level elements)
         const columnEls = [

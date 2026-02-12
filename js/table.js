@@ -46,6 +46,21 @@ class DataTable {
 
     _createRow(numCols) {
         const row = document.createElement('tr');
+
+        // Toggle cell
+        const toggleCell = document.createElement('td');
+        toggleCell.className = 'row-toggle-cell';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = true;
+        cb.title = 'Toggle row on/off';
+        cb.addEventListener('change', () => {
+            row.classList.toggle('row-disabled', !cb.checked);
+            if (window.app) window.app.updateGraph();
+        });
+        toggleCell.appendChild(cb);
+        row.appendChild(toggleCell);
+
         // ID cells (Group, Sample) — no validation
         for (let j = 0; j < 2; j++) {
             const idCell = document.createElement('td');
@@ -105,8 +120,7 @@ class DataTable {
     }
 
     _dataColCount() {
-        // Count only data th's (not id-col or delete-col-header)
-        return this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)').length;
+        return this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)').length;
     }
 
     _updateDeleteButtonVisibility() {
@@ -128,7 +142,7 @@ class DataTable {
         if (this._dataColCount() <= 2) return;
 
         // Remove data header (skip id-col)
-        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
         if (headers[colIndex]) {
             headers[colIndex].remove();
         }
@@ -136,7 +150,7 @@ class DataTable {
         // Remove corresponding data td from each body row (skip id-cells)
         const rows = this.tbody.querySelectorAll('tr');
         rows.forEach(row => {
-            const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.id-cell)');
+            const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.id-cell):not(.row-toggle-cell)');
             if (cells[colIndex]) {
                 cells[colIndex].remove();
             }
@@ -159,7 +173,7 @@ class DataTable {
     }
 
     _rebindColumnDeleteButtons() {
-        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
         headers.forEach((th, idx) => {
             const btn = th.querySelector('.th-delete-btn');
             if (btn) {
@@ -192,8 +206,8 @@ class DataTable {
             const row = cell.parentElement;
             // Get only data cells for this row (exclude delete cells/headers)
             const dataCells = row.tagName === 'TR'
-                ? Array.from(row.querySelectorAll('td:not(.row-delete-cell)'))
-                : Array.from(row.querySelectorAll('th:not(.delete-col-header)'));
+                ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)'))
+                : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)'));
             const colIndex = dataCells.indexOf(cell);
             const numCols = dataCells.length;
 
@@ -205,8 +219,8 @@ class DataTable {
                 if (r < 0 || r >= allRows.length) return;
                 const targetRow = allRows[r];
                 const targetCells = targetRow.tagName === 'TR'
-                    ? targetRow.querySelectorAll('td:not(.row-delete-cell)')
-                    : targetRow.querySelectorAll('th:not(.delete-col-header)');
+                    ? targetRow.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)')
+                    : targetRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
                 const targetCell = targetCells[c];
                 if (targetCell) {
                     targetCell.focus();
@@ -255,8 +269,8 @@ class DataTable {
                             focusCell(rowIndex, colIndex - 1);
                         } else if (rowIndex > 0) {
                             const prevCells = allRows[rowIndex - 1].tagName === 'TR'
-                                ? allRows[rowIndex - 1].querySelectorAll('td:not(.row-delete-cell)')
-                                : allRows[rowIndex - 1].querySelectorAll('th:not(.delete-col-header)');
+                                ? allRows[rowIndex - 1].querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)')
+                                : allRows[rowIndex - 1].querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
                             focusCell(rowIndex - 1, prevCells.length - 1);
                         }
                     } else {
@@ -304,27 +318,27 @@ class DataTable {
                 dataRows = parsed;
             }
 
-            // Detect how many leading columns are non-numeric (group/sample IDs)
-            let idColCount = 0;
-            if (dataRows.length > 0) {
-                for (let c = 0; c < Math.min(2, numCols); c++) {
-                    let textCount = 0, numCount = 0;
-                    for (const row of dataRows) {
-                        const v = (row[c] || '').trim();
-                        if (v === '') continue;
-                        if (isNaN(parseFloat(v))) textCount++;
-                        else numCount++;
-                    }
-                    if (textCount > 0 && textCount >= numCount) idColCount++;
-                    else break;
+            // In heatmap mode: detect first text column as Group ID
+            // In column mode: no ID detection
+            const isHeatmap = window.app && window.app.mode === 'heatmap';
+            let groupColIdx = -1;
+            if (isHeatmap && dataRows.length > 0) {
+                let textCount = 0, numCount = 0;
+                for (const row of dataRows) {
+                    const v = (row[0] || '').trim();
+                    if (v === '') continue;
+                    if (isNaN(parseFloat(v))) textCount++;
+                    else numCount++;
                 }
+                if (textCount > 0 && textCount >= numCount) groupColIdx = 0;
             }
+            const idColCount = groupColIdx >= 0 ? 1 : 0;
 
             const dataColCount = numCols - idColCount;
             const dataHeaderLabels = hasHeader ? headerLabels.slice(idColCount) : Array.from({ length: dataColCount }, (_, i) => `Group ${i + 1}`);
 
             // Remove existing data headers (keep id-col)
-            const existingHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
+            const existingHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
             const delColHeader = this.headerRow.querySelector('.delete-col-header');
             existingHeaders.forEach(h => h.remove());
 
@@ -352,13 +366,13 @@ class DataTable {
             const bodyRows = this.tbody.querySelectorAll('tr');
             dataRows.forEach((rowData, r) => {
                 if (r >= bodyRows.length) return;
-                // Fill ID cells
-                const idCells = bodyRows[r].querySelectorAll('td.id-cell');
-                for (let c = 0; c < idColCount && c < idCells.length; c++) {
-                    idCells[c].textContent = rowData[c] || '';
+                // Fill Group ID cell if detected
+                if (groupColIdx >= 0) {
+                    const idCells = bodyRows[r].querySelectorAll('td.id-cell');
+                    if (idCells[0]) idCells[0].textContent = rowData[0] || '';
                 }
                 // Fill data cells
-                const dataCells = bodyRows[r].querySelectorAll('td:not(.id-cell):not(.row-delete-cell)');
+                const dataCells = bodyRows[r].querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
                 for (let c = 0; c < dataColCount && c < dataCells.length; c++) {
                     dataCells[c].textContent = rowData[idColCount + c] || '';
                 }
@@ -425,14 +439,17 @@ class DataTable {
     }
 
     clearData() {
-        // Clear all cells (including id-cells)
-        const cells = this.tbody.querySelectorAll('td:not(.row-delete-cell)');
+        // Clear all cells (including id-cells, skip toggles)
+        const cells = this.tbody.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)');
         cells.forEach(cell => {
             cell.textContent = '';
         });
+        // Re-enable all rows
+        this.tbody.querySelectorAll('tr.row-disabled').forEach(r => r.classList.remove('row-disabled'));
+        this.tbody.querySelectorAll('.row-toggle-cell input').forEach(cb => { cb.checked = true; });
 
         // Clear data headers back to defaults (skip id-col)
-        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
         headers.forEach((th, i) => {
             const btn = th.querySelector('.th-delete-btn');
             th.textContent = `Group ${i + 1}`;
@@ -449,7 +466,7 @@ class DataTable {
         const headers = [];
 
         // Get headers (data columns only, skip id-col)
-        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
         headerCells.forEach(th => {
             const clone = th.cloneNode(true);
             const btn = clone.querySelector('.th-delete-btn');
@@ -457,13 +474,13 @@ class DataTable {
             headers.push(clone.textContent.trim() || 'Unnamed');
         });
 
-        // Get data for each column (skip id-cells)
+        // Get data for each column (skip id-cells, skip disabled rows)
         for (let colIndex = 0; colIndex < headers.length; colIndex++) {
             const columnData = [];
-            const rows = this.tbody.querySelectorAll('tr');
+            const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
 
             rows.forEach(row => {
-                const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.id-cell)');
+                const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.id-cell):not(.row-toggle-cell)');
                 const cell = cells[colIndex];
                 if (!cell) return;
                 const value = cell.textContent.trim();
@@ -487,7 +504,7 @@ class DataTable {
     getMatrixData() {
         // Collect data column headers (skip id-col headers)
         const colLabels = [];
-        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
         headerCells.forEach(th => {
             const clone = th.cloneNode(true);
             const btn = clone.querySelector('.th-delete-btn');
@@ -495,7 +512,7 @@ class DataTable {
             colLabels.push(clone.textContent.trim() || 'Unnamed');
         });
 
-        const rows = this.tbody.querySelectorAll('tr');
+        const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
         const matrix = [];
         const rowLabels = [];
         let rowNum = 1;
@@ -506,8 +523,8 @@ class DataTable {
             const groupVal = idCells[0] ? idCells[0].textContent.trim() : '';
             const sampleVal = idCells[1] ? idCells[1].textContent.trim() : '';
 
-            // Data cells (everything except id-cell and row-delete-cell)
-            const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell)');
+            // Data cells (everything except id-cell, toggle-cell and row-delete-cell)
+            const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
             const rowData = [];
             let hasAny = false;
             for (let c = 0; c < dataCells.length; c++) {
@@ -542,8 +559,8 @@ class DataTable {
     // headers: data column headers, rowData: array of arrays (data only),
     // idData: optional array of [group, sample] per row
     setupTable(headers, numRows, rowData, idData) {
-        // Remove existing data headers (keep id-col headers)
-        const existingDataHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col)');
+        // Remove existing data headers (keep id-col, toggle-col, delete-col-header)
+        const existingDataHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
         const delColHeader = this.headerRow.querySelector('.delete-col-header');
         existingDataHeaders.forEach(h => h.remove());
 
@@ -594,7 +611,7 @@ class DataTable {
             const bodyRows = this.tbody.querySelectorAll('tr');
             rowData.forEach((rd, r) => {
                 if (r >= bodyRows.length) return;
-                const dataCells = bodyRows[r].querySelectorAll('td:not(.id-cell):not(.row-delete-cell)');
+                const dataCells = bodyRows[r].querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
                 rd.forEach((val, c) => {
                     if (c < dataCells.length) dataCells[c].textContent = val;
                 });

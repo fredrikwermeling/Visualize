@@ -133,7 +133,7 @@ class HeatmapRenderer {
         const colAngle = this.settings.colLabelAngle ?? 45;
         const maxColLabelLen = Math.max(...colLabels.map(l => l.length));
         const colLabelHeight = colAngle === 0
-            ? 16  // horizontal: just one line of text
+            ? Math.min(maxColLabelLen * 7, 120) + 10  // horizontal: need width for longest label
             : colAngle === 90
                 ? Math.min(maxColLabelLen * 7, 120)  // vertical: full text length
                 : Math.min(maxColLabelLen * 5, 80);   // angled: diagonal projection
@@ -404,7 +404,7 @@ class HeatmapRenderer {
 
         for (const i of order) {
             const cx = xScale(i) + bandWidth / 2;
-            const cy = yOffset + 4;
+            const cy = yOffset + 6;
             const el = g.append('text')
                 .attr('font-size', fontSize + 'px')
                 .attr('fill', '#333')
@@ -416,14 +416,14 @@ class HeatmapRenderer {
                     .attr('dominant-baseline', 'hanging');
             } else if (angle === 90) {
                 el.attr('x', cx).attr('y', cy)
-                    .attr('text-anchor', 'end')
+                    .attr('text-anchor', 'start')
                     .attr('dominant-baseline', 'middle')
                     .attr('transform', `rotate(90, ${cx}, ${cy})`);
             } else {
                 el.attr('x', cx).attr('y', cy)
-                    .attr('text-anchor', 'start')
+                    .attr('text-anchor', 'end')
                     .attr('dominant-baseline', 'hanging')
-                    .attr('transform', `rotate(${angle}, ${cx}, ${cy})`);
+                    .attr('transform', `rotate(-${angle}, ${cx}, ${cy})`);
             }
         }
     }

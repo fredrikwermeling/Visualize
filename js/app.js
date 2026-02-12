@@ -636,6 +636,7 @@ class App {
 
             document.getElementById('testType').value = 't-test-unpaired';
             document.getElementById('postHocGroup').style.display = 'none';
+            document.getElementById('postHocAdvice').style.display = 'none';
             this._updateTestDescription();
             this.graphRenderer.updateSettings({ statsTestName: testName, showStatsLegend: true });
             document.getElementById('showStatsLegend').checked = true;

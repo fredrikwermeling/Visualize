@@ -80,11 +80,11 @@
                     <select id="graphType">
                         <optgroup label="Scatter / Points">
                             <option value="scatter-only">Scatter (points only)</option>
-                            <option value="column-points-mean">Points with Mean line</option>
+                            <option value="column-points-mean" selected>Points with Mean line</option>
                             <option value="column-points-median">Points with Median line</option>
                         </optgroup>
                         <optgroup label="Bar Charts">
-                            <option value="scatter-bar" selected>Scatter + Bar</option>
+                            <option value="scatter-bar">Scatter + Bar</option>
                             <option value="column-bar-mean">Bar + Mean ± SD</option>
                             <option value="column-bar-sem">Bar + Mean ± SEM</option>
                             <option value="column-bar-median">Bar + Median ± IQR</option>
@@ -185,11 +185,11 @@
                             </div>
                             <div class="hm-ctrl">
                                 <label>Width</label>
-                                <input type="number" id="heatmapWidth" value="300" min="100" max="1200" step="50">
+                                <input type="number" id="heatmapWidth" value="300" min="50" step="10">
                             </div>
                             <div class="hm-ctrl">
                                 <label>Height</label>
-                                <input type="number" id="heatmapHeight" value="300" min="100" max="800" step="50">
+                                <input type="number" id="heatmapHeight" value="300" min="50" step="10">
                             </div>
                             <div class="hm-ctrl">
                                 <label>X-angle</label>
@@ -218,11 +218,11 @@
                         <div class="control-grid-2col">
                             <div class="control-group column-only">
                                 <label>Width:</label>
-                                <input type="number" id="graphWidth" value="300" min="300" max="1200" step="50">
+                                <input type="number" id="graphWidth" value="250" min="50" step="10">
                             </div>
                             <div class="control-group column-only">
                                 <label>Height:</label>
-                                <input type="number" id="graphHeight" value="300" min="200" max="800" step="50">
+                                <input type="number" id="graphHeight" value="300" min="50" step="10">
                             </div>
                             <div class="control-group column-only">
                                 <label>Y-Min:</label>
@@ -234,7 +234,7 @@
                             </div>
                             <div class="control-group column-only">
                                 <label>Y-Step:</label>
-                                <input type="number" id="yAxisTickStep" placeholder="Auto" min="0.1" step="any">
+                                <input type="number" id="yAxisTickStep" value="2" placeholder="Auto" step="any">
                             </div>
                             <div class="control-group column-only">
                                 <label>Y-Scale:</label>
@@ -246,7 +246,7 @@
                             </div>
                             <div class="control-group column-only">
                                 <label>Err width:</label>
-                                <input type="number" id="errorBarWidth" value="1.5" min="0.5" max="5" step="0.5">
+                                <input type="number" id="errorBarWidth" value="1.5" step="0.5">
                             </div>
                             <div class="control-group column-only">
                                 <label>Err bars:</label>
@@ -305,7 +305,7 @@
                         </div>
                         <div class="control-group column-only">
                             <label>Point size:</label>
-                            <input type="number" id="pointSize" value="4" min="1" max="15" step="0.5">
+                            <input type="number" id="pointSize" value="6" min="0.5" step="0.5">
                         </div>
                         <div class="control-group column-only">
                             <label>Point shape:</label>
@@ -319,63 +319,65 @@
                         </div>
                         <div class="control-group column-only">
                             <label>Bar width:</label>
-                            <input type="number" id="centerLineWidth" value="0.5" min="0.1" max="1.0" step="0.1">
+                            <input type="number" id="centerLineWidth" value="1" min="0.1" step="0.1">
                         </div>
                     </div>
 
                     <div class="control-section">
                         <h3>Statistics</h3>
-                        <div class="control-group">
-                            <label>Test Type:</label>
-                            <select id="testType">
-                                <option value="none">None</option>
-                                <optgroup label="Multi-group (3+)">
-                                    <option value="one-way-anova" selected>One-way ANOVA</option>
-                                    <option value="kruskal-wallis">Kruskal-Wallis</option>
-                                    <option value="friedman">Friedman</option>
-                                </optgroup>
-                                <optgroup label="Two-group">
-                                    <option value="t-test-unpaired">T-test (Unpaired)</option>
-                                    <option value="t-test-paired">T-test (Paired)</option>
-                                    <option value="mann-whitney">Mann-Whitney U</option>
-                                    <option value="wilcoxon">Wilcoxon (Paired)</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div class="control-group" id="postHocGroup" style="display:none">
-                            <label>Post-hoc:</label>
-                            <select id="postHocMethod">
-                                <option value="tukey">Tukey HSD</option>
-                                <option value="bonferroni">Bonferroni</option>
-                                <option value="holm">Holm-Bonferroni</option>
-                                <option value="dunnett">Dunnett (vs control)</option>
-                            </select>
-                        </div>
-                        <div class="control-group" id="dunnettControlGroup" style="display:none">
-                            <label>Control:</label>
-                            <select id="dunnettControlIndex"></select>
+                        <div class="control-grid-2col">
+                            <div class="control-group">
+                                <label>Test:</label>
+                                <select id="testType">
+                                    <option value="none">None</option>
+                                    <optgroup label="Multi-group (3+)">
+                                        <option value="one-way-anova" selected>One-way ANOVA</option>
+                                        <option value="kruskal-wallis">Kruskal-Wallis</option>
+                                        <option value="friedman">Friedman</option>
+                                    </optgroup>
+                                    <optgroup label="Two-group">
+                                        <option value="t-test-unpaired">T-test (Unpaired)</option>
+                                        <option value="t-test-paired">T-test (Paired)</option>
+                                        <option value="mann-whitney">Mann-Whitney U</option>
+                                        <option value="wilcoxon">Wilcoxon (Paired)</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label>Stars:</label>
+                                <input type="number" id="significanceFontSize" value="" placeholder="Auto" min="1" step="1">
+                            </div>
+                            <div class="control-group" id="postHocGroup" style="display:none">
+                                <label>Post-hoc:</label>
+                                <select id="postHocMethod">
+                                    <option value="tukey">Tukey HSD</option>
+                                    <option value="bonferroni">Bonferroni</option>
+                                    <option value="holm">Holm-Bonferroni</option>
+                                    <option value="dunnett">Dunnett (vs control)</option>
+                                </select>
+                            </div>
+                            <div class="control-group" id="dunnettControlGroup" style="display:none">
+                                <label>Control:</label>
+                                <select id="dunnettControlIndex"></select>
+                            </div>
+                            <div class="control-group" id="twoGroupSelectGroup" style="display:none">
+                                <label>Group 1:</label>
+                                <select id="twoGroupSelect1"></select>
+                            </div>
+                            <div class="control-group" id="twoGroupSelectGroup2" style="display:none">
+                                <label>Group 2:</label>
+                                <select id="twoGroupSelect2"></select>
+                            </div>
                         </div>
                         <div id="postHocAdvice" style="display:none;font-size:11px;color:#888;margin-top:2px;font-style:italic;padding:0 4px"></div>
                         <div id="twoGroupWarning" style="display:none;font-size:11px;color:#c0392b;margin:4px 0;padding:4px 6px;background:#fff5f5;border:1px solid #f5c6cb;border-radius:3px">
                             <strong>Warning:</strong> With &gt;2 groups, a two-group test only compares the selected pair. Consider using ANOVA/Kruskal-Wallis with post-hoc testing for proper multiple comparison correction.
                         </div>
-                        <div class="control-group" id="twoGroupSelectGroup" style="display:none">
-                            <label>Group 1:</label>
-                            <select id="twoGroupSelect1"></select>
-                        </div>
-                        <div class="control-group" id="twoGroupSelectGroup2" style="display:none">
-                            <label>Group 2:</label>
-                            <select id="twoGroupSelect2"></select>
-                        </div>
-                        <div class="control-group">
-                            <label>Star size:</label>
-                            <input type="number" id="significanceFontSize" value="" placeholder="Auto" min="8" max="36">
-                        </div>
                         <div id="testDescription" style="font-size:11px;color:#666;margin:4px 0;padding:4px 6px;background:#f0f8e8;border:1px solid #d4e8c4;border-radius:3px;display:none"></div>
-                        <label style="font-size:13px;display:flex;align-items:center;gap:4px;margin-bottom:4px"><input type="checkbox" id="showStatsLegend"> Show legend in graph</label>
-                        <div style="display:flex;gap:8px">
-                            <button id="runStats" class="btn btn-primary">Run Test</button>
-                            <button id="clearStats" class="btn btn-secondary">Clear</button>
+                        <div style="display:flex;gap:8px;align-items:center;margin:4px 0">
+                            <button id="runStats" class="btn btn-primary" style="padding:6px 14px">Run Test</button>
+                            <button id="clearStats" class="btn btn-secondary" style="padding:6px 14px">Clear</button>
+                            <label style="font-size:12px;display:flex;align-items:center;gap:3px;margin-left:auto"><input type="checkbox" id="showStatsLegend"> Legend</label>
                         </div>
                         <div id="statsResults" class="stats-results"></div>
                     </div>

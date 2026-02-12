@@ -4,7 +4,7 @@ class GraphRenderer {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.svg = null;
-        this.width = 300;
+        this.width = 250;
         this.height = 300;
         this.margin = { top: 60, right: 30, bottom: 80, left: 70 };
 
@@ -17,10 +17,10 @@ class GraphRenderer {
             fontSize: 12,
             fontBold: false,
             fontItalic: false,
-            graphType: 'scatter-bar',
+            graphType: 'column-points-mean',
             yAxisMin: null,
             yAxisMax: null,
-            yAxisTickStep: null,
+            yAxisTickStep: 2,
             yAxisScaleType: 'linear',
             // Per-label font settings
             titleFont:  { family: 'Arial', size: 18, bold: true,  italic: false },
@@ -61,12 +61,12 @@ class GraphRenderer {
             // X-axis tick angle
             xTickAngle: 0,
             // Point appearance
-            pointSize: 4,
+            pointSize: 6,
             pointShape: 'circle',
             // Group ordering & visibility
             groupOrder: [],      // array of group labels in display order; empty = use data order
             hiddenGroups: [],     // array of group labels to hide from graph
-            centerLineWidth: 0.5  // fraction of bandwidth for mean/median line (0.1–1.0)
+            centerLineWidth: 1.0  // fraction of bandwidth for mean/median line (0.1–1.0)
         };
 
         // Color themes

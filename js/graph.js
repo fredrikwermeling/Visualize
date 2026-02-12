@@ -4,8 +4,8 @@ class GraphRenderer {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.svg = null;
-        this.width = 250;
-        this.height = 300;
+        this.width = 150;
+        this.height = 200;
         this.margin = { top: 60, right: 30, bottom: 80, left: 70 };
 
         // Default settings
@@ -13,22 +13,22 @@ class GraphRenderer {
             title: 'Graph Title',
             xLabel: 'Groups',
             yLabel: 'Values',
-            fontFamily: 'Arial',
+            fontFamily: 'Aptos Display',
             fontSize: 12,
             fontBold: false,
             fontItalic: false,
             graphType: 'column-points-mean',
             yAxisMin: null,
             yAxisMax: null,
-            yAxisTickStep: 2,
+            yAxisTickStep: null,  // null = auto-scale
             yAxisScaleType: 'linear',
             // Per-label font settings
-            titleFont:  { family: 'Arial', size: 18, bold: true,  italic: false },
-            xLabelFont: { family: 'Arial', size: 14, bold: false, italic: false },
-            yLabelFont: { family: 'Arial', size: 14, bold: false, italic: false },
+            titleFont:  { family: 'Aptos Display', size: 18, bold: true,  italic: false },
+            xLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
+            yLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
             // Tick fonts (separate for x and y)
-            xTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
-            yTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
+            xTickFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
+            yTickFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
             // Color
             colorTheme: 'default',
             colorOverrides: {},
@@ -38,7 +38,7 @@ class GraphRenderer {
             // Orientation
             orientation: 'vertical',
             // Significance
-            significanceFontSize: null,
+            significanceFontSize: 20,
             // Stats legend
             showStatsLegend: false,
             statsTestName: '',
@@ -49,7 +49,7 @@ class GraphRenderer {
             GROUP_LEGEND_WIDTH: 130,
             groupLegendOffset: { x: 0, y: 0 },     // drag offset for whole legend
             groupLegendItemOffsets: {},               // { index: {x, y} } per-item offsets
-            groupLegendFont: { family: 'Arial', size: 12, bold: false, italic: false },
+            groupLegendFont: { family: 'Aptos Display', size: 12, bold: false, italic: false },
             // Group label display
             showAxisGroupLabels: true,
             // Label visibility & position offsets
@@ -313,7 +313,8 @@ class GraphRenderer {
             .attr('transform', `translate(${this.margin.left},${this.margin.top})`);
 
         const allValues = filteredData.flatMap(d => d.values);
-        const autoMin = 0;
+        const dataMin = d3.min(allValues);
+        const autoMin = dataMin < 0 ? dataMin * 1.15 : 0;
         const yMaxRaw = d3.max(allValues);
         const headroom = this.significanceResults.length > 0 ? 0.25 : 0.15;
         const autoMax = yMaxRaw * (1 + headroom);
@@ -379,6 +380,24 @@ class GraphRenderer {
 
         // Draw axis break
         this._drawAxisBreak(g, valueScale, isHorizontal);
+
+        // Draw zero line if data crosses zero
+        if (dataMin < 0 && yMaxRaw > 0) {
+            const zeroPos = valueScale(0);
+            if (isHorizontal) {
+                g.append('line')
+                    .attr('x1', zeroPos).attr('x2', zeroPos)
+                    .attr('y1', 0).attr('y2', this.innerHeight)
+                    .attr('stroke', '#999').attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '4,3').attr('opacity', 0.6);
+            } else {
+                g.append('line')
+                    .attr('x1', 0).attr('x2', this.innerWidth)
+                    .attr('y1', zeroPos).attr('y2', zeroPos)
+                    .attr('stroke', '#999').attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '4,3').attr('opacity', 0.6);
+            }
+        }
 
         // Draw graph based on type
         switch (this.settings.graphType) {
@@ -503,10 +522,22 @@ class GraphRenderer {
 
         // Helper: configure tick values on a value-axis generator
         const configureValueAxis = (axisGen) => {
-            const step = self.settings.yAxisTickStep;
+            let step = self.settings.yAxisTickStep;
+            if (!step || step <= 0) {
+                // Auto-compute a nice step: aim for ~5-8 ticks
+                const [min, max] = valueScale.domain();
+                const range = max - min;
+                if (range > 0) {
+                    const rawStep = range / 6;
+                    const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+                    const nice = [1, 2, 2.5, 5, 10];
+                    step = nice.find(n => n * mag >= rawStep) * mag;
+                }
+            }
             if (step && step > 0) {
                 const [min, max] = valueScale.domain();
-                const tickVals = d3.range(min, max + step * 0.5, step);
+                const start = Math.ceil(min / step) * step;
+                const tickVals = d3.range(start, max + step * 0.5, step);
                 axisGen.tickValues(tickVals);
             }
             // Custom tick formatting for log scales — avoid SI prefixes like "500m"
@@ -871,7 +902,7 @@ class GraphRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f;
             opt.textContent = f;
@@ -1170,11 +1201,14 @@ class GraphRenderer {
                 const gy = groupScale(group.label);
                 const cy = gy + bw / 2;
 
-                // Bar
+                // Bar (handles negative values)
+                const hBarBase = valueScale(Math.max(0, valueScale.domain()[0]));
+                const hBarLeft = meanVal >= 0 ? hBarBase : valueScale(meanVal);
+                const hBarRight = meanVal >= 0 ? valueScale(meanVal) : hBarBase;
                 g.append('rect')
                     .attr('class', 'bar')
-                    .attr('x', 0).attr('y', gy)
-                    .attr('width', valueScale(meanVal))
+                    .attr('x', hBarLeft).attr('y', gy)
+                    .attr('width', Math.max(0, hBarRight - hBarLeft))
                     .attr('height', bw)
                     .attr('fill', color).attr('stroke', '#333')
                     .attr('stroke-width', 1).attr('opacity', 0.8)
@@ -1184,7 +1218,7 @@ class GraphRenderer {
                 // Error bars
                 if (group.values.length > 1) {
                     const errorRight = meanVal + errorVal;
-                    const errorLeft = ebDir === 'above' ? meanVal : Math.max(0, meanVal - errorVal);
+                    const errorLeft = ebDir === 'above' ? meanVal : meanVal - errorVal;
                     const capWidth = bw * 0.2;
 
                     g.append('line')
@@ -1214,12 +1248,15 @@ class GraphRenderer {
                 const gx = groupScale(group.label);
                 const cx = gx + bw / 2;
 
-                // Bar
+                // Bar (handles negative values by drawing from zero line)
+                const barBaseline = valueScale(Math.max(0, valueScale.domain()[0]));
+                const barTop = meanVal >= 0 ? valueScale(meanVal) : barBaseline;
+                const barBot = meanVal >= 0 ? barBaseline : valueScale(meanVal);
                 g.append('rect')
                     .attr('class', 'bar')
-                    .attr('x', gx).attr('y', valueScale(meanVal))
+                    .attr('x', gx).attr('y', barTop)
                     .attr('width', bw)
-                    .attr('height', this.innerHeight - valueScale(meanVal))
+                    .attr('height', Math.max(0, barBot - barTop))
                     .attr('fill', color).attr('stroke', '#333')
                     .attr('stroke-width', 1).attr('opacity', 0.8)
                     .style('cursor', 'pointer')
@@ -1228,7 +1265,7 @@ class GraphRenderer {
                 // Error bars
                 if (group.values.length > 1) {
                     const errorTop = meanVal + errorVal;
-                    const errorBottom = ebDir === 'above' ? meanVal : Math.max(0, meanVal - errorVal);
+                    const errorBottom = ebDir === 'above' ? meanVal : meanVal - errorVal;
                     const capWidth = bw * 0.2;
 
                     g.append('line')
@@ -1529,10 +1566,13 @@ class GraphRenderer {
                 const gx = groupScale(group.label);
                 const cx = gx + bw / 2;
 
+                const mBarBase = valueScale(Math.max(0, valueScale.domain()[0]));
+                const mBarTop = medianVal >= 0 ? valueScale(medianVal) : mBarBase;
+                const mBarBot = medianVal >= 0 ? mBarBase : valueScale(medianVal);
                 g.append('rect').attr('class', 'bar')
-                    .attr('x', gx).attr('y', valueScale(medianVal))
+                    .attr('x', gx).attr('y', mBarTop)
                     .attr('width', bw)
-                    .attr('height', this.innerHeight - valueScale(medianVal))
+                    .attr('height', Math.max(0, mBarBot - mBarTop))
                     .attr('fill', color).attr('stroke', '#333')
                     .attr('stroke-width', 1).attr('opacity', 0.8)
                     .style('cursor', 'pointer')
@@ -1623,10 +1663,13 @@ class GraphRenderer {
                 const gx = groupScale(group.label);
                 const cx = gx + bw / 2;
 
+                const sbBarBase = valueScale(Math.max(0, valueScale.domain()[0]));
+                const sbBarTop = meanVal >= 0 ? valueScale(meanVal) : sbBarBase;
+                const sbBarBot = meanVal >= 0 ? sbBarBase : valueScale(meanVal);
                 g.append('rect').attr('class', 'bar')
-                    .attr('x', gx).attr('y', valueScale(meanVal))
+                    .attr('x', gx).attr('y', sbBarTop)
                     .attr('width', bw)
-                    .attr('height', this.innerHeight - valueScale(meanVal))
+                    .attr('height', Math.max(0, sbBarBot - sbBarTop))
                     .attr('fill', color).attr('stroke', '#333')
                     .attr('stroke-width', 1).attr('opacity', 0.4)
                     .style('cursor', 'pointer')
@@ -2338,7 +2381,7 @@ class GraphRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f; opt.textContent = f;
             if (f === lf.family) opt.selected = true;

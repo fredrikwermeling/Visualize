@@ -562,6 +562,11 @@ class App {
             this.heatmapRenderer.exportGroupedCSV(matrixData);
         });
 
+        const hmCsvBtn = document.getElementById('exportHeatmapCSV');
+        if (hmCsvBtn) hmCsvBtn.addEventListener('click', () => {
+            this.heatmapRenderer.exportHeatmapCSV();
+        });
+
         // View as Column button - converts grouped heatmap data to column format
         const viewColBtn = document.getElementById('viewAsColumn');
         if (viewColBtn) viewColBtn.addEventListener('click', () => {
@@ -673,7 +678,9 @@ class App {
             legendTitle: this.heatmapRenderer.settings.legendTitle,
             groupColorOverrides: this.heatmapRenderer.settings.groupColorOverrides || {},
             title: this.heatmapRenderer.settings.title || 'Heatmap',
-            colLabelAngle: parseInt(document.getElementById('heatmapColLabelAngle')?.value) || 45
+            colLabelAngle: parseInt(document.getElementById('heatmapColLabelAngle')?.value ?? 45),
+            groupColorTheme: document.getElementById('heatmapGroupColorTheme')?.value || 'default',
+            groupLabelItemOffsets: this.heatmapRenderer.settings.groupLabelItemOffsets || {}
         };
     }
 

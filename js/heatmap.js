@@ -15,10 +15,12 @@ class HeatmapRenderer {
             legendTitle: null,  // null = auto-generate, '' = hidden, string = custom
             title: 'Heatmap',
             groupColorOverrides: {},  // { groupName: '#color' }
-            titleFont: { family: 'Arial', size: 16, bold: true, italic: false },
-            legendTitleFont: { family: 'Arial', size: 10, bold: false, italic: false },
-            groupLabelFont: { family: 'Arial', size: 10, bold: false, italic: false },
+            titleFont: { family: 'Aptos Display', size: 16, bold: true, italic: false },
+            legendTitleFont: { family: 'Aptos Display', size: 10, bold: false, italic: false },
+            groupLabelFont: { family: 'Aptos Display', size: 10, bold: false, italic: false },
             groupLabelOverrides: {},  // { groupName: 'overriddenText' }
+            groupLabelItemOffsets: {},  // { groupName: {x,y} } per-item drag offsets
+            groupColorTheme: 'default',  // color theme for group bar
             colOrder: [],       // manual column order (array of col label strings); empty = data order
             hiddenCols: [],     // columns to hide from the heatmap (array of col label strings)
             colLabelAngle: 45   // angle for column labels (0, 45, 90)
@@ -62,6 +64,9 @@ class HeatmapRenderer {
         // Winsorize for color mapping
         const displayMatrix = this._winsorize(normMatrix, this.settings.winsorize);
 
+        // Store for CSV export
+        this._lastExport = { colLabels, rowLabels, normMatrix, rowOrder: null, colOrder: null };
+
         // Clustering (on normalized, non-winsorized data)
         let rowOrder = Array.from({ length: normMatrix.length }, (_, i) => i);
         let colOrder = Array.from({ length: normMatrix[0].length }, (_, i) => i);
@@ -96,6 +101,10 @@ class HeatmapRenderer {
             });
             colOrder = ordered;
         }
+
+        // Update stored export data with final ordering
+        this._lastExport.rowOrder = rowOrder;
+        this._lastExport.colOrder = colOrder;
 
         // Get all numeric values for color scale (from winsorized display data)
         const allValues = [];
@@ -311,7 +320,15 @@ class HeatmapRenderer {
         });
 
         const uniqueGroups = Object.keys(groupNames);
-        const defaultColors = d3.scaleOrdinal(d3.schemeSet2).domain(uniqueGroups);
+        const themes = {
+            default: ['#5B8DB8', '#E8927C', '#7EBF7E', '#C490D1', '#F2CC8F', '#81D4DB', '#FF9F9F', '#A8D5A2'],
+            pastel: ['#B5D6E8', '#F5C6B8', '#C8E6C8', '#DFC8E8', '#FBE6C8', '#C0EAF0', '#FFCFCF', '#D4EAD0'],
+            vivid: ['#2171B5', '#E6550D', '#31A354', '#756BB1', '#D6A016', '#17BECF', '#E7298A', '#66C2A5'],
+            grayscale: ['#636363', '#969696', '#bdbdbd', '#252525', '#AAAAAA', '#777777', '#444444', '#C0C0C0'],
+            colorblind: ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9', '#E69F00', '#000000']
+        };
+        const palette = themes[this.settings.groupColorTheme] || themes.default;
+        const defaultColors = (name) => palette[uniqueGroups.indexOf(name) % palette.length];
         const overrides = this.settings.groupColorOverrides || {};
         const groupColors = (name) => overrides[name] || defaultColors(name);
 
@@ -485,18 +502,41 @@ class HeatmapRenderer {
         );
 
         let xOff = 0;
+        const itemOffsets = this.settings.groupLabelItemOffsets || {};
 
         for (const name of groups.uniqueGroups) {
             const color = groups.groupColors(name);
-            const curX = xOff;
+            const io = itemOffsets[name] || { x: 0, y: 0 };
+            const glf = this.settings.groupLabelFont;
+            const displayName = (this.settings.groupLabelOverrides && this.settings.groupLabelOverrides[name]) || name;
 
-            const colorRect = g.append('rect')
-                .attr('x', xOff)
-                .attr('y', 0)
-                .attr('width', 10)
-                .attr('height', 10)
-                .attr('fill', color)
-                .attr('rx', 2)
+            const itemG = g.append('g')
+                .attr('transform', `translate(${xOff + io.x}, ${io.y})`)
+                .style('cursor', 'grab');
+
+            // Per-item drag
+            ((gName, itemEl) => {
+                let wasDragged = false;
+                itemEl.call(d3.drag()
+                    .filter(event => !event.ctrlKey && !event.button && event.detail < 2)
+                    .on('start', function() { wasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
+                    .on('drag', function(event) {
+                        wasDragged = true;
+                        if (!itemOffsets[gName]) itemOffsets[gName] = { x: 0, y: 0 };
+                        itemOffsets[gName].x += event.dx;
+                        itemOffsets[gName].y += event.dy;
+                        self.settings.groupLabelItemOffsets = itemOffsets;
+                        d3.select(this).attr('transform',
+                            `translate(${xOff + itemOffsets[gName].x}, ${itemOffsets[gName].y})`);
+                    })
+                    .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+                );
+            })(name, itemG);
+
+            const colorRect = itemG.append('rect')
+                .attr('x', 0).attr('y', 0)
+                .attr('width', 10).attr('height', 10)
+                .attr('fill', color).attr('rx', 2)
                 .attr('cursor', 'pointer');
 
             // Click to change group color
@@ -504,7 +544,6 @@ class HeatmapRenderer {
                 event.stopPropagation();
                 const picker = document.createElement('input');
                 picker.type = 'color';
-                // Convert D3 color to hex for the picker
                 const c = d3.color(color);
                 picker.value = c ? c.formatHex() : '#000000';
                 picker.style.position = 'absolute';
@@ -521,11 +560,8 @@ class HeatmapRenderer {
             });
             colorRect.append('title').text('Click to change color');
 
-            const glf = this.settings.groupLabelFont;
-            const displayName = (this.settings.groupLabelOverrides && this.settings.groupLabelOverrides[name]) || name;
-            const labelEl = g.append('text')
-                .attr('x', xOff + 13)
-                .attr('y', 9)
+            const labelEl = itemG.append('text')
+                .attr('x', 13).attr('y', 9)
                 .attr('font-size', glf.size + 'px')
                 .attr('font-family', glf.family)
                 .attr('font-weight', glf.bold ? 'bold' : 'normal')
@@ -936,7 +972,7 @@ class HeatmapRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f;
             opt.textContent = f;
@@ -1142,6 +1178,31 @@ class HeatmapRenderer {
         URL.revokeObjectURL(url);
     }
 
+
+    exportHeatmapCSV() {
+        if (!this._lastExport) return;
+        const { colLabels, rowLabels, normMatrix, rowOrder, colOrder } = this._lastExport;
+        const lines = [];
+        // Header: empty cell + column labels in display order
+        lines.push([''].concat(colOrder.map(ci => colLabels[ci])).join(','));
+        // Data rows in display order
+        for (const ri of rowOrder) {
+            const row = [rowLabels[ri]];
+            for (const ci of colOrder) {
+                const v = normMatrix[ri][ci];
+                row.push(isNaN(v) ? '' : v);
+            }
+            lines.push(row.join(','));
+        }
+        const csv = lines.join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'heatmap_processed.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
 
     _transpose(matrix) {
         if (matrix.length === 0) return [];

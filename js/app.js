@@ -53,6 +53,14 @@ class App {
                 this.dataTable.loadSampleData();
             }
         });
+
+        // Expand table toggle
+        const expandBtn = document.getElementById('expandTable');
+        if (expandBtn) {
+            expandBtn.addEventListener('click', () => {
+                document.querySelector('.main-content').classList.toggle('table-expanded');
+            });
+        }
     }
 
     _bindGraphControls() {
@@ -569,6 +577,11 @@ class App {
         // Heatmap controls
         const heatmapControls = document.getElementById('heatmapControls');
         if (heatmapControls) heatmapControls.style.display = isHeatmap ? '' : 'none';
+
+        // Show/hide heatmap-only export buttons
+        document.querySelectorAll('.heatmap-only').forEach(el => {
+            el.style.display = isHeatmap ? '' : 'none';
+        });
     }
 
     _bindHeatmapControls() {

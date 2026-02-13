@@ -58,10 +58,12 @@
                 </div>
                 
                 <div class="table-controls">
-                    <button id="addColumn" class="btn btn-secondary">+ Add Column</button>
-                    <button id="addRow" class="btn btn-secondary">+ Add Row</button>
-                    <button id="clearData" class="btn btn-secondary">Clear Data</button>
-                    <button id="addTestData" class="btn btn-secondary">Add Test Data</button>
+                    <button id="addColumn" class="btn btn-secondary">+ Column</button>
+                    <button id="addRow" class="btn btn-secondary">+ Row</button>
+                    <button id="clearData" class="btn btn-secondary">Clear</button>
+                    <button id="addTestData" class="btn btn-secondary">Test Data</button>
+                    <label class="paste-mode-toggle" title="When checked, pasted data is appended below existing rows instead of replacing"><input type="checkbox" id="pasteAppend"> Append paste</label>
+                    <button id="expandTable" class="btn btn-secondary expand-btn" title="Toggle expanded table view">&#8646;</button>
                 </div>
 
                 <div id="groupManager" class="group-manager" style="display:none">
@@ -235,11 +237,6 @@
                             <label><input type="checkbox" id="heatmapShowValues"> Values</label>
                             <label><input type="checkbox" id="heatmapShowGroupBar"> Groups</label>
                             <label><input type="checkbox" id="heatmapShowInfo"> Info</label>
-                        </div>
-                        <div class="hm-buttons">
-                            <button id="exportGroupedCSV" class="btn btn-primary" style="font-size:11px">Export Raw CSV</button>
-                            <button id="exportHeatmapCSV" class="btn btn-primary" style="font-size:11px">Export Heatmap CSV</button>
-                            <button id="viewAsColumn" class="btn btn-primary" style="font-size:11px">View as Column</button>
                         </div>
                     </div>
                 </div>
@@ -423,9 +420,14 @@
 
                     <div class="control-section">
                         <h3>Export</h3>
-                        <button id="exportPNG" class="btn btn-primary">Export PNG</button>
-                        <button id="exportSVG" class="btn btn-primary">Export SVG</button>
-                        <button id="copyClipboard" class="btn btn-primary">Copy to Clipboard</button>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            <button id="exportPNG" class="btn btn-primary" style="font-size:11px">PNG</button>
+                            <button id="exportSVG" class="btn btn-primary" style="font-size:11px">SVG</button>
+                            <button id="copyClipboard" class="btn btn-primary" style="font-size:11px">Clipboard</button>
+                            <button id="exportGroupedCSV" class="btn btn-primary heatmap-only" style="font-size:11px">Raw CSV</button>
+                            <button id="exportHeatmapCSV" class="btn btn-primary heatmap-only" style="font-size:11px">Heatmap CSV</button>
+                            <button id="viewAsColumn" class="btn btn-primary heatmap-only" style="font-size:11px">Column Graph</button>
+                        </div>
                     </div>
                 </div>
             </div>

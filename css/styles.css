@@ -946,22 +946,23 @@ tr:hover .row-delete-btn {
 
 .heatmap-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 3px 8px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px 6px;
 }
 
 .hm-ctrl {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     font-size: 12px;
 }
 
 .hm-ctrl label {
-    flex: 0 0 52px;
+    flex: 0 0 auto;
+    white-space: nowrap;
     font-weight: 500;
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: 10px;
 }
 
 .hm-ctrl select,
@@ -1059,4 +1060,42 @@ tr:hover .row-delete-btn {
     border-top: 1px solid var(--gray-200);
     font-style: italic;
     color: var(--gray-500);
+}
+
+/* Expanded table mode */
+.main-content.table-expanded {
+    grid-template-columns: 1fr;
+}
+
+.main-content.table-expanded .data-panel {
+    position: relative;
+    top: 0;
+    max-height: none;
+}
+
+.main-content.table-expanded .table-container {
+    max-height: 80vh;
+}
+
+/* Paste mode toggle */
+.paste-mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.paste-mode-toggle input[type="checkbox"] {
+    accent-color: var(--green-600);
+}
+
+/* Heatmap-only export buttons */
+.heatmap-only { display: none; }
+
+/* Expand table button */
+.expand-btn {
+    margin-left: auto;
 }

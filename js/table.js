@@ -473,11 +473,9 @@ class DataTable {
             }
 
             // In heatmap mode: detect leading text columns as Group/Sample IDs
-            // In column mode: no ID detection
             const isHeatmap = window.app && window.app.mode === 'heatmap';
             let idColCount = 0;
             if (isHeatmap && dataRows.length > 0) {
-                // Check up to 2 leading columns for text (non-numeric) content
                 for (let col = 0; col < Math.min(2, numCols); col++) {
                     let textCount = 0, numCount = 0;
                     for (const row of dataRows) {
@@ -494,7 +492,46 @@ class DataTable {
             const dataColCount = numCols - idColCount;
             const dataHeaderLabels = hasHeader ? headerLabels.slice(idColCount) : Array.from({ length: dataColCount }, (_, i) => `Group ${i + 1}`);
 
-            // Remove existing data headers (keep id-col)
+            // Append mode: add rows below existing data instead of replacing
+            const appendMode = document.getElementById('pasteAppend')?.checked;
+            if (appendMode) {
+                const existingDataCols = this._dataColCount();
+                // Add rows for the new data
+                for (let r = 0; r < dataRows.length; r++) {
+                    const row = this._createRow(existingDataCols);
+                    this.tbody.appendChild(row);
+                    this.numRows++;
+                    // Fill ID cells
+                    if (idColCount > 0) {
+                        const idCells = row.querySelectorAll('td.id-cell');
+                        if (idCells[0]) idCells[0].textContent = dataRows[r][0] || '';
+                        if (idColCount > 1 && idCells[1]) idCells[1].textContent = dataRows[r][1] || '';
+                    }
+                    // Fill data cells - match by header name if possible
+                    const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
+                    const existingHeaderEls = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+                    const existingHeaderNames = Array.from(existingHeaderEls).map(th => {
+                        const cl = th.cloneNode(true);
+                        const btn = cl.querySelector('.th-delete-btn');
+                        if (btn) btn.remove();
+                        return cl.textContent.trim();
+                    });
+                    for (let c = 0; c < dataColCount; c++) {
+                        const colName = dataHeaderLabels[c];
+                        let targetIdx = existingHeaderNames.indexOf(colName);
+                        if (targetIdx < 0) targetIdx = c; // fallback to positional
+                        if (targetIdx < dataCells.length) {
+                            dataCells[targetIdx].textContent = dataRows[r][idColCount + c] || '';
+                        }
+                    }
+                }
+                this._updateToggleVisibility();
+                this._updateDeleteButtonVisibility();
+                if (window.app) window.app.updateGraph();
+                return;
+            }
+
+            // Replace mode: rebuild entire table
             const existingHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
             const delColHeader = this.headerRow.querySelector('.delete-col-header');
             existingHeaders.forEach(h => h.remove());
@@ -510,7 +547,6 @@ class DataTable {
                 }
             }
 
-            // Rebuild rows
             const neededRows = Math.max(dataRows.length, 1);
             this.numRows = neededRows;
             this.tbody.innerHTML = '';
@@ -519,17 +555,14 @@ class DataTable {
                 this.tbody.appendChild(row);
             }
 
-            // Fill data
             const bodyRows = this.tbody.querySelectorAll('tr');
             dataRows.forEach((rowData, r) => {
                 if (r >= bodyRows.length) return;
-                // Fill ID cells (Group and optionally Sample)
                 if (idColCount > 0) {
                     const idCells = bodyRows[r].querySelectorAll('td.id-cell');
                     if (idCells[0]) idCells[0].textContent = rowData[0] || '';
                     if (idColCount > 1 && idCells[1]) idCells[1].textContent = rowData[1] || '';
                 }
-                // Fill data cells
                 const dataCells = bodyRows[r].querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
                 for (let c = 0; c < dataColCount && c < dataCells.length; c++) {
                     dataCells[c].textContent = rowData[idColCount + c] || '';

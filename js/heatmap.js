@@ -23,8 +23,7 @@ class HeatmapRenderer {
             groupColorTheme: 'default',  // color theme for group bar
             colOrder: [],       // manual column order (array of col label strings); empty = data order
             hiddenCols: [],     // columns to hide from the heatmap (array of col label strings)
-            rowOrder: [],       // manual row order (array of row label strings); empty = data order
-            hiddenRows: [],     // rows to hide from the heatmap (array of row label strings)
+            clusterFlip: 'none',  // 'none', 'reverse' (flip all), 'root' (flip root only)
             colLabelAngle: 45   // angle for column labels (0, 45, 90)
         };
         // Drag offsets for movable elements
@@ -47,18 +46,8 @@ class HeatmapRenderer {
             return;
         }
 
-        // Store raw row labels for the row manager UI
-        this._rawRowLabels = rowLabels;
-
-        // Filter out hidden rows
-        const hiddenRows = this.settings.hiddenRows || [];
-        let visibleRowIndices = rowLabels.map((_, i) => i);
-        if (hiddenRows.length > 0) {
-            visibleRowIndices = visibleRowIndices.filter(i => !hiddenRows.includes(rowLabels[i]));
-        }
-        const filteredRowLabels = visibleRowIndices.map(i => rowLabels[i]);
-        const filteredGroupAssignments = visibleRowIndices.map(i => this._groupAssignments[i]);
-        const filteredRawMatrix = visibleRowIndices.map(i => rawMatrix[i]);
+        const filteredRowLabels = rowLabels;
+        const filteredGroupAssignments = this._groupAssignments;
 
         // Filter out hidden columns
         const hiddenCols = this.settings.hiddenCols || [];
@@ -67,7 +56,7 @@ class HeatmapRenderer {
             visibleColIndices = visibleColIndices.filter(i => !hiddenCols.includes(rawColLabels[i]));
         }
         const colLabels = visibleColIndices.map(i => rawColLabels[i]);
-        const matrix = filteredRawMatrix.map(row => visibleColIndices.map(i => row[i]));
+        const matrix = rawMatrix.map(row => visibleColIndices.map(i => row[i]));
 
         if (matrix.length === 0 || matrix[0].length === 0) {
             this.container.innerHTML = '<div class="empty-state"><h3>All rows/columns are hidden</h3></div>';
@@ -90,14 +79,23 @@ class HeatmapRenderer {
         let colTree = null;
 
         const clusterMode = this.settings.cluster;
+        const flipMode = this.settings.clusterFlip || 'none';
         if (clusterMode === 'rows' || clusterMode === 'both') {
             rowTree = HierarchicalClustering.cluster(normMatrix, this.settings.linkage);
-            if (rowTree) rowOrder = HierarchicalClustering.leafOrder(rowTree);
+            if (rowTree) {
+                const flipped = flipMode === 'reverse' ? HierarchicalClustering.flipTree(rowTree)
+                    : flipMode === 'root' ? HierarchicalClustering.flipRoot(rowTree) : rowTree;
+                rowOrder = HierarchicalClustering.leafOrder(flipped);
+            }
         }
         if (clusterMode === 'cols' || clusterMode === 'both') {
             const transposed = this._transpose(normMatrix);
             colTree = HierarchicalClustering.cluster(transposed, this.settings.linkage);
-            if (colTree) colOrder = HierarchicalClustering.leafOrder(colTree);
+            if (colTree) {
+                const flipped = flipMode === 'reverse' ? HierarchicalClustering.flipTree(colTree)
+                    : flipMode === 'root' ? HierarchicalClustering.flipRoot(colTree) : colTree;
+                colOrder = HierarchicalClustering.leafOrder(flipped);
+            }
         }
 
         // Apply manual column order when not clustering columns
@@ -116,21 +114,6 @@ class HeatmapRenderer {
                 if (!manualColOrder.includes(label)) ordered.push(i);
             });
             colOrder = ordered;
-        }
-
-        // Apply manual row order when not clustering rows
-        const manualRowOrder = this.settings.rowOrder || [];
-        if (manualRowOrder.length > 0 && !(clusterMode === 'rows' || clusterMode === 'both')) {
-            const labelToIdx = {};
-            filteredRowLabels.forEach((label, i) => { labelToIdx[label] = i; });
-            const ordered = [];
-            manualRowOrder.forEach(label => {
-                if (labelToIdx[label] !== undefined) ordered.push(labelToIdx[label]);
-            });
-            filteredRowLabels.forEach((label, i) => {
-                if (!manualRowOrder.includes(label)) ordered.push(i);
-            });
-            rowOrder = ordered;
         }
 
         // Update stored export data with final ordering
@@ -538,46 +521,53 @@ class HeatmapRenderer {
         const oy = this._groupLegendOffset.y;
         const g = svg.append('g')
             .attr('class', 'heatmap-group-legend')
-            .attr('transform', `translate(${x + ox}, ${y + oy})`)
-            .style('cursor', 'grab');
+            .attr('transform', `translate(${x + ox}, ${y + oy})`);
 
-        g.append('title').text('Drag to move. Double-click text to edit.');
-
-        // Whole-legend drag (same pattern as title)
         const self = this;
-        let wasDragged = false;
-        g.call(d3.drag()
-            .filter(function(event) { return !event.ctrlKey && !event.button && event.detail < 2; })
-            .on('start', function() { wasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
-            .on('drag', function(event) {
-                wasDragged = true;
-                self._groupLegendOffset.x += event.dx;
-                self._groupLegendOffset.y += event.dy;
-                d3.select(this).attr('transform',
-                    `translate(${x + self._groupLegendOffset.x}, ${y + self._groupLegendOffset.y})`);
-            })
-            .on('end', function() {
-                d3.select(this).style('cursor', 'grab');
-                if (!wasDragged) {
-                    self._selectForNudge(self._groupLegendOffset, svg);
-                }
-            })
-        );
-
-        // Selection highlight
-        if (this._selectedNudgeOffset === this._groupLegendOffset) {
-            this._drawSelectionHighlight(svg, g);
-        }
-
-        let xOff = 0;
+        const itemOffsets = this.settings.groupLabelItemOffsets || {};
+        let baseXOff = 0;
         const glf = this.settings.groupLabelFont;
 
         for (const name of groups.uniqueGroups) {
             const color = groups.groupColors(name);
             const displayName = (this.settings.groupLabelOverrides && this.settings.groupLabelOverrides[name]) || name;
+            const io = itemOffsets[name] || { x: 0, y: 0 };
 
-            const colorRect = g.append('rect')
-                .attr('x', xOff).attr('y', 0)
+            const itemG = g.append('g')
+                .attr('transform', `translate(${baseXOff + io.x}, ${io.y})`)
+                .style('cursor', 'grab');
+
+            itemG.append('title').text('Drag to move. Double-click text to edit.');
+
+            // Per-item drag (same smooth pattern as title)
+            ((gName, itemEl, origX) => {
+                let wasDragged = false;
+                itemEl.call(d3.drag()
+                    .filter(event => !event.ctrlKey && !event.button && event.detail < 2)
+                    .on('start', function() { wasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
+                    .on('drag', function(event) {
+                        wasDragged = true;
+                        if (!itemOffsets[gName]) itemOffsets[gName] = { x: 0, y: 0 };
+                        itemOffsets[gName].x += event.dx;
+                        itemOffsets[gName].y += event.dy;
+                        self.settings.groupLabelItemOffsets = itemOffsets;
+                        d3.select(this).attr('transform',
+                            `translate(${origX + itemOffsets[gName].x}, ${itemOffsets[gName].y})`);
+                    })
+                    .on('end', function() {
+                        d3.select(this).style('cursor', 'grab');
+                        if (!wasDragged) {
+                            // Create an offset object for this item for nudging
+                            if (!itemOffsets[gName]) itemOffsets[gName] = { x: 0, y: 0 };
+                            self.settings.groupLabelItemOffsets = itemOffsets;
+                            self._selectForNudge(itemOffsets[gName], svg);
+                        }
+                    })
+                );
+            })(name, itemG, baseXOff);
+
+            const colorRect = itemG.append('rect')
+                .attr('x', 0).attr('y', 0)
                 .attr('width', 10).attr('height', 10)
                 .attr('fill', color).attr('rx', 2)
                 .attr('cursor', 'pointer');
@@ -605,8 +595,8 @@ class HeatmapRenderer {
                 });
             })(name, colorRect, color);
 
-            const labelEl = g.append('text')
-                .attr('x', xOff + 13).attr('y', 9)
+            const labelEl = itemG.append('text')
+                .attr('x', 13).attr('y', 9)
                 .attr('font-size', glf.size + 'px')
                 .attr('font-family', glf.family)
                 .attr('font-weight', glf.bold ? 'bold' : 'normal')
@@ -680,8 +670,8 @@ class HeatmapRenderer {
                 });
             })(name, labelEl);
 
-            xOff += 13 + displayName.length * (glf.size * 0.6) + 12;
-            if (xOff > maxWidth) break;
+            baseXOff += 13 + displayName.length * (glf.size * 0.6) + 12;
+            if (baseXOff > maxWidth) break;
         }
     }
 

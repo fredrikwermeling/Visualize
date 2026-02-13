@@ -215,57 +215,159 @@ class DataTable {
     }
 
     setupKeyboardNavigation() {
+        // Track selected cell range for shift+arrow and copy/paste
+        this._selectedCells = new Set();
+        this._anchorCell = null;
+
+        const getCellCoords = (cell) => {
+            const row = cell.parentElement;
+            const allRows = [this.headerRow, ...this.tbody.querySelectorAll('tr')];
+            const r = allRows.indexOf(row);
+            const cells = row.tagName === 'TR'
+                ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)'))
+                : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)'));
+            const c = cells.indexOf(cell);
+            return { r, c };
+        };
+
+        const getCellAt = (r, c) => {
+            const allRows = [this.headerRow, ...this.tbody.querySelectorAll('tr')];
+            if (r < 0 || r >= allRows.length) return null;
+            const row = allRows[r];
+            const cells = row.tagName === 'TR'
+                ? row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)')
+                : row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+            return cells[c] || null;
+        };
+
+        const clearSelection = () => {
+            this._selectedCells.forEach(cell => cell.classList.remove('cell-selected'));
+            this._selectedCells.clear();
+        };
+
+        const selectRange = (r1, c1, r2, c2) => {
+            clearSelection();
+            const minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
+            const minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
+            for (let r = minR; r <= maxR; r++) {
+                for (let c = minC; c <= maxC; c++) {
+                    const cell = getCellAt(r, c);
+                    if (cell) {
+                        cell.classList.add('cell-selected');
+                        this._selectedCells.add(cell);
+                    }
+                }
+            }
+        };
+
+        const selectSingle = (cell) => {
+            clearSelection();
+            const coords = getCellCoords(cell);
+            this._anchorCell = coords;
+            this._focusCell = coords;
+            cell.classList.add('cell-selected');
+            this._selectedCells.add(cell);
+        };
+
+        // Click to select single cell
+        this.table.addEventListener('mousedown', (e) => {
+            const cell = e.target.closest('td[contenteditable], th[contenteditable]');
+            if (!cell) return;
+            selectSingle(cell);
+        });
+
+        // Ctrl+C to copy selected cells
+        this.table.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && this._selectedCells.size > 1) {
+                e.preventDefault();
+                const anchor = this._anchorCell;
+                const focus = this._focusCell;
+                if (!anchor || !focus) return;
+                const minR = Math.min(anchor.r, focus.r), maxR = Math.max(anchor.r, focus.r);
+                const minC = Math.min(anchor.c, focus.c), maxC = Math.max(anchor.c, focus.c);
+                const lines = [];
+                for (let r = minR; r <= maxR; r++) {
+                    const row = [];
+                    for (let c = minC; c <= maxC; c++) {
+                        const cell = getCellAt(r, c);
+                        row.push(cell ? cell.textContent.trim() : '');
+                    }
+                    lines.push(row.join('\t'));
+                }
+                navigator.clipboard.writeText(lines.join('\n'));
+            }
+        });
+
+        // Ctrl+V to paste into selected area
+        this.table.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                const cell = e.target;
+                if (!cell.matches('td[contenteditable], th[contenteditable]')) return;
+                // Let the paste handler deal with multi-cell pastes
+                // For single-cell paste into selection, handle here
+            }
+        });
+
         this.table.addEventListener('keydown', (e) => {
             const cell = e.target;
             if (!cell.matches('td[contenteditable], th[contenteditable]')) return;
 
+            const allRows = [this.headerRow, ...this.tbody.querySelectorAll('tr')];
+            const coords = getCellCoords(cell);
+            const { r: rowIndex, c: colIndex } = coords;
             const row = cell.parentElement;
-            // Get only data cells for this row (exclude delete cells/headers)
             const dataCells = row.tagName === 'TR'
                 ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)'))
                 : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)'));
-            const colIndex = dataCells.indexOf(cell);
             const numCols = dataCells.length;
 
-            // Build navigable grid: header row + body rows
-            const allRows = [this.headerRow, ...this.tbody.querySelectorAll('tr')];
-            const rowIndex = allRows.indexOf(row);
-
             const focusCell = (r, c) => {
-                if (r < 0 || r >= allRows.length) return;
-                const targetRow = allRows[r];
-                const targetCells = targetRow.tagName === 'TR'
-                    ? targetRow.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)')
-                    : targetRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
-                const targetCell = targetCells[c];
-                if (targetCell) {
-                    targetCell.focus();
+                const target = getCellAt(r, c);
+                if (target) {
+                    target.focus();
                     const sel = window.getSelection();
                     const range = document.createRange();
-                    range.selectNodeContents(targetCell);
+                    range.selectNodeContents(target);
                     sel.removeAllRanges();
                     sel.addRange(range);
                 }
+                return target;
             };
+
+            if (e.shiftKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+                if (!this._anchorCell) this._anchorCell = coords;
+                let nr = (this._focusCell || coords).r;
+                let nc = (this._focusCell || coords).c;
+                if (e.key === 'ArrowUp') nr = Math.max(0, nr - 1);
+                else if (e.key === 'ArrowDown') nr = Math.min(allRows.length - 1, nr + 1);
+                else if (e.key === 'ArrowLeft') nc = Math.max(0, nc - 1);
+                else if (e.key === 'ArrowRight') nc = Math.min(numCols - 1, nc + 1);
+                this._focusCell = { r: nr, c: nc };
+                selectRange(this._anchorCell.r, this._anchorCell.c, nr, nc);
+                const target = getCellAt(nr, nc);
+                if (target) target.focus();
+                return;
+            }
 
             switch (e.key) {
                 case 'ArrowUp':
                     e.preventDefault();
-                    focusCell(rowIndex - 1, colIndex);
+                    if (focusCell(rowIndex - 1, colIndex)) selectSingle(getCellAt(rowIndex - 1, colIndex));
                     break;
                 case 'ArrowDown':
                     e.preventDefault();
-                    focusCell(rowIndex + 1, colIndex);
+                    if (focusCell(rowIndex + 1, colIndex)) selectSingle(getCellAt(rowIndex + 1, colIndex));
                     break;
                 case 'Enter':
                     e.preventDefault();
-                    focusCell(rowIndex + 1, colIndex);
+                    if (focusCell(rowIndex + 1, colIndex)) selectSingle(getCellAt(rowIndex + 1, colIndex));
                     break;
                 case 'ArrowLeft': {
                     const sel = window.getSelection();
                     if (sel.rangeCount && sel.getRangeAt(0).startOffset === 0 && sel.isCollapsed) {
                         e.preventDefault();
-                        focusCell(rowIndex, colIndex - 1);
+                        if (focusCell(rowIndex, colIndex - 1)) selectSingle(getCellAt(rowIndex, colIndex - 1));
                     }
                     break;
                 }
@@ -274,7 +376,7 @@ class DataTable {
                     const textLen = cell.textContent.length;
                     if (sel.rangeCount && sel.getRangeAt(0).endOffset >= textLen && sel.isCollapsed) {
                         e.preventDefault();
-                        focusCell(rowIndex, colIndex + 1);
+                        if (focusCell(rowIndex, colIndex + 1)) selectSingle(getCellAt(rowIndex, colIndex + 1));
                     }
                     break;
                 }

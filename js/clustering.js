@@ -111,4 +111,19 @@ class HierarchicalClustering {
             ...HierarchicalClustering.leafOrder(tree.right)
         ];
     }
+
+    // Swap left/right children at every internal node (produces a valid alternative ordering)
+    static flipTree(tree) {
+        if (!tree || tree.index !== undefined) return tree;
+        const flipped = { ...tree, left: tree.right, right: tree.left };
+        flipped.left = HierarchicalClustering.flipTree(flipped.left);
+        flipped.right = HierarchicalClustering.flipTree(flipped.right);
+        return flipped;
+    }
+
+    // Swap only at root level
+    static flipRoot(tree) {
+        if (!tree || tree.index !== undefined) return tree;
+        return { ...tree, left: tree.right, right: tree.left };
+    }
 }

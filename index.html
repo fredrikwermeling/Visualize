@@ -73,11 +73,6 @@
                     <h3>Column Order</h3>
                     <div id="heatmapColList" class="group-list"></div>
                 </div>
-
-                <div id="heatmapRowManager" class="group-manager" style="display:none">
-                    <h3>Row Order</h3>
-                    <div id="heatmapRowList" class="group-list"></div>
-                </div>
             </div>
 
             <!-- Right Panel: Graph Display -->
@@ -148,6 +143,14 @@
                                     <option value="rows">Rows</option>
                                     <option value="cols">Columns</option>
                                     <option value="both">Both</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Flip order</label>
+                                <select id="heatmapClusterFlip">
+                                    <option value="none">Default</option>
+                                    <option value="root">Flip root</option>
+                                    <option value="reverse">Reverse all</option>
                                 </select>
                             </div>
                             <div class="hm-ctrl">

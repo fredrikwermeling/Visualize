@@ -294,6 +294,11 @@ tr:hover .row-delete-btn {
     background-color: var(--green-50);
 }
 
+.data-table .cell-selected {
+    background-color: #d4e8f7 !important;
+    outline: 1px solid #7ab8e0;
+}
+
 .data-table td[contenteditable="true"]:hover {
     background-color: var(--gray-100);
 }

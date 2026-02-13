@@ -23,8 +23,11 @@ class HeatmapRenderer {
             groupColorTheme: 'default',  // color theme for group bar
             colOrder: [],       // manual column order (array of col label strings); empty = data order
             hiddenCols: [],     // columns to hide from the heatmap (array of col label strings)
-            clusterFlip: 'none',  // 'none', 'reverse' (flip all), 'root' (flip root only)
-            colLabelAngle: 45   // angle for column labels (0, 45, 90)
+            clusterFlipRows: 'none',
+            clusterFlipCols: 'none',
+            colLabelAngle: 45,
+            colLabelOverrides: {},
+            rowLabelOverrides: {}
         };
         // Drag offsets for movable elements
         this._titleOffset = { x: 0, y: 0 };
@@ -79,12 +82,13 @@ class HeatmapRenderer {
         let colTree = null;
 
         const clusterMode = this.settings.cluster;
-        const flipMode = this.settings.clusterFlip || 'none';
+        const flipRows = this.settings.clusterFlipRows || 'none';
+        const flipCols = this.settings.clusterFlipCols || 'none';
         if (clusterMode === 'rows' || clusterMode === 'both') {
             rowTree = HierarchicalClustering.cluster(normMatrix, this.settings.linkage);
             if (rowTree) {
-                const flipped = flipMode === 'reverse' ? HierarchicalClustering.flipTree(rowTree)
-                    : flipMode === 'root' ? HierarchicalClustering.flipRoot(rowTree) : rowTree;
+                const flipped = flipRows === 'reverse' ? HierarchicalClustering.flipTree(rowTree)
+                    : flipRows === 'root' ? HierarchicalClustering.flipRoot(rowTree) : rowTree;
                 rowOrder = HierarchicalClustering.leafOrder(flipped);
             }
         }
@@ -92,8 +96,8 @@ class HeatmapRenderer {
             const transposed = this._transpose(normMatrix);
             colTree = HierarchicalClustering.cluster(transposed, this.settings.linkage);
             if (colTree) {
-                const flipped = flipMode === 'reverse' ? HierarchicalClustering.flipTree(colTree)
-                    : flipMode === 'root' ? HierarchicalClustering.flipRoot(colTree) : colTree;
+                const flipped = flipCols === 'reverse' ? HierarchicalClustering.flipTree(colTree)
+                    : flipCols === 'root' ? HierarchicalClustering.flipRoot(colTree) : colTree;
                 colOrder = HierarchicalClustering.leafOrder(flipped);
             }
         }
@@ -452,16 +456,62 @@ class HeatmapRenderer {
     _drawRowLabels(g, labels, order, yScale, xOffset) {
         const bandHeight = yScale.bandwidth();
         const fontSize = Math.min(bandHeight * 0.8, 12);
+        const overrides = this.settings.rowLabelOverrides || {};
+        const self = this;
 
         for (const i of order) {
-            g.append('text')
+            const originalLabel = labels[i];
+            const displayName = overrides[originalLabel] || originalLabel;
+            const el = g.append('text')
                 .attr('x', xOffset + 4)
                 .attr('y', yScale(i) + bandHeight / 2)
                 .attr('text-anchor', 'start')
                 .attr('dominant-baseline', 'central')
                 .attr('font-size', fontSize + 'px')
                 .attr('fill', '#333')
-                .text(labels[i]);
+                .style('cursor', 'pointer')
+                .text(displayName);
+
+            el.append('title').text('Double-click to edit');
+
+            ((origLabel, textEl) => {
+                textEl.on('dblclick', (event) => {
+                    event.stopPropagation();
+                    const existing = document.querySelector('.svg-edit-popup');
+                    if (existing) existing.remove();
+                    const bbox = textEl.node().getBoundingClientRect();
+                    const popup = document.createElement('div');
+                    popup.className = 'svg-edit-popup';
+                    popup.style.left = (bbox.right + window.scrollX + 4) + 'px';
+                    popup.style.top = (bbox.top + window.scrollY - 4) + 'px';
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'svg-inline-edit';
+                    input.value = overrides[origLabel] || origLabel;
+                    popup.appendChild(input);
+                    document.body.appendChild(popup);
+                    input.focus();
+                    input.select();
+                    const commit = () => {
+                        const newText = input.value.trim();
+                        if (!self.settings.rowLabelOverrides) self.settings.rowLabelOverrides = {};
+                        if (newText && newText !== origLabel) {
+                            self.settings.rowLabelOverrides[origLabel] = newText;
+                        } else {
+                            delete self.settings.rowLabelOverrides[origLabel];
+                        }
+                        popup.remove();
+                        document.removeEventListener('mousedown', outsideClick);
+                        if (window.app) window.app.updateGraph();
+                    };
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') commit();
+                        if (e.key === 'Escape') { popup.remove(); document.removeEventListener('mousedown', outsideClick); }
+                    });
+                    const outsideClick = (e) => { if (!popup.contains(e.target)) commit(); };
+                    setTimeout(() => document.addEventListener('mousedown', outsideClick), 0);
+                });
+            })(originalLabel, el);
         }
     }
 
@@ -469,14 +519,21 @@ class HeatmapRenderer {
         const bandWidth = xScale.bandwidth();
         const fontSize = Math.min(bandWidth * 0.8, 12);
         const angle = this.settings.colLabelAngle ?? 45;
+        const overrides = this.settings.colLabelOverrides || {};
+        const self = this;
 
         for (const i of order) {
+            const originalLabel = labels[i];
+            const displayName = overrides[originalLabel] || originalLabel;
             const cx = xScale(i) + bandWidth / 2;
             const cy = yOffset + 6;
             const el = g.append('text')
                 .attr('font-size', fontSize + 'px')
                 .attr('fill', '#333')
-                .text(labels[i]);
+                .style('cursor', 'pointer')
+                .text(displayName);
+
+            el.append('title').text('Double-click to edit');
 
             if (angle === 0) {
                 el.attr('x', cx).attr('y', cy)
@@ -493,6 +550,45 @@ class HeatmapRenderer {
                     .attr('dominant-baseline', 'hanging')
                     .attr('transform', `rotate(-${angle}, ${cx}, ${cy})`);
             }
+
+            ((origLabel, textEl) => {
+                textEl.on('dblclick', (event) => {
+                    event.stopPropagation();
+                    const existing = document.querySelector('.svg-edit-popup');
+                    if (existing) existing.remove();
+                    const bbox = textEl.node().getBoundingClientRect();
+                    const popup = document.createElement('div');
+                    popup.className = 'svg-edit-popup';
+                    popup.style.left = (bbox.left + window.scrollX - 20) + 'px';
+                    popup.style.top = (bbox.bottom + window.scrollY + 4) + 'px';
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'svg-inline-edit';
+                    input.value = overrides[origLabel] || origLabel;
+                    popup.appendChild(input);
+                    document.body.appendChild(popup);
+                    input.focus();
+                    input.select();
+                    const commit = () => {
+                        const newText = input.value.trim();
+                        if (!self.settings.colLabelOverrides) self.settings.colLabelOverrides = {};
+                        if (newText && newText !== origLabel) {
+                            self.settings.colLabelOverrides[origLabel] = newText;
+                        } else {
+                            delete self.settings.colLabelOverrides[origLabel];
+                        }
+                        popup.remove();
+                        document.removeEventListener('mousedown', outsideClick);
+                        if (window.app) window.app.updateGraph();
+                    };
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') commit();
+                        if (e.key === 'Escape') { popup.remove(); document.removeEventListener('mousedown', outsideClick); }
+                    });
+                    const outsideClick = (e) => { if (!popup.contains(e.target)) commit(); };
+                    setTimeout(() => document.addEventListener('mousedown', outsideClick), 0);
+                });
+            })(originalLabel, el);
         }
     }
 

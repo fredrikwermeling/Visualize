@@ -219,13 +219,24 @@ class DataTable {
         this._selectedCells = new Set();
         this._anchorCell = null;
 
+        const isHeatmapMode = () => window.app && window.app.mode === 'heatmap';
+
+        const getRowCells = (row) => {
+            if (isHeatmapMode()) {
+                return row.tagName === 'TR'
+                    ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)'))
+                    : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.row-toggle-col)'));
+            }
+            return row.tagName === 'TR'
+                ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)'))
+                : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)'));
+        };
+
         const getCellCoords = (cell) => {
             const row = cell.parentElement;
             const allRows = [this.headerRow, ...this.tbody.querySelectorAll('tr')];
             const r = allRows.indexOf(row);
-            const cells = row.tagName === 'TR'
-                ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)'))
-                : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)'));
+            const cells = getRowCells(row);
             const c = cells.indexOf(cell);
             return { r, c };
         };
@@ -234,9 +245,7 @@ class DataTable {
             const allRows = [this.headerRow, ...this.tbody.querySelectorAll('tr')];
             if (r < 0 || r >= allRows.length) return null;
             const row = allRows[r];
-            const cells = row.tagName === 'TR'
-                ? row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)')
-                : row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+            const cells = getRowCells(row);
             return cells[c] || null;
         };
 
@@ -316,9 +325,7 @@ class DataTable {
             const coords = getCellCoords(cell);
             const { r: rowIndex, c: colIndex } = coords;
             const row = cell.parentElement;
-            const dataCells = row.tagName === 'TR'
-                ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)'))
-                : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)'));
+            const dataCells = getRowCells(row);
             const numCols = dataCells.length;
 
             const focusCell = (r, c) => {
@@ -386,9 +393,7 @@ class DataTable {
                         if (colIndex > 0) {
                             focusCell(rowIndex, colIndex - 1);
                         } else if (rowIndex > 0) {
-                            const prevCells = allRows[rowIndex - 1].tagName === 'TR'
-                                ? allRows[rowIndex - 1].querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)')
-                                : allRows[rowIndex - 1].querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+                            const prevCells = getRowCells(allRows[rowIndex - 1]);
                             focusCell(rowIndex - 1, prevCells.length - 1);
                         }
                     } else {
@@ -418,6 +423,37 @@ class DataTable {
             if (parsed.length === 1 && parsed[0].length <= 1) return;
 
             e.preventDefault();
+
+            // If focused on a data cell, paste into existing table from that position
+            const focusedCell = e.target;
+            if (focusedCell && focusedCell.matches('td[contenteditable]:not(.id-cell)')) {
+                const bodyRows = Array.from(this.tbody.querySelectorAll('tr'));
+                const focusRow = focusedCell.parentElement;
+                const rowIdx = bodyRows.indexOf(focusRow);
+                const dataCells = Array.from(focusRow.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)'));
+                const colIdx = dataCells.indexOf(focusedCell);
+                if (rowIdx >= 0 && colIdx >= 0) {
+                    // Check if paste fits within existing table (not a full-table replacement)
+                    const existingDataCols = this._dataColCount();
+                    const pasteColCount = Math.max(...parsed.map(r => r.length));
+                    const isOverlay = (colIdx + pasteColCount <= existingDataCols) &&
+                                      (rowIdx + parsed.length <= bodyRows.length);
+                    if (isOverlay) {
+                        for (let r = 0; r < parsed.length; r++) {
+                            const tr = bodyRows[rowIdx + r];
+                            if (!tr) break;
+                            const cells = tr.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
+                            for (let c = 0; c < parsed[r].length; c++) {
+                                const cell = cells[colIdx + c];
+                                if (cell) cell.textContent = parsed[r][c];
+                            }
+                        }
+                        this._updateToggleVisibility();
+                        if (window.app) window.app.updateGraph();
+                        return;
+                    }
+                }
+            }
 
             const numCols = Math.max(...parsed.map(r => r.length));
 

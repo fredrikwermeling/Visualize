@@ -572,7 +572,7 @@ class App {
     }
 
     _bindHeatmapControls() {
-        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme', 'heatmapColLabelAngle', 'heatmapGroupColorTheme', 'heatmapClusterFlip'];
+        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme', 'heatmapColLabelAngle', 'heatmapGroupColorTheme', 'heatmapClusterFlipRows', 'heatmapClusterFlipCols'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
@@ -704,10 +704,13 @@ class App {
             legendTitle: this.heatmapRenderer.settings.legendTitle,
             groupColorOverrides: this.heatmapRenderer.settings.groupColorOverrides || {},
             title: this.heatmapRenderer.settings.title || 'Heatmap',
-            clusterFlip: document.getElementById('heatmapClusterFlip')?.value || 'none',
+            clusterFlipRows: document.getElementById('heatmapClusterFlipRows')?.value || 'none',
+            clusterFlipCols: document.getElementById('heatmapClusterFlipCols')?.value || 'none',
             colLabelAngle: parseInt(document.getElementById('heatmapColLabelAngle')?.value ?? 45),
             groupColorTheme: document.getElementById('heatmapGroupColorTheme')?.value || 'default',
-            groupLabelItemOffsets: this.heatmapRenderer.settings.groupLabelItemOffsets || {}
+            groupLabelItemOffsets: this.heatmapRenderer.settings.groupLabelItemOffsets || {},
+            colLabelOverrides: this.heatmapRenderer.settings.colLabelOverrides || {},
+            rowLabelOverrides: this.heatmapRenderer.settings.rowLabelOverrides || {}
         };
     }
 
@@ -808,6 +811,14 @@ class App {
 
         const data = this.dataTable.getData();
         this.graphRenderer.render(data);
+
+        // Sync X-angle dropdown to show effective angle when auto-forced
+        const xAngleSel = document.getElementById('xTickAngle');
+        if (xAngleSel) {
+            const opt0 = xAngleSel.querySelector('option[value="0"]');
+            if (opt0) opt0.textContent = this.graphRenderer._autoAngled ? '0° (auto→45°)' : '0°';
+        }
+
         this._updateManualColorSwatches(data);
         this._updateGroupManager(data);
         // Sync label visibility checkboxes

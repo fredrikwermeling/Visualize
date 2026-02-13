@@ -146,14 +146,6 @@
                                 </select>
                             </div>
                             <div class="hm-ctrl">
-                                <label>Flip order</label>
-                                <select id="heatmapClusterFlip">
-                                    <option value="none">Default</option>
-                                    <option value="root">Flip root</option>
-                                    <option value="reverse">Reverse all</option>
-                                </select>
-                            </div>
-                            <div class="hm-ctrl">
                                 <label>Linkage</label>
                                 <select id="heatmapLinkage">
                                     <option value="average">Average</option>
@@ -187,6 +179,14 @@
                                 </select>
                             </div>
                             <div class="hm-ctrl">
+                                <label>X-angle</label>
+                                <select id="heatmapColLabelAngle">
+                                    <option value="0">0°</option>
+                                    <option value="45" selected>45°</option>
+                                    <option value="90">90°</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
                                 <label>Colors</label>
                                 <select id="heatmapColorScheme">
                                     <option value="RdBu">Red–Blue</option>
@@ -194,6 +194,16 @@
                                     <option value="Viridis">Viridis</option>
                                     <option value="YlOrRd">Yellow–Red</option>
                                     <option value="BuPu">Blue–Purple</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Grp colors</label>
+                                <select id="heatmapGroupColorTheme">
+                                    <option value="default">Default</option>
+                                    <option value="pastel">Pastel</option>
+                                    <option value="vivid">Vivid</option>
+                                    <option value="grayscale">Grayscale</option>
+                                    <option value="colorblind">Colorblind-safe</option>
                                 </select>
                             </div>
                             <div class="hm-ctrl">
@@ -205,21 +215,19 @@
                                 <input type="number" id="heatmapHeight" value="300" min="50" step="10">
                             </div>
                             <div class="hm-ctrl">
-                                <label>X-angle</label>
-                                <select id="heatmapColLabelAngle">
-                                    <option value="0">0°</option>
-                                    <option value="45" selected>45°</option>
-                                    <option value="90">90°</option>
+                                <label>Row order</label>
+                                <select id="heatmapClusterFlipRows">
+                                    <option value="none">Default</option>
+                                    <option value="root">Flip root</option>
+                                    <option value="reverse">Reverse all</option>
                                 </select>
                             </div>
                             <div class="hm-ctrl">
-                                <label>Grp colors</label>
-                                <select id="heatmapGroupColorTheme">
-                                    <option value="default">Default</option>
-                                    <option value="pastel">Pastel</option>
-                                    <option value="vivid">Vivid</option>
-                                    <option value="grayscale">Grayscale</option>
-                                    <option value="colorblind">Colorblind-safe</option>
+                                <label>Col order</label>
+                                <select id="heatmapClusterFlipCols">
+                                    <option value="none">Default</option>
+                                    <option value="root">Flip root</option>
+                                    <option value="reverse">Reverse all</option>
                                 </select>
                             </div>
                         </div>

@@ -946,8 +946,8 @@ tr:hover .row-delete-btn {
 
 .heatmap-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3px 10px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 3px 8px;
 }
 
 .hm-ctrl {
@@ -958,7 +958,7 @@ tr:hover .row-delete-btn {
 }
 
 .hm-ctrl label {
-    flex: 0 0 60px;
+    flex: 0 0 52px;
     font-weight: 500;
     color: var(--text-secondary);
     font-size: 11px;

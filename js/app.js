@@ -708,7 +708,8 @@ class App {
             const testName = "Unpaired t-test (Welch's)";
             let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">${testName} — per marker</span></div>`;
             html += `<div class="result-item"><span class="result-label">Groups:</span> <span class="result-value">${groups.uniqueGroups.join(' vs ')}</span></div>`;
-            html += `<hr style="margin:8px 0;border-color:#eee">`;
+            html += `<div style="margin:4px 0"><button class="btn btn-secondary marker-toggle-all" style="padding:1px 6px;font-size:10px">All</button> <button class="btn btn-secondary marker-toggle-none" style="padding:1px 6px;font-size:10px">None</button></div>`;
+            html += `<hr style="margin:4px 0;border-color:#eee">`;
 
             for (let mi = 0; mi < colLabels.length; mi++) {
                 const idx1 = mi * numGroups;
@@ -731,9 +732,9 @@ class App {
                         significanceLabel: sigLevel
                     });
 
-                    html += `<div class="result-item"><span class="result-value"><b>${colLabels[mi]}:</b> ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
+                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
                 } catch (e) {
-                    html += `<div class="result-item"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
+                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
                 }
             }
 
@@ -741,9 +742,10 @@ class App {
             document.getElementById('postHocGroup').style.display = 'none';
             document.getElementById('postHocAdvice').style.display = 'none';
             this._updateTestDescription();
-            this.graphRenderer.updateSettings({ statsTestName: testName, showStatsLegend: true });
-            document.getElementById('showStatsLegend').checked = true;
+            this.graphRenderer.updateSettings({ statsTestName: testName, showStatsLegend: false });
+            document.getElementById('showStatsLegend').checked = false;
             this._showStatsResult(html);
+            this._bindMarkerToggles(colLabels, numGroups);
             this.graphRenderer.setSignificance(pairs);
             this.updateGraph();
         } else if (groups.uniqueGroups.length > 2) {
@@ -754,7 +756,8 @@ class App {
             const testName = 'One-way ANOVA';
             let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">${testName} + Tukey HSD — per marker</span></div>`;
             html += `<div class="result-item"><span class="result-label">Groups:</span> <span class="result-value">${groups.uniqueGroups.join(', ')}</span></div>`;
-            html += `<hr style="margin:8px 0;border-color:#eee">`;
+            html += `<div style="margin:4px 0"><button class="btn btn-secondary marker-toggle-all" style="padding:1px 6px;font-size:10px">All</button> <button class="btn btn-secondary marker-toggle-none" style="padding:1px 6px;font-size:10px">None</button></div>`;
+            html += `<hr style="margin:4px 0;border-color:#eee">`;
 
             for (let mi = 0; mi < colLabels.length; mi++) {
                 const groupValues = [];
@@ -775,7 +778,7 @@ class App {
                     const sigLevel = Statistics.getSignificanceLevel(result.p);
                     const isSignificant = result.p < 0.05;
 
-                    html += `<div class="result-item"><span class="result-value"><b>${colLabels[mi]}:</b> F=${result.F.toFixed(2)}, ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
+                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> F=${result.F.toFixed(2)}, ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
 
                     if (isSignificant) {
                         const postHoc = Statistics.tukeyHSDPostHoc(groupValues, groupLabelsArr);
@@ -801,7 +804,7 @@ class App {
                         }
                     }
                 } catch (e) {
-                    html += `<div class="result-item"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
+                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
                 }
             }
 
@@ -809,12 +812,62 @@ class App {
             document.getElementById('postHocGroup').style.display = '';
             document.getElementById('postHocMethod').value = 'tukey';
             this._updateTestDescription();
-            this.graphRenderer.updateSettings({ statsTestName: testName + ' + Tukey HSD', showStatsLegend: true });
-            document.getElementById('showStatsLegend').checked = true;
+            this.graphRenderer.updateSettings({ statsTestName: testName + ' + Tukey HSD', showStatsLegend: false });
+            document.getElementById('showStatsLegend').checked = false;
             this._showStatsResult(html);
+            this._bindMarkerToggles(colLabels, numGroups);
             this.graphRenderer.setSignificance(allPairs);
             this.updateGraph();
         }
+    }
+
+    _bindMarkerToggles(colLabels, numGroups) {
+        const container = document.getElementById('statsResults');
+        if (!container) return;
+        const settings = this.graphRenderer.settings;
+        const data = this.dataTable.getData();
+
+        // Build map: marker name -> array of group labels
+        const markerGroups = {};
+        colLabels.forEach(marker => {
+            markerGroups[marker] = [];
+            for (let gi = 0; gi < numGroups; gi++) {
+                const idx = colLabels.indexOf(marker) * numGroups + gi;
+                if (idx < data.length) markerGroups[marker].push(data[idx].label);
+            }
+        });
+
+        // Click individual marker rows to toggle
+        container.querySelectorAll('.marker-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const marker = row.dataset.marker;
+                const labels = markerGroups[marker] || [];
+                const allHidden = labels.every(l => settings.hiddenGroups.includes(l));
+                if (allHidden) {
+                    settings.hiddenGroups = settings.hiddenGroups.filter(l => !labels.includes(l));
+                    row.style.opacity = '';
+                } else {
+                    labels.forEach(l => { if (!settings.hiddenGroups.includes(l)) settings.hiddenGroups.push(l); });
+                    row.style.opacity = '0.4';
+                }
+                this.updateGraph();
+            });
+        });
+
+        // All/None buttons
+        const allBtn = container.querySelector('.marker-toggle-all');
+        const noneBtn = container.querySelector('.marker-toggle-none');
+        if (allBtn) allBtn.addEventListener('click', () => {
+            settings.hiddenGroups = [];
+            container.querySelectorAll('.marker-row').forEach(r => r.style.opacity = '');
+            this.updateGraph();
+        });
+        if (noneBtn) noneBtn.addEventListener('click', () => {
+            const allLabels = data.filter(d => d.values.length > 0).map(d => d.label);
+            settings.hiddenGroups = allLabels;
+            container.querySelectorAll('.marker-row').forEach(r => r.style.opacity = '0.4');
+            this.updateGraph();
+        });
     }
 
     _getHeatmapSettings() {

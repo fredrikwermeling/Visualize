@@ -488,6 +488,7 @@ class App {
                 this._saveTableData(prevMode);
 
                 this.mode = btn.dataset.mode;
+                this._lastAutoSizeKey = null;
                 this._applyMode();
 
                 // Restore saved data or load sample
@@ -660,6 +661,7 @@ class App {
         document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('.mode-btn[data-mode="column"]').classList.add('active');
         this.mode = 'column';
+        this._lastAutoSizeKey = null;
         this._applyMode();
         this._restoreTableData('column');
         this.updateGraph();
@@ -815,10 +817,41 @@ class App {
 
     // --- Core methods ---
 
+    _autoSizeDimensions(data) {
+        if (this.mode === 'heatmap') {
+            const nCols = (data.colLabels || []).length;
+            const nRows = (data.matrix || []).length;
+            if (nCols === 0 || nRows === 0) return;
+            const key = `hm_${nCols}_${nRows}`;
+            if (this._lastAutoSizeKey === key) return;
+            this._lastAutoSizeKey = key;
+            const w = Math.max(200, Math.min(800, nCols * 30));
+            const h = Math.max(200, Math.min(800, nRows * 25));
+            const wEl = document.getElementById('heatmapWidth');
+            const hEl = document.getElementById('heatmapHeight');
+            if (wEl) wEl.value = w;
+            if (hEl) hEl.value = h;
+        } else {
+            const filled = Array.isArray(data) ? data.filter(d => d.values && d.values.length > 0) : [];
+            const nGroups = filled.length;
+            if (nGroups === 0) return;
+            const key = `col_${nGroups}`;
+            if (this._lastAutoSizeKey === key) return;
+            this._lastAutoSizeKey = key;
+            const w = Math.max(150, Math.min(800, nGroups * 60));
+            const h = 200;
+            const wEl = document.getElementById('graphWidth');
+            const hEl = document.getElementById('graphHeight');
+            if (wEl) { wEl.value = w; this.graphRenderer.setDimensions(w, this.graphRenderer.height); }
+            if (hEl) { hEl.value = h; this.graphRenderer.setDimensions(this.graphRenderer.width, h); }
+        }
+    }
+
     updateGraph() {
         const infoEl = document.getElementById('heatmapInfo');
         if (this.mode === 'heatmap') {
             const matrixData = this.dataTable.getMatrixData();
+            this._autoSizeDimensions(matrixData);
             const settings = this._getHeatmapSettings();
             this.heatmapRenderer.render(matrixData, settings);
             this._updateHeatmapInfo(settings, infoEl);
@@ -833,6 +866,7 @@ class App {
         if (infoEl) infoEl.style.display = 'none';
 
         const data = this.dataTable.getData();
+        this._autoSizeDimensions(data);
         this.graphRenderer.render(data);
 
         // Sync X-angle dropdown to show effective angle when auto-forced

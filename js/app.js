@@ -613,6 +613,15 @@ class App {
             if (el) el.addEventListener('change', () => this.updateGraph());
         });
 
+        // Show/hide outlier explanation
+        const outlierSel = document.getElementById('heatmapOutlierMode');
+        const outlierExpl = document.getElementById('outlierExplanation');
+        if (outlierSel && outlierExpl) {
+            outlierSel.addEventListener('change', () => {
+                outlierExpl.style.display = outlierSel.value === 'none' ? 'none' : '';
+            });
+        }
+
         const csvBtn = document.getElementById('exportGroupedCSV');
         if (csvBtn) csvBtn.addEventListener('click', () => {
             const matrixData = this.dataTable.getMatrixData();

@@ -269,6 +269,9 @@
                                 </select>
                             </div>
                         </div>
+                        <div id="outlierExplanation" style="display:none;font-size:11px;color:#666;margin:2px 0 6px;padding:4px 6px;background:#f8f8f8;border:1px solid #e5e7eb;border-radius:3px;line-height:1.5">
+                            <b>Outlier detection (Tukey's fences):</b> For each row or column, the interquartile range (IQR = Q3 &minus; Q1) is calculated. Values below <b>Q1 &minus; 1.5 &times; IQR</b> or above <b>Q3 + 1.5 &times; IQR</b> are flagged as outliers and marked with a black dot. This is a standard non-parametric method that does not assume normality.
+                        </div>
                         <div class="hm-checks">
                             <label><input type="checkbox" id="heatmapShowValues"> Values</label>
                             <label><input type="checkbox" id="heatmapShowGroupBar"> Groups</label>

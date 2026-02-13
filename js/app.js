@@ -873,6 +873,10 @@ class App {
             html += `<div class="info-row"><span class="info-label">Winsorization:</span><span>${winsorizeLabels[settings.winsorize]} \u2014 extreme values are capped at these percentiles to reduce outlier influence on the color scale</span></div>`;
         }
         html += `<div class="info-row"><span class="info-label">Color scheme:</span><span>${colorLabels[settings.colorScheme] || settings.colorScheme}</span></div>`;
+        if (settings.outlierMode && settings.outlierMode !== 'none') {
+            const modeLabel = settings.outlierMode === 'col' ? 'per column' : 'per row';
+            html += `<div class="info-row"><span class="info-label">Outlier detection:</span><span>IQR method (${modeLabel}) \u2014 values below Q1 \u2212 1.5\u00d7IQR or above Q3 + 1.5\u00d7IQR are flagged. Based on Tukey\u2019s fences, a standard non-parametric approach that identifies values in the outer tails of the distribution without assuming normality.</span></div>`;
+        }
         html += `<div class="info-explain">${normalizeExplanations[settings.normalize] || ''}</div>`;
 
         el.innerHTML = html;

@@ -422,9 +422,12 @@ class HeatmapRenderer {
         const iqrBounds = (vals) => {
             const sorted = vals.filter(v => !isNaN(v)).sort((a, b) => a - b);
             if (sorted.length < 4) return { lo: -Infinity, hi: Infinity };
-            const q1 = sorted[Math.floor(sorted.length * 0.25)];
-            const q3 = sorted[Math.floor(sorted.length * 0.75)];
+            const n = sorted.length;
+            const q1 = (n % 4 === 0) ? (sorted[n/4 - 1] + sorted[n/4]) / 2 : sorted[Math.floor(n * 0.25)];
+            const q3 = (n % 4 === 0) ? (sorted[3*n/4 - 1] + sorted[3*n/4]) / 2 : sorted[Math.floor(n * 0.75)];
             const iqr = q3 - q1;
+            // If IQR is zero or negligible, no meaningful outliers can be detected
+            if (iqr < 1e-10) return { lo: -Infinity, hi: Infinity };
             return { lo: q1 - 1.5 * iqr, hi: q3 + 1.5 * iqr };
         };
 

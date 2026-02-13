@@ -958,7 +958,7 @@ tr:hover .row-delete-btn {
 }
 
 .hm-ctrl label {
-    flex: 0 0 auto;
+    flex: 0 0 50px;
     white-space: nowrap;
     font-weight: 500;
     color: var(--text-secondary);
@@ -1090,6 +1090,20 @@ tr:hover .row-delete-btn {
 
 .paste-mode-toggle input[type="checkbox"] {
     accent-color: var(--green-600);
+}
+
+/* Export button grid */
+.export-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.export-grid .btn {
+    font-size: 11px;
+    padding: 6px 4px;
+    text-align: center;
+    white-space: nowrap;
 }
 
 /* Heatmap-only export buttons */

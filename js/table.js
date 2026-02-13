@@ -448,8 +448,13 @@ class DataTable {
             e.preventDefault();
 
             // If focused on a cell, overlay paste from that position
+            // But first check if the pasted data looks like a full dataset with headers
+            const firstRowNonEmpty = parsed[0].filter(c => c !== '');
+            const firstRowNumeric = firstRowNonEmpty.filter(c => !isNaN(parseFloat(c))).length;
+            const looksLikeHeaders = firstRowNonEmpty.length >= 2 && firstRowNumeric < firstRowNonEmpty.length / 2;
+
             const focusedCell = e.target;
-            if (focusedCell && focusedCell.matches('td[contenteditable]')) {
+            if (focusedCell && focusedCell.matches('td[contenteditable]') && !looksLikeHeaders) {
                 const bodyRows = Array.from(this.tbody.querySelectorAll('tr'));
                 const focusRow = focusedCell.parentElement;
                 const rowIdx = bodyRows.indexOf(focusRow);

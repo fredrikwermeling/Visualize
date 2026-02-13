@@ -772,6 +772,35 @@ class DataTable {
         return { colLabels, rowLabels, matrix, groupAssignments };
     }
 
+    exportRawCSV() {
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.row-toggle-col)');
+        const headers = [];
+        headerCells.forEach(th => {
+            const clone = th.cloneNode(true);
+            const btn = clone.querySelector('.th-delete-btn');
+            if (btn) btn.remove();
+            headers.push(clone.textContent.trim());
+        });
+
+        const lines = [headers.join(',')];
+        const rows = this.tbody.querySelectorAll('tr');
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)');
+            const vals = [];
+            cells.forEach(td => vals.push(td.textContent.trim()));
+            if (vals.some(v => v !== '')) lines.push(vals.join(','));
+        });
+
+        const csv = lines.join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'raw_data.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     // headers: data column headers, rowData: array of arrays (data only),
     // idData: optional array of [group, sample] per row
     setupTable(headers, numRows, rowData, idData) {

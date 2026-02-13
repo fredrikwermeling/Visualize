@@ -381,6 +381,11 @@ class App {
         document.getElementById('copyClipboard').addEventListener('click', (e) => {
             this.exportManager.copyToClipboard(e.target);
         });
+
+        const rawCsvBtn = document.getElementById('exportRawCSV');
+        if (rawCsvBtn) rawCsvBtn.addEventListener('click', () => {
+            this.dataTable.exportRawCSV();
+        });
     }
 
     _exportWithInfo(format, filename) {
@@ -609,11 +614,6 @@ class App {
         if (csvBtn) csvBtn.addEventListener('click', () => {
             const matrixData = this.dataTable.getMatrixData();
             this.heatmapRenderer.exportGroupedCSV(matrixData);
-        });
-
-        const hmCsvBtn = document.getElementById('exportHeatmapCSV');
-        if (hmCsvBtn) hmCsvBtn.addEventListener('click', () => {
-            this.heatmapRenderer.exportHeatmapCSV();
         });
 
         // View as Column button - converts grouped heatmap data to column format

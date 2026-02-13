@@ -307,13 +307,36 @@ class DataTable {
             }
         });
 
-        // Ctrl+V to paste into selected area
+        // Delete/Backspace to clear selected cells
         this.table.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-                const cell = e.target;
-                if (!cell.matches('td[contenteditable], th[contenteditable]')) return;
-                // Let the paste handler deal with multi-cell pastes
-                // For single-cell paste into selection, handle here
+            if ((e.key === 'Delete' || e.key === 'Backspace') && this._selectedCells.size > 1) {
+                e.preventDefault();
+                this._selectedCells.forEach(cell => { cell.textContent = ''; });
+                if (window.app) window.app.updateGraph();
+            }
+        });
+
+        // Ctrl+X to cut selected cells
+        this.table.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'x' && this._selectedCells.size > 1) {
+                e.preventDefault();
+                const anchor = this._anchorCell;
+                const focus = this._focusCell;
+                if (!anchor || !focus) return;
+                const minR = Math.min(anchor.r, focus.r), maxR = Math.max(anchor.r, focus.r);
+                const minC = Math.min(anchor.c, focus.c), maxC = Math.max(anchor.c, focus.c);
+                const lines = [];
+                for (let r = minR; r <= maxR; r++) {
+                    const row = [];
+                    for (let c = minC; c <= maxC; c++) {
+                        const cell = getCellAt(r, c);
+                        row.push(cell ? cell.textContent.trim() : '');
+                    }
+                    lines.push(row.join('\t'));
+                }
+                navigator.clipboard.writeText(lines.join('\n'));
+                this._selectedCells.forEach(cell => { cell.textContent = ''; });
+                if (window.app) window.app.updateGraph();
             }
         });
 
@@ -424,34 +447,28 @@ class DataTable {
 
             e.preventDefault();
 
-            // If focused on a data cell, paste into existing table from that position
+            // If focused on a cell, overlay paste from that position
             const focusedCell = e.target;
-            if (focusedCell && focusedCell.matches('td[contenteditable]:not(.id-cell)')) {
+            if (focusedCell && focusedCell.matches('td[contenteditable]')) {
                 const bodyRows = Array.from(this.tbody.querySelectorAll('tr'));
                 const focusRow = focusedCell.parentElement;
                 const rowIdx = bodyRows.indexOf(focusRow);
-                const dataCells = Array.from(focusRow.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)'));
-                const colIdx = dataCells.indexOf(focusedCell);
+                const isIdCell = focusedCell.classList.contains('id-cell');
+                const allCells = Array.from(focusRow.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)'));
+                const colIdx = allCells.indexOf(focusedCell);
                 if (rowIdx >= 0 && colIdx >= 0) {
-                    // Check if paste fits within existing table (not a full-table replacement)
-                    const existingDataCols = this._dataColCount();
-                    const pasteColCount = Math.max(...parsed.map(r => r.length));
-                    const isOverlay = (colIdx + pasteColCount <= existingDataCols) &&
-                                      (rowIdx + parsed.length <= bodyRows.length);
-                    if (isOverlay) {
-                        for (let r = 0; r < parsed.length; r++) {
-                            const tr = bodyRows[rowIdx + r];
-                            if (!tr) break;
-                            const cells = tr.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
-                            for (let c = 0; c < parsed[r].length; c++) {
-                                const cell = cells[colIdx + c];
-                                if (cell) cell.textContent = parsed[r][c];
-                            }
+                    for (let r = 0; r < parsed.length; r++) {
+                        const tr = bodyRows[rowIdx + r];
+                        if (!tr) break;
+                        const cells = tr.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)');
+                        for (let c = 0; c < parsed[r].length; c++) {
+                            const cell = cells[colIdx + c];
+                            if (cell) cell.textContent = parsed[r][c];
                         }
-                        this._updateToggleVisibility();
-                        if (window.app) window.app.updateGraph();
-                        return;
                     }
+                    this._updateToggleVisibility();
+                    if (window.app) window.app.updateGraph();
+                    return;
                 }
             }
 

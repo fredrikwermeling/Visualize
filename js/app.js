@@ -11,11 +11,11 @@ class App {
         this.heatmapAnnotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.columnAnnotationManager;
         this._undoStack = [];
-        this.mode = 'column';
+        this.mode = 'heatmap';
 
         // Separate data storage per mode
-        this._columnTableData = null;  // saved when switching away from column
-        this._heatmapTableData = null; // saved when switching away from heatmap
+        this._columnTableData = null;
+        this._heatmapTableData = null;
 
         // Bind event listeners
         this._bindTableControls();
@@ -29,7 +29,8 @@ class App {
         this._bindHeatmapControls();
 
         // Load sample data and draw initial graph
-        this.dataTable.loadSampleData();
+        this._applyMode();
+        this.dataTable.loadHeatmapSampleData();
         this.updateGraph();
     }
 
@@ -58,7 +59,16 @@ class App {
         const expandBtn = document.getElementById('expandTable');
         if (expandBtn) {
             expandBtn.addEventListener('click', () => {
-                document.querySelector('.main-content').classList.toggle('table-expanded');
+                const mc = document.querySelector('.main-content');
+                const expanding = !mc.classList.contains('table-expanded');
+                mc.classList.toggle('table-expanded');
+                if (expanding) {
+                    // Add columns/rows to fill the wider table
+                    const targetCols = Math.max(this.dataTable._dataColCount(), 12);
+                    const targetRows = Math.max(this.dataTable.tbody.querySelectorAll('tr').length, 20);
+                    while (this.dataTable._dataColCount() < targetCols) this.dataTable.addColumn();
+                    while (this.dataTable.tbody.querySelectorAll('tr').length < targetRows) this.dataTable.addRow();
+                }
             });
         }
     }
@@ -580,7 +590,7 @@ class App {
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
-            el.style.display = isHeatmap ? '' : 'none';
+            el.style.display = isHeatmap ? 'inline-block' : 'none';
         });
     }
 

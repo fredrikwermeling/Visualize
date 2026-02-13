@@ -1,9 +1,3 @@
-- fix the heatmap group and sample ID. perhaps its easiest if use ID# that are not only numbers. it could be _1 .1 or A1 etc. I could want to use group ID like ctrl_d5, ctrl_d10 or KRN_d10 (these needs to be identified as 3 differnt groups), and the smaple IDs A1, A2, A3, B3, B7, etc
-- when hover over heatmap, show sample name, real number and normalized number (if use normalization)
-- in heat map the "groups" legends act strange, when moving them they jump around. and they can jump back if i press the heading. 
-- by deafult use fint 15 for groups legend and the legend for the color indicating bar. use 18 for header.
-- the fature to allow switching of and on rows looks ugly. the selection should only be shown for rows where data is present. also, it seems like its not woirking properly, when i toggle of a row, some of the data seems to move to another group. Im not sure about this but it seems ed like it. 
-
 - cancer survival graph and two-way ANOVA.
 - likely need to have another table that opens if selected. 
 - Make a standalone app for a computer? Does this allow for connecting graph in powerpoint to the software and back again?

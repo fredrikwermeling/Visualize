@@ -1,3 +1,11 @@
+- statistics going from heat map to column. if more than two groups in the heatmap do anova. is there 
+- in column and heatmap, allow to turn off all and on all groups. 
+- could the heatmap have a statsical test for outliers (focusing either on column or rows for analysis
+- could the heatmap cells in the graph be double clicked to remove or return the color. if click to remove = re design the clustering excluding that value. 
+- add more color alterntivas for heatmap and groups
+
+(make new logo focusing on heatmap, and call it visualize, analysis and visualization tool)
+
 - cancer survival graph and two-way ANOVA.
 - likely need to have another table that opens if selected. 
 - Make a standalone app for a computer? Does this allow for connecting graph in powerpoint to the software and back again?

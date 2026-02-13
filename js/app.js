@@ -815,7 +815,7 @@ class App {
             normalize: document.getElementById('heatmapNormalize')?.value || 'none',
             normMethod: document.getElementById('heatmapNormMethod')?.value || 'zscore',
             winsorize: document.getElementById('heatmapWinsorize')?.value || 'none',
-            colorScheme: document.getElementById('heatmapColorScheme')?.value || 'RdBu',
+            colorScheme: document.getElementById('heatmapColorScheme')?.value || 'Viridis',
             showValues: document.getElementById('heatmapShowValues')?.checked || false,
             showGroupBar: document.getElementById('heatmapShowGroupBar')?.checked || false,
             showInfo: document.getElementById('heatmapShowInfo')?.checked ?? false,

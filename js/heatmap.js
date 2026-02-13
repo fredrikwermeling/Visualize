@@ -9,7 +9,7 @@ class HeatmapRenderer {
             normalize: 'none',
             normMethod: 'zscore',
             winsorize: 'none',
-            colorScheme: 'RdBu',
+            colorScheme: 'Viridis',
             showValues: false,
             showGroupBar: false,
             legendTitle: null,  // null = auto-generate, '' = hidden, string = custom
@@ -386,7 +386,24 @@ class HeatmapRenderer {
             neon: ['#FF00FF', '#00FFFF', '#FF6600', '#39FF14', '#FF3131', '#BF00FF', '#FFFF00', '#FF1493'],
             forest: ['#1b5e20', '#2e7d32', '#388e3c', '#43a047', '#66bb6a', '#a5d6a7', '#4caf50', '#81c784']
         };
-        const palette = themes[this.settings.groupColorTheme] || themes.default;
+        let palette;
+        const theme = this.settings.groupColorTheme;
+        if (theme === 'default') {
+            // Sample group colors from the active heatmap color scheme
+            const interpolators = {
+                'RdBu': t => d3.interpolateRdBu(1 - t), 'RdYlGn': t => d3.interpolateRdYlGn(1 - t),
+                'Viridis': d3.interpolateViridis, 'YlOrRd': d3.interpolateYlOrRd, 'BuPu': d3.interpolateBuPu,
+                'Inferno': d3.interpolateInferno, 'Plasma': d3.interpolatePlasma, 'Cividis': d3.interpolateCividis,
+                'PuOr': t => d3.interpolatePuOr(1 - t), 'BrBG': t => d3.interpolateBrBG(1 - t),
+                'PiYG': t => d3.interpolatePiYG(1 - t), 'Cool': d3.interpolateCool, 'Warm': d3.interpolateWarm,
+                'GnBu': d3.interpolateGnBu, 'YlGn': d3.interpolateYlGn, 'Greens': d3.interpolateGreens
+            };
+            const interp = interpolators[this.settings.colorScheme] || d3.interpolateViridis;
+            const n = Math.max(uniqueGroups.length, 2);
+            palette = Array.from({ length: n }, (_, i) => interp(i / (n - 1)));
+        } else {
+            palette = themes[theme] || themes.default;
+        }
         const defaultColors = (name) => palette[uniqueGroups.indexOf(name) % palette.length];
         const overrides = this.settings.groupColorOverrides || {};
         const groupColors = (name) => overrides[name] || defaultColors(name);

@@ -28,6 +28,8 @@ class App {
         this._bindModeSelector();
         this._bindHeatmapControls();
 
+        this._bindGroupToggleButtons();
+
         // Load sample data and draw initial graph
         this._applyMode();
         this.dataTable.loadHeatmapSampleData();
@@ -601,7 +603,7 @@ class App {
     }
 
     _bindHeatmapControls() {
-        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme', 'heatmapColLabelAngle', 'heatmapGroupColorTheme', 'heatmapClusterFlipRows', 'heatmapClusterFlipCols'];
+        const ids = ['heatmapCluster', 'heatmapLinkage', 'heatmapNormalize', 'heatmapNormMethod', 'heatmapWinsorize', 'heatmapColorScheme', 'heatmapColLabelAngle', 'heatmapGroupColorTheme', 'heatmapClusterFlipRows', 'heatmapClusterFlipCols', 'heatmapOutlierMode'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
@@ -621,6 +623,29 @@ class App {
         const viewColBtn = document.getElementById('viewAsColumn');
         if (viewColBtn) viewColBtn.addEventListener('click', () => {
             this._viewHeatmapAsColumn();
+        });
+    }
+
+    _bindGroupToggleButtons() {
+        // Column mode group toggles
+        document.getElementById('groupShowAll').addEventListener('click', () => {
+            this.graphRenderer.settings.hiddenGroups = [];
+            this.updateGraph();
+        });
+        document.getElementById('groupHideAll').addEventListener('click', () => {
+            const data = this.dataTable.getData();
+            this.graphRenderer.settings.hiddenGroups = data.filter(d => d.values.length > 0).map(d => d.label);
+            this.updateGraph();
+        });
+        // Heatmap column toggles
+        document.getElementById('heatmapColShowAll').addEventListener('click', () => {
+            this.heatmapRenderer.settings.hiddenCols = [];
+            this.updateGraph();
+        });
+        document.getElementById('heatmapColHideAll').addEventListener('click', () => {
+            const allCols = this.heatmapRenderer._rawColLabels || [];
+            this.heatmapRenderer.settings.hiddenCols = [...allCols];
+            this.updateGraph();
         });
     }
 
@@ -712,6 +737,74 @@ class App {
             this._showStatsResult(html);
             this.graphRenderer.setSignificance(pairs);
             this.updateGraph();
+        } else if (groups.uniqueGroups.length > 2) {
+            // Auto-run ANOVA per marker with Tukey post-hoc
+            const data = this.dataTable.getData();
+            const numGroups = groups.uniqueGroups.length;
+            const allPairs = [];
+            const testName = 'One-way ANOVA';
+            let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">${testName} + Tukey HSD — per marker</span></div>`;
+            html += `<div class="result-item"><span class="result-label">Groups:</span> <span class="result-value">${groups.uniqueGroups.join(', ')}</span></div>`;
+            html += `<hr style="margin:8px 0;border-color:#eee">`;
+
+            for (let mi = 0; mi < colLabels.length; mi++) {
+                const groupValues = [];
+                const groupLabelsArr = [];
+                for (let gi = 0; gi < numGroups; gi++) {
+                    const idx = mi * numGroups + gi;
+                    if (idx >= data.length) continue;
+                    const vals = data[idx].values;
+                    if (vals.length < 2) continue;
+                    groupValues.push(vals);
+                    groupLabelsArr.push(groups.uniqueGroups[gi]);
+                }
+                if (groupValues.length < 3) continue;
+
+                try {
+                    const result = Statistics.oneWayAnova(groupValues);
+                    const pFormatted = Statistics.formatPValue(result.p);
+                    const sigLevel = Statistics.getSignificanceLevel(result.p);
+                    const isSignificant = result.p < 0.05;
+
+                    html += `<div class="result-item"><span class="result-value"><b>${colLabels[mi]}:</b> F=${result.F.toFixed(2)}, ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
+
+                    if (isSignificant) {
+                        const postHoc = Statistics.tukeyHSDPostHoc(groupValues, groupLabelsArr);
+                        postHoc.forEach(ph => {
+                            if (ph.significant) {
+                                const g1Idx = mi * numGroups + groups.uniqueGroups.indexOf(ph.group1Label);
+                                const g2Idx = mi * numGroups + groups.uniqueGroups.indexOf(ph.group2Label);
+                                allPairs.push({
+                                    group1Index: g1Idx,
+                                    group2Index: g2Idx,
+                                    pValue: ph.correctedP,
+                                    significanceLabel: ph.significanceLabel
+                                });
+                            }
+                        });
+                        const sigPairs = postHoc.filter(ph => ph.significant);
+                        if (sigPairs.length > 0) {
+                            html += `<div style="font-size:11px;color:#666;margin-left:12px">`;
+                            sigPairs.forEach(ph => {
+                                html += `${ph.group1Label} vs ${ph.group2Label}: ${Statistics.formatPValue(ph.correctedP)} ${ph.significanceLabel}<br>`;
+                            });
+                            html += `</div>`;
+                        }
+                    }
+                } catch (e) {
+                    html += `<div class="result-item"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
+                }
+            }
+
+            document.getElementById('testType').value = 'one-way-anova';
+            document.getElementById('postHocGroup').style.display = '';
+            document.getElementById('postHocMethod').value = 'tukey';
+            this._updateTestDescription();
+            this.graphRenderer.updateSettings({ statsTestName: testName + ' + Tukey HSD', showStatsLegend: true });
+            document.getElementById('showStatsLegend').checked = true;
+            this._showStatsResult(html);
+            this.graphRenderer.setSignificance(allPairs);
+            this.updateGraph();
         }
     }
 
@@ -735,7 +828,8 @@ class App {
             groupColorTheme: document.getElementById('heatmapGroupColorTheme')?.value || 'default',
             groupLabelItemOffsets: this.heatmapRenderer.settings.groupLabelItemOffsets || {},
             colLabelOverrides: this.heatmapRenderer.settings.colLabelOverrides || {},
-            rowLabelOverrides: this.heatmapRenderer.settings.rowLabelOverrides || {}
+            rowLabelOverrides: this.heatmapRenderer.settings.rowLabelOverrides || {},
+            outlierMode: document.getElementById('heatmapOutlierMode')?.value || 'none'
         };
     }
 
@@ -752,7 +846,7 @@ class App {
         const normalizeLabels = { none: 'None', all: 'Whole dataset', row: 'Per row', col: 'Per column' };
         const methodLabels = { zscore: 'Mean / SD (z-score)', robust: 'Median / MAD (robust)' };
         const winsorizeLabels = { none: 'None', '5': '5th\u201395th percentile', '2.5': '2.5th\u201397.5th percentile', '1': '1st\u201399th percentile' };
-        const colorLabels = { RdBu: 'Red\u2013Blue', RdYlGn: 'Red\u2013Yellow\u2013Green', Viridis: 'Viridis', YlOrRd: 'Yellow\u2013Red', BuPu: 'Blue\u2013Purple' };
+        const colorLabels = { RdBu: 'Red\u2013Blue', RdYlGn: 'Red\u2013Yellow\u2013Green', Viridis: 'Viridis', YlOrRd: 'Yellow\u2013Red', BuPu: 'Blue\u2013Purple', Inferno: 'Inferno', Plasma: 'Plasma', Cividis: 'Cividis', PuOr: 'Purple\u2013Orange', BrBG: 'Brown\u2013Blue\u2013Green', PiYG: 'Pink\u2013Yellow\u2013Green', Cool: 'Cool', Warm: 'Warm' };
 
         const isRobust = settings.normMethod === 'robust';
         const centerWord = isRobust ? 'median' : 'mean';

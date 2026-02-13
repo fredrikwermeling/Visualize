@@ -67,12 +67,24 @@
                 </div>
 
                 <div id="groupManager" class="group-manager" style="display:none">
-                    <h3>Group Order</h3>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <h3>Group Order</h3>
+                        <span>
+                            <button id="groupShowAll" class="btn btn-secondary" style="padding:1px 6px;font-size:10px">All</button>
+                            <button id="groupHideAll" class="btn btn-secondary" style="padding:1px 6px;font-size:10px">None</button>
+                        </span>
+                    </div>
                     <div id="groupList" class="group-list"></div>
                 </div>
 
                 <div id="heatmapColManager" class="group-manager" style="display:none">
-                    <h3>Column Order</h3>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <h3>Column Order</h3>
+                        <span>
+                            <button id="heatmapColShowAll" class="btn btn-secondary" style="padding:1px 6px;font-size:10px">All</button>
+                            <button id="heatmapColHideAll" class="btn btn-secondary" style="padding:1px 6px;font-size:10px">None</button>
+                        </span>
+                    </div>
                     <div id="heatmapColList" class="group-list"></div>
                 </div>
             </div>
@@ -196,6 +208,14 @@
                                     <option value="Viridis">Viridis</option>
                                     <option value="YlOrRd">Yellow–Red</option>
                                     <option value="BuPu">Blue–Purple</option>
+                                    <option value="Inferno">Inferno</option>
+                                    <option value="Plasma">Plasma</option>
+                                    <option value="Cividis">Cividis</option>
+                                    <option value="PuOr">Purple–Orange</option>
+                                    <option value="BrBG">Brown–Blue–Grn</option>
+                                    <option value="PiYG">Pink–Ylw–Grn</option>
+                                    <option value="Cool">Cool</option>
+                                    <option value="Warm">Warm</option>
                                 </select>
                             </div>
                             <div class="hm-ctrl">
@@ -206,6 +226,9 @@
                                     <option value="vivid">Vivid</option>
                                     <option value="grayscale">Grayscale</option>
                                     <option value="colorblind">Colorblind-safe</option>
+                                    <option value="earth">Earth</option>
+                                    <option value="ocean">Ocean</option>
+                                    <option value="neon">Neon</option>
                                 </select>
                             </div>
                             <div class="hm-ctrl">
@@ -230,6 +253,14 @@
                                     <option value="none">Default</option>
                                     <option value="root">Flip root</option>
                                     <option value="reverse">Reverse all</option>
+                                </select>
+                            </div>
+                            <div class="hm-ctrl">
+                                <label>Outliers</label>
+                                <select id="heatmapOutlierMode">
+                                    <option value="none">None</option>
+                                    <option value="col">By column</option>
+                                    <option value="row">By row</option>
                                 </select>
                             </div>
                         </div>

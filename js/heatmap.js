@@ -27,7 +27,8 @@ class HeatmapRenderer {
             clusterFlipCols: 'none',
             colLabelAngle: 45,
             colLabelOverrides: {},
-            rowLabelOverrides: {}
+            rowLabelOverrides: {},
+            excludedCells: new Set()
         };
         // Drag offsets for movable elements
         this._titleOffset = { x: 0, y: 0 };
@@ -66,8 +67,17 @@ class HeatmapRenderer {
             return;
         }
 
-        // Normalize
-        const normMatrix = this._normalize(matrix, this.settings.normalize, this.settings.normMethod);
+        // Build working matrix: replace excluded cells with NaN for normalization/clustering
+        const excludedCells = this.settings.excludedCells || new Set();
+        const workingMatrix = matrix.map((row, ri) => row.map((v, ci) => {
+            // Map visible indices back to raw indices for exclusion lookup
+            const rawRi = ri;  // row indices unchanged
+            const rawCi = visibleColIndices[ci];
+            return excludedCells.has(`${rawRi}_${ci}`) ? NaN : v;
+        }));
+
+        // Normalize (using workingMatrix so excluded cells don't affect stats)
+        const normMatrix = this._normalize(workingMatrix, this.settings.normalize, this.settings.normMethod);
 
         // Winsorize for color mapping
         const displayMatrix = this._winsorize(normMatrix, this.settings.winsorize);
@@ -138,6 +148,9 @@ class HeatmapRenderer {
 
         const colorScale = this._buildColorScale(allValues, this.settings.colorScheme);
 
+        // Outlier detection (on raw matrix before normalization)
+        this._outliers = this._detectOutliers(matrix, this.settings.outlierMode || 'none');
+
         // Group detection
         const groups = this.settings.showGroupBar ? this._detectGroups(filteredRowLabels, filteredGroupAssignments) : null;
 
@@ -182,6 +195,16 @@ class HeatmapRenderer {
             .attr('height', height)
             .style('background', 'white');
 
+        // Hatched pattern for excluded cells
+        const defs = svg.append('defs');
+        const pat = defs.append('pattern')
+            .attr('id', 'excluded-pattern')
+            .attr('patternUnits', 'userSpaceOnUse')
+            .attr('width', 6).attr('height', 6);
+        pat.append('rect').attr('width', 6).attr('height', 6).attr('fill', '#ddd');
+        pat.append('line').attr('x1', 0).attr('y1', 6).attr('x2', 6).attr('y2', 0)
+            .attr('stroke', '#999').attr('stroke-width', 1);
+
         const xScale = d3.scaleBand()
             .domain(colOrder)
             .range([0, cellAreaWidth])
@@ -210,7 +233,7 @@ class HeatmapRenderer {
         this._tooltip = tooltip;
 
         // Draw cells (use displayMatrix for colors)
-        this._drawCells(cellGroup, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale, colLabels, filteredRowLabels, matrix);
+        this._drawCells(cellGroup, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale, colLabels, filteredRowLabels, matrix, this._outliers);
 
         // Row labels (right of matrix)
         this._drawRowLabels(cellGroup, filteredRowLabels, rowOrder, yScale, cellAreaWidth);
@@ -357,7 +380,10 @@ class HeatmapRenderer {
             pastel: ['#B5D6E8', '#F5C6B8', '#C8E6C8', '#DFC8E8', '#FBE6C8', '#C0EAF0', '#FFCFCF', '#D4EAD0'],
             vivid: ['#2171B5', '#E6550D', '#31A354', '#756BB1', '#D6A016', '#17BECF', '#E7298A', '#66C2A5'],
             grayscale: ['#636363', '#969696', '#bdbdbd', '#252525', '#AAAAAA', '#777777', '#444444', '#C0C0C0'],
-            colorblind: ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9', '#E69F00', '#000000']
+            colorblind: ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9', '#E69F00', '#000000'],
+            earth: ['#8B4513', '#A0522D', '#D2B48C', '#6B8E23', '#556B2F', '#BDB76B', '#CD853F', '#DEB887'],
+            ocean: ['#006994', '#0077B6', '#00B4D8', '#48CAE4', '#0096C7', '#023E8A', '#03045E', '#90E0EF'],
+            neon: ['#FF00FF', '#00FFFF', '#FF6600', '#39FF14', '#FF3131', '#BF00FF', '#FFFF00', '#FF1493']
         };
         const palette = themes[this.settings.groupColorTheme] || themes.default;
         const defaultColors = (name) => palette[uniqueGroups.indexOf(name) % palette.length];
@@ -365,6 +391,43 @@ class HeatmapRenderer {
         const groupColors = (name) => overrides[name] || defaultColors(name);
 
         return { groupMap, uniqueGroups, groupNames, groupColors };
+    }
+
+    // --- Outlier Detection ---
+
+    _detectOutliers(matrix, mode) {
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+        const outliers = Array.from({ length: rows }, () => new Array(cols).fill(false));
+        if (mode === 'none') return outliers;
+
+        const iqrBounds = (vals) => {
+            const sorted = vals.filter(v => !isNaN(v)).sort((a, b) => a - b);
+            if (sorted.length < 4) return { lo: -Infinity, hi: Infinity };
+            const q1 = sorted[Math.floor(sorted.length * 0.25)];
+            const q3 = sorted[Math.floor(sorted.length * 0.75)];
+            const iqr = q3 - q1;
+            return { lo: q1 - 1.5 * iqr, hi: q3 + 1.5 * iqr };
+        };
+
+        if (mode === 'col') {
+            for (let c = 0; c < cols; c++) {
+                const vals = [];
+                for (let r = 0; r < rows; r++) vals.push(matrix[r][c]);
+                const { lo, hi } = iqrBounds(vals);
+                for (let r = 0; r < rows; r++) {
+                    if (!isNaN(matrix[r][c]) && (matrix[r][c] < lo || matrix[r][c] > hi)) outliers[r][c] = true;
+                }
+            }
+        } else if (mode === 'row') {
+            for (let r = 0; r < rows; r++) {
+                const { lo, hi } = iqrBounds(matrix[r]);
+                for (let c = 0; c < cols; c++) {
+                    if (!isNaN(matrix[r][c]) && (matrix[r][c] < lo || matrix[r][c] > hi)) outliers[r][c] = true;
+                }
+            }
+        }
+        return outliers;
     }
 
     // --- Color Scale ---
@@ -378,7 +441,15 @@ class HeatmapRenderer {
             'RdYlGn': t => d3.interpolateRdYlGn(1 - t),
             'Viridis': d3.interpolateViridis,
             'YlOrRd': d3.interpolateYlOrRd,
-            'BuPu': d3.interpolateBuPu
+            'BuPu': d3.interpolateBuPu,
+            'Inferno': d3.interpolateInferno,
+            'Plasma': d3.interpolatePlasma,
+            'Cividis': d3.interpolateCividis,
+            'PuOr': t => d3.interpolatePuOr(1 - t),
+            'BrBG': t => d3.interpolateBrBG(1 - t),
+            'PiYG': t => d3.interpolatePiYG(1 - t),
+            'Cool': d3.interpolateCool,
+            'Warm': d3.interpolateWarm
         };
 
         const interpolator = interpolators[scheme] || interpolators['RdBu'];
@@ -387,30 +458,50 @@ class HeatmapRenderer {
 
     // --- Drawing ---
 
-    _drawCells(g, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale, colLabels, rowLabels, rawMatrix) {
+    _drawCells(g, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale, colLabels, rowLabels, rawMatrix, outliers) {
         const cellWidth = xScale.bandwidth();
         const cellHeight = yScale.bandwidth();
         const showValues = this.settings.showValues;
         const fontSize = Math.min(cellWidth, cellHeight, 12) * 0.7;
         const tooltip = this._tooltip;
         const hasNorm = this.settings.normalize !== 'none';
+        const excludedCells = this.settings.excludedCells || new Set();
 
         for (const ri of rowOrder) {
             for (const ci of colOrder) {
                 const displayVal = displayMatrix[ri][ci];
-                if (isNaN(displayVal)) continue;
+                const cellKey = `${ri}_${ci}`;
+                const isExcluded = excludedCells.has(cellKey);
+
+                if (isNaN(displayVal) && !isExcluded) continue;
 
                 const x = xScale(ci);
                 const y = yScale(ri);
+                const isOutlier = outliers && outliers[ri] && outliers[ri][ci];
 
                 const rect = g.append('rect')
                     .attr('x', x)
                     .attr('y', y)
                     .attr('width', cellWidth)
                     .attr('height', cellHeight)
-                    .attr('fill', colorScale(displayVal))
+                    .attr('fill', isExcluded ? 'url(#excluded-pattern)' : colorScale(displayVal))
                     .attr('stroke', '#fff')
-                    .attr('stroke-width', 0.5);
+                    .attr('stroke-width', 0.5)
+                    .style('cursor', 'pointer');
+
+                if (isExcluded) rect.attr('opacity', 0.3);
+
+                // Double-click to toggle exclusion
+                ((key) => {
+                    rect.on('dblclick', () => {
+                        if (excludedCells.has(key)) {
+                            excludedCells.delete(key);
+                        } else {
+                            excludedCells.add(key);
+                        }
+                        if (window.app) window.app.updateGraph();
+                    });
+                })(cellKey);
 
                 // Tooltip events
                 if (tooltip && colLabels && rowLabels) {
@@ -418,8 +509,13 @@ class HeatmapRenderer {
                             const rawVal = rawMatrix ? rawMatrix[ri][ci] : NaN;
                             const normVal = normMatrix[ri][ci];
                             let html = `<b>${rowLabels[ri]}</b><br>${colLabels[ci]}`;
-                            if (!isNaN(rawVal)) html += `<br>Raw: ${rawVal}`;
-                            if (hasNorm && !isNaN(normVal)) html += `<br>Norm: ${normVal.toFixed(3)}`;
+                            if (isExcluded) {
+                                html += `<br><span style="color:#c0392b;font-weight:bold">Excluded</span>`;
+                            } else {
+                                if (!isNaN(rawVal)) html += `<br>Raw: ${rawVal}`;
+                                if (hasNorm && !isNaN(normVal)) html += `<br>Norm: ${normVal.toFixed(3)}`;
+                            }
+                            if (isOutlier) html += `<br><span style="color:#c0392b;font-weight:bold">Outlier</span>`;
                             tooltip.innerHTML = html;
                             tooltip.style.display = 'block';
                         })
@@ -430,6 +526,16 @@ class HeatmapRenderer {
                         .on('mouseout', () => {
                             tooltip.style.display = 'none';
                         });
+                }
+
+                // Outlier indicator circle
+                if (isOutlier && !isExcluded) {
+                    g.append('circle')
+                        .attr('cx', x + cellWidth - 4)
+                        .attr('cy', y + 4)
+                        .attr('r', Math.min(cellWidth, cellHeight, 8) * 0.2)
+                        .attr('fill', '#000')
+                        .attr('pointer-events', 'none');
                 }
 
                 if (showValues && fontSize >= 5) {

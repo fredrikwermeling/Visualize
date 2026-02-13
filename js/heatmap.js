@@ -383,7 +383,8 @@ class HeatmapRenderer {
             colorblind: ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9', '#E69F00', '#000000'],
             earth: ['#8B4513', '#A0522D', '#D2B48C', '#6B8E23', '#556B2F', '#BDB76B', '#CD853F', '#DEB887'],
             ocean: ['#006994', '#0077B6', '#00B4D8', '#48CAE4', '#0096C7', '#023E8A', '#03045E', '#90E0EF'],
-            neon: ['#FF00FF', '#00FFFF', '#FF6600', '#39FF14', '#FF3131', '#BF00FF', '#FFFF00', '#FF1493']
+            neon: ['#FF00FF', '#00FFFF', '#FF6600', '#39FF14', '#FF3131', '#BF00FF', '#FFFF00', '#FF1493'],
+            forest: ['#1b5e20', '#2e7d32', '#388e3c', '#43a047', '#66bb6a', '#a5d6a7', '#4caf50', '#81c784']
         };
         const palette = themes[this.settings.groupColorTheme] || themes.default;
         const defaultColors = (name) => palette[uniqueGroups.indexOf(name) % palette.length];
@@ -449,7 +450,10 @@ class HeatmapRenderer {
             'BrBG': t => d3.interpolateBrBG(1 - t),
             'PiYG': t => d3.interpolatePiYG(1 - t),
             'Cool': d3.interpolateCool,
-            'Warm': d3.interpolateWarm
+            'Warm': d3.interpolateWarm,
+            'GnBu': d3.interpolateGnBu,
+            'YlGn': d3.interpolateYlGn,
+            'Greens': d3.interpolateGreens
         };
 
         const interpolator = interpolators[scheme] || interpolators['RdBu'];

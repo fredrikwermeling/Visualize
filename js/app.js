@@ -846,7 +846,7 @@ class App {
         const normalizeLabels = { none: 'None', all: 'Whole dataset', row: 'Per row', col: 'Per column' };
         const methodLabels = { zscore: 'Mean / SD (z-score)', robust: 'Median / MAD (robust)' };
         const winsorizeLabels = { none: 'None', '5': '5th\u201395th percentile', '2.5': '2.5th\u201397.5th percentile', '1': '1st\u201399th percentile' };
-        const colorLabels = { RdBu: 'Red\u2013Blue', RdYlGn: 'Red\u2013Yellow\u2013Green', Viridis: 'Viridis', YlOrRd: 'Yellow\u2013Red', BuPu: 'Blue\u2013Purple', Inferno: 'Inferno', Plasma: 'Plasma', Cividis: 'Cividis', PuOr: 'Purple\u2013Orange', BrBG: 'Brown\u2013Blue\u2013Green', PiYG: 'Pink\u2013Yellow\u2013Green', Cool: 'Cool', Warm: 'Warm' };
+        const colorLabels = { RdBu: 'Red\u2013Blue', RdYlGn: 'Red\u2013Yellow\u2013Green', Viridis: 'Viridis', YlOrRd: 'Yellow\u2013Red', BuPu: 'Blue\u2013Purple', Inferno: 'Inferno', Plasma: 'Plasma', Cividis: 'Cividis', PuOr: 'Purple\u2013Orange', BrBG: 'Brown\u2013Blue\u2013Green', PiYG: 'Pink\u2013Yellow\u2013Green', Cool: 'Cool', Warm: 'Warm', GnBu: 'Green\u2013Blue', YlGn: 'Yellow\u2013Green', Greens: 'Greens' };
 
         const isRobust = settings.normMethod === 'robust';
         const centerWord = isRobust ? 'median' : 'mean';

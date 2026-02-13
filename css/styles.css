@@ -3,21 +3,21 @@
    Matching the Correlate app design language
    ============================================================ */
 
-/* CSS Custom Properties — olive-green palette matching the logo */
+/* CSS Custom Properties — green/teal palette matching the logo */
 :root {
-    --green-900: #2d5016;
-    --green-800: #3d6b1e;
-    --green-700: #4e7d25;
-    --green-600: #5e8c31;
-    --green-500: #7aa83a;
-    --green-200: #c8e09a;
-    --green-100: #ddeeb5;
-    --green-50:  #f0f7e0;
+    --green-900: #1b5e20;
+    --green-800: #2e7d32;
+    --green-700: #388e3c;
+    --green-600: #43a047;
+    --green-500: #66bb6a;
+    --green-200: #a5d6a7;
+    --green-100: #c8e6c9;
+    --green-50:  #e8f5e9;
     --gray-600:  #4b5563;
     --gray-500:  #6b7280;
     --gray-200:  #e5e7eb;
     --gray-100:  #f3f4f6;
-    --brand-green: #5e8c31;
+    --brand-green: #2e7d32;
     --text-primary: #1f2937;
     --text-secondary: #4b5563;
     --bg-white: #ffffff;
@@ -64,7 +64,7 @@ header {
 }
 
 .logo {
-    height: 120px;
+    height: 220px;
     width: auto;
 }
 
@@ -449,7 +449,7 @@ tr:hover .row-delete-btn {
 
 .btn-primary:hover {
     background-color: var(--green-700);
-    box-shadow: 0 2px 8px rgba(94, 140, 49, 0.35);
+    box-shadow: 0 2px 8px rgba(46, 125, 50, 0.35);
 }
 
 .btn-secondary {

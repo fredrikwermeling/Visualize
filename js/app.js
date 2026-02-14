@@ -604,6 +604,7 @@ class App {
             document.getElementById('volcanoFCThresh').value = 1.0;
             document.getElementById('volcanoPointSize').value = 4;
             document.getElementById('volcanoTopLabels').value = 10;
+            document.getElementById('volcanoLabelSize').value = 10;
             document.getElementById('volcanoUpColor').value = '#E63946';
             document.getElementById('volcanoDownColor').value = '#457B9D';
             this._volcanoTableData = null;
@@ -1363,13 +1364,14 @@ class App {
             fcThreshold: parseFloat(document.getElementById('volcanoFCThresh')?.value) || 1.0,
             pointSize: parseFloat(document.getElementById('volcanoPointSize')?.value) || 4,
             showTopLabels: parseInt(document.getElementById('volcanoTopLabels')?.value) ?? 10,
+            labelSize: parseInt(document.getElementById('volcanoLabelSize')?.value) || 10,
             upColor: document.getElementById('volcanoUpColor')?.value || '#E63946',
             downColor: document.getElementById('volcanoDownColor')?.value || '#457B9D'
         };
     }
 
     _bindVolcanoControls() {
-        const ids = ['volcanoWidth', 'volcanoHeight', 'volcanoPThresh', 'volcanoFCThresh', 'volcanoPointSize', 'volcanoTopLabels', 'volcanoUpColor', 'volcanoDownColor'];
+        const ids = ['volcanoWidth', 'volcanoHeight', 'volcanoPThresh', 'volcanoFCThresh', 'volcanoPointSize', 'volcanoTopLabels', 'volcanoLabelSize', 'volcanoUpColor', 'volcanoDownColor'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => this.updateGraph());

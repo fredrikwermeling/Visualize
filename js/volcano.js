@@ -40,7 +40,8 @@ class VolcanoRenderer {
             nsLegendText: 'NS',
             // Gene labels
             showTopLabels: 10,
-            highlightedGenes: [],  // manually toggled gene names
+            highlightedGenes: [],  // manually added gene names
+            excludedGenes: [],     // genes excluded from auto-labeling
             geneLabelOffsets: {}   // { geneName: {x, y} }
         };
         this._nudgeOffsetKey = null;
@@ -48,7 +49,11 @@ class VolcanoRenderer {
     }
 
     render(volcanoData, settings) {
-        if (settings) Object.assign(this.settings, settings);
+        if (settings) {
+            // Apply labelSize to labelFont
+            if (settings.labelSize) this.settings.labelFont.size = settings.labelSize;
+            Object.assign(this.settings, settings);
+        }
         this.container.innerHTML = '';
 
         if (!volcanoData || !volcanoData.points || volcanoData.points.length === 0) {
@@ -126,7 +131,11 @@ class VolcanoRenderer {
             .slice(0, s.showTopLabels)
             .map(d => d.name);
         const manual = s.highlightedGenes || [];
-        const labeledSet = new Set([...autoLabeled, ...manual]);
+        const excluded = new Set(s.excludedGenes || []);
+        const labeledSet = new Set([
+            ...autoLabeled.filter(n => !excluded.has(n)),
+            ...manual
+        ]);
 
         // Draw points — click to toggle label
         const self = this;
@@ -146,11 +155,20 @@ class VolcanoRenderer {
             .on('click', function(event, d) {
                 event.stopPropagation();
                 const hl = self.settings.highlightedGenes;
-                const idx = hl.indexOf(d.name);
-                if (idx >= 0) {
-                    hl.splice(idx, 1);
+                const ex = self.settings.excludedGenes;
+                const isLabeled = labeledSet.has(d.name);
+                if (isLabeled) {
+                    // Remove: if manually added, remove from highlighted; if auto, add to excluded
+                    const hlIdx = hl.indexOf(d.name);
+                    if (hlIdx >= 0) hl.splice(hlIdx, 1);
+                    if (autoLabeled.includes(d.name) && !ex.includes(d.name)) ex.push(d.name);
                 } else {
-                    hl.push(d.name);
+                    // Add: remove from excluded if present, add to highlighted
+                    const exIdx = ex.indexOf(d.name);
+                    if (exIdx >= 0) ex.splice(exIdx, 1);
+                    if (!hl.includes(d.name) && !autoLabeled.includes(d.name)) hl.push(d.name);
+                    // If it was excluded from auto, just un-exclude
+                    if (autoLabeled.includes(d.name)) { /* un-excluded above */ }
                 }
                 if (window.app) window.app.updateGraph();
             })
@@ -375,58 +393,112 @@ class VolcanoRenderer {
 
     _startInlineEdit(event, labelType) {
         const s = this.settings;
-        document.querySelectorAll('.svg-edit-popup').forEach(p => p.remove());
+        const existing = document.querySelector('.svg-edit-popup');
+        if (existing) existing.remove();
+
+        const map = {
+            title:  { textKey: 'title',  fontKey: 'titleFont',  visKey: 'showTitle' },
+            xLabel: { textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+            yLabel: { textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+            legend: { fontKey: 'legendFont', visKey: 'showLegend' }
+        };
+        const info = map[labelType];
+        if (!info) return;
+
+        if (window.app) window.app.saveUndoState();
 
         const popup = document.createElement('div');
         popup.className = 'svg-edit-popup';
-        popup.style.cssText = 'position:fixed;z-index:500;background:white;border:1px solid #ccc;border-radius:6px;padding:10px;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;flex-direction:column;gap:6px;';
 
-        const rect = this.container.getBoundingClientRect();
-        popup.style.left = (rect.left + rect.width / 2 - 120) + 'px';
-        popup.style.top = (rect.top + 30) + 'px';
+        // Position near the graph
+        const containerRect = this.container.getBoundingClientRect();
+        popup.style.left = `${containerRect.left + containerRect.width / 2 - 100 + window.scrollX}px`;
+        popup.style.top = `${containerRect.top + 30 + window.scrollY}px`;
+
+        const fontObj = s[info.fontKey];
+        const { toolbar, familySelect, sizeInput } = this._createFontToolbar(fontObj);
+
+        // Hide button
+        if (info.visKey) {
+            const hideBtn = document.createElement('button');
+            hideBtn.className = 'svg-edit-btn';
+            hideBtn.textContent = '\u{1F6AB}';
+            hideBtn.title = 'Hide this element';
+            hideBtn.style.marginLeft = '4px';
+            hideBtn.addEventListener('mousedown', e => e.preventDefault());
+            hideBtn.addEventListener('click', e => {
+                e.preventDefault();
+                s[info.visKey] = false;
+                popup.remove();
+                if (window.app) window.app.updateGraph();
+            });
+            toolbar.appendChild(hideBtn);
+        }
+
+        popup.appendChild(toolbar);
 
         if (labelType === 'legend') {
-            // Legend edit: 3 text inputs + font toolbar
+            // Legend: 3 text inputs
             ['upLegendText', 'downLegendText', 'nsLegendText'].forEach(key => {
                 const row = document.createElement('div');
-                row.style.cssText = 'display:flex;align-items:center;gap:4px;';
+                row.style.cssText = 'display:flex;align-items:center;gap:4px;margin-top:4px;';
                 const lbl = document.createElement('span');
                 lbl.textContent = key.replace('LegendText', '') + ':';
-                lbl.style.cssText = 'font-size:11px;width:40px;';
+                lbl.style.cssText = 'font-size:11px;width:40px;color:#666;';
                 const inp = document.createElement('input');
                 inp.type = 'text';
+                inp.className = 'svg-inline-edit';
                 inp.value = s[key] || '';
-                inp.style.cssText = 'flex:1;padding:3px;border:1px solid #ccc;border-radius:3px;font-size:12px;';
+                inp.style.cssText = 'flex:1;font-size:12px;';
                 inp.addEventListener('input', () => { s[key] = inp.value; if (window.app) window.app.updateGraph(); });
                 row.appendChild(lbl);
                 row.appendChild(inp);
                 popup.appendChild(row);
             });
-            const { toolbar } = this._createFontToolbar(s.legendFont);
-            popup.appendChild(toolbar);
         } else {
-            // Standard text edit (title, xLabel, yLabel)
-            const textKey = labelType === 'title' ? 'title' : labelType;
-            const fontKey = labelType === 'title' ? 'titleFont' : labelType + 'Font';
+            // Standard text input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'svg-inline-edit';
+            input.value = s[info.textKey] || '';
+            input.style.fontSize = `${fontObj.size}px`;
+            input.style.fontFamily = fontObj.family;
+            input.style.width = '200px';
+            popup.appendChild(input);
 
-            const inp = document.createElement('input');
-            inp.type = 'text';
-            inp.value = s[textKey] || '';
-            inp.style.cssText = 'width:200px;padding:4px;border:1px solid #ccc;border-radius:3px;font-size:13px;';
-            inp.addEventListener('input', () => { s[textKey] = inp.value; if (window.app) window.app.updateGraph(); });
-            popup.appendChild(inp);
+            const commit = () => {
+                if (!document.body.contains(popup)) return;
+                s[info.textKey] = input.value;
+                popup.remove();
+                if (window.app) window.app.updateGraph();
+            };
 
-            const { toolbar } = this._createFontToolbar(s[fontKey]);
-            popup.appendChild(toolbar);
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); commit(); }
+                else if (e.key === 'Escape') { e.preventDefault(); popup.remove(); }
+            });
+
+            input.addEventListener('input', () => {
+                s[info.textKey] = input.value;
+                if (window.app) window.app.updateGraph();
+            });
+
+            familySelect.addEventListener('change', () => { input.style.fontFamily = familySelect.value; });
+            sizeInput.addEventListener('input', () => { input.style.fontSize = `${sizeInput.value}px`; });
+
+            setTimeout(() => { input.focus(); input.select(); }, 0);
         }
 
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '\u2715';
-        closeBtn.style.cssText = 'position:absolute;top:2px;right:6px;background:none;border:none;cursor:pointer;font-size:14px;color:#999;';
-        closeBtn.addEventListener('click', () => popup.remove());
-        popup.appendChild(closeBtn);
-
         document.body.appendChild(popup);
+
+        popup.addEventListener('focusout', () => {
+            setTimeout(() => {
+                if (document.body.contains(popup) && !popup.contains(document.activeElement)) {
+                    popup.remove();
+                    if (window.app) window.app.updateGraph();
+                }
+            }, 100);
+        });
     }
 
     _createFontToolbar(fontObj) {
@@ -452,15 +524,27 @@ class VolcanoRenderer {
         toolbar.appendChild(sizeInput);
 
         const boldBtn = document.createElement('button');
+        boldBtn.className = 'svg-edit-btn' + (fontObj.bold ? ' active' : '');
         boldBtn.textContent = 'B';
-        boldBtn.style.cssText = `font-weight:bold;font-size:12px;width:24px;height:24px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:${fontObj.bold ? '#ddd' : 'white'};`;
-        boldBtn.addEventListener('click', () => { fontObj.bold = !fontObj.bold; boldBtn.style.background = fontObj.bold ? '#ddd' : 'white'; if (window.app) window.app.updateGraph(); });
+        boldBtn.style.fontWeight = 'bold';
+        boldBtn.addEventListener('mousedown', e => e.preventDefault());
+        boldBtn.addEventListener('click', () => {
+            fontObj.bold = !fontObj.bold;
+            boldBtn.classList.toggle('active', fontObj.bold);
+            if (window.app) window.app.updateGraph();
+        });
         toolbar.appendChild(boldBtn);
 
         const italicBtn = document.createElement('button');
+        italicBtn.className = 'svg-edit-btn' + (fontObj.italic ? ' active' : '');
         italicBtn.textContent = 'I';
-        italicBtn.style.cssText = `font-style:italic;font-size:12px;width:24px;height:24px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:${fontObj.italic ? '#ddd' : 'white'};`;
-        italicBtn.addEventListener('click', () => { fontObj.italic = !fontObj.italic; italicBtn.style.background = fontObj.italic ? '#ddd' : 'white'; if (window.app) window.app.updateGraph(); });
+        italicBtn.style.fontStyle = 'italic';
+        italicBtn.addEventListener('mousedown', e => e.preventDefault());
+        italicBtn.addEventListener('click', () => {
+            fontObj.italic = !fontObj.italic;
+            italicBtn.classList.toggle('active', fontObj.italic);
+            if (window.app) window.app.updateGraph();
+        });
         toolbar.appendChild(italicBtn);
 
         return { toolbar, familySelect, sizeInput, boldBtn, italicBtn };

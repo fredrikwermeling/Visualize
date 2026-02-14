@@ -175,17 +175,65 @@ class VolcanoRenderer {
             .append('title')
             .text(d => `${d.name}\nLog\u2082FC: ${d.logFC.toFixed(2)}\nP: ${d.pval.toExponential(2)}\nClick to toggle label`);
 
-        // Draw gene labels (draggable)
+        // Draw gene labels with auto-repulsion to avoid overlaps + leader lines
         const lf = s.labelFont;
-        plotData.filter(d => labeledSet.has(d.name)).forEach(d => {
-            const off = s.geneLabelOffsets[d.name] || { x: 0, y: 0 };
-            const baseX = xScale(d.logFC);
-            const baseY = yScale(d.negLogP) - s.pointSize - 3;
+        const labeledPoints = plotData.filter(d => labeledSet.has(d.name));
+
+        // Build label positions — apply auto-repulsion first, then user offsets
+        const labelPositions = labeledPoints.map(d => {
+            const px = xScale(d.logFC);
+            const py = yScale(d.negLogP);
+            const userOff = s.geneLabelOffsets[d.name] || { x: 0, y: 0 };
+            return {
+                d,
+                px, py,                          // point position
+                x: px + userOff.x,               // label position (will be adjusted)
+                y: py - s.pointSize - 3 + userOff.y,
+                hasUserOffset: userOff.x !== 0 || userOff.y !== 0,
+                w: d.name.length * lf.size * 0.6, // estimated text width
+                h: lf.size                         // text height
+            };
+        });
+
+        // Simple iterative repulsion for labels without user offsets
+        for (let iter = 0; iter < 12; iter++) {
+            for (let i = 0; i < labelPositions.length; i++) {
+                if (labelPositions[i].hasUserOffset) continue;
+                for (let j = i + 1; j < labelPositions.length; j++) {
+                    if (labelPositions[j].hasUserOffset) continue;
+                    const a = labelPositions[i], b = labelPositions[j];
+                    const dx = a.x - b.x, dy = a.y - b.y;
+                    const minDx = (a.w + b.w) / 2 + 2;
+                    const minDy = (a.h + b.h) / 2 + 1;
+                    if (Math.abs(dx) < minDx && Math.abs(dy) < minDy) {
+                        const pushX = (minDx - Math.abs(dx)) / 2 * (dx >= 0 ? 1 : -1) * 0.5;
+                        const pushY = (minDy - Math.abs(dy)) / 2 * (dy >= 0 ? 1 : -1) * 0.8;
+                        a.x += pushX; a.y += pushY;
+                        b.x -= pushX; b.y -= pushY;
+                    }
+                }
+            }
+        }
+
+        // Draw leader lines + labels
+        labelPositions.forEach(lp => {
+            const d = lp.d;
+            const dist = Math.sqrt((lp.x - lp.px) ** 2 + (lp.y - lp.py) ** 2);
+            // Draw thin leader line if label is displaced from point
+            if (dist > s.pointSize + 4) {
+                g.append('line')
+                    .attr('class', 'gene-leader')
+                    .attr('x1', lp.px).attr('y1', lp.py)
+                    .attr('x2', lp.x).attr('y2', lp.y + lf.size * 0.35)
+                    .attr('stroke', '#999')
+                    .attr('stroke-width', 0.5)
+                    .attr('stroke-dasharray', '2,2');
+            }
 
             const label = g.append('text')
                 .attr('class', 'gene-label')
-                .attr('x', baseX + off.x)
-                .attr('y', baseY + off.y)
+                .attr('x', lp.x)
+                .attr('y', lp.y)
                 .attr('text-anchor', 'middle')
                 .attr('font-size', lf.size + 'px')
                 .attr('font-family', lf.family)
@@ -209,7 +257,6 @@ class VolcanoRenderer {
                 })
                 .on('end', function() {
                     d3.select(this).style('cursor', 'grab');
-                    // Click without drag → select for nudge
                     self._selectGeneForNudge(d.name);
                 })
             );

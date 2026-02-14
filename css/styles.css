@@ -505,9 +505,14 @@ tr:hover .row-delete-btn {
 }
 
 .control-grid-2col .control-group label {
-    flex: 0 0 auto;
-    min-width: 40px;
+    flex: 0 0 55px;
     font-size: 11px;
+}
+
+/* In 4-col grids, use tighter fixed label width for uniform boxes */
+.volcano-controls .control-grid-2col .control-group label,
+.growth-controls .control-grid-2col .control-group label {
+    flex: 0 0 48px;
 }
 
 .control-grid-2col .span-2 {
@@ -1067,11 +1072,39 @@ tr:hover .row-delete-btn {
 }
 
 .hm-ctrl label {
-    flex: 0 0 50px;
+    flex: 0 0 48px;
     white-space: nowrap;
     font-weight: 500;
     color: var(--text-secondary);
     font-size: 10px;
+}
+
+/* +/- stepper inside heatmap grid */
+.hm-ctrl .num-stepper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.hm-ctrl .num-stepper input[type="number"] {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 4px;
+    border: 1px solid var(--gray-200);
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    font-size: 11px;
+    text-align: center;
+    font-family: 'Open Sans', sans-serif;
+    -moz-appearance: textfield;
+}
+
+.hm-ctrl .num-stepper input[type="number"]::-webkit-inner-spin-button,
+.hm-ctrl .num-stepper input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .hm-ctrl select,

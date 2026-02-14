@@ -46,9 +46,9 @@ class App {
 
     _wrapNumberInputs() {
         // Wrap all number inputs inside control grids with +/- stepper buttons
-        document.querySelectorAll('.control-grid-2col .control-group input[type="number"]').forEach(input => {
+        document.querySelectorAll('.control-grid-2col .control-group input[type="number"], .heatmap-grid .hm-ctrl input[type="number"]').forEach(input => {
             const parent = input.parentElement;
-            if (parent.querySelector('.num-stepper')) return; // already wrapped
+            if (parent.classList.contains('num-stepper')) return; // already wrapped
 
             const wrapper = document.createElement('div');
             wrapper.className = 'num-stepper';

@@ -145,7 +145,8 @@ class GrowthCurveRenderer {
             .append('svg')
             .attr('width', width)
             .attr('height', height)
-            .style('font-family', 'Arial, sans-serif');
+            .style('font-family', 'Arial, sans-serif')
+            .style('overflow', 'visible');
 
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
@@ -545,23 +546,25 @@ class GrowthCurveRenderer {
             .attr('width', bbox.width + 8)
             .attr('height', bbox.height + 6);
 
-        // Manual drag + native dblclick (d3.drag blocks dblclick, so avoid it)
+        // Ensure legend receives pointer events
+        legend.attr('pointer-events', 'all');
+        bgRect.attr('pointer-events', 'all');
+
+        // Use native events for drag + dblclick (d3.drag blocks dblclick)
         const legendNode = legend.node();
-        let isDragging = false, startX = 0, startY = 0;
+        let dragState = null;
 
         legendNode.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
-            isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            legendNode.style.cursor = 'grabbing';
+            dragState = { x: e.clientX, y: e.clientY, moved: false };
 
             const onMove = (me) => {
-                if (!isDragging) return;
-                const dx = me.clientX - startX;
-                const dy = me.clientY - startY;
-                startX = me.clientX;
-                startY = me.clientY;
+                if (!dragState) return;
+                const dx = me.clientX - dragState.x;
+                const dy = me.clientY - dragState.y;
+                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragState.moved = true;
+                dragState.x = me.clientX;
+                dragState.y = me.clientY;
                 self._legendOffset.x += dx;
                 self._legendOffset.y += dy;
                 const newX = width - margin.right - 10 + self._legendOffset.x;
@@ -569,8 +572,7 @@ class GrowthCurveRenderer {
                 legend.attr('transform', `translate(${newX},${newY})`);
             };
             const onUp = () => {
-                isDragging = false;
-                legendNode.style.cursor = 'move';
+                dragState = null;
                 document.removeEventListener('mousemove', onMove);
                 document.removeEventListener('mouseup', onUp);
             };
@@ -580,6 +582,7 @@ class GrowthCurveRenderer {
 
         legendNode.addEventListener('dblclick', (e) => {
             e.stopPropagation();
+            e.preventDefault();
             self._openLegendEditPopup(e, groups);
         });
 

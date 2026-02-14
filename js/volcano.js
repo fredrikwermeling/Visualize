@@ -266,7 +266,7 @@ class VolcanoRenderer {
         this._drawLegend(g, innerW, plotData, classify, colorMap);
 
         // Title
-        if (s.showTitle) this._drawInteractiveText(svg, 'title', width / 2, 22, s.title, s.titleFont, s.titleOffset);
+        if (s.showTitle) this._drawInteractiveText(svg, 'title', margin.left + innerW / 2, 22, s.title, s.titleFont, s.titleOffset);
 
         // X label
         if (s.showXLabel) this._drawInteractiveText(svg, 'xLabel', margin.left + innerW / 2, height - 10, s.xLabel, s.xLabelFont, s.xLabelOffset);

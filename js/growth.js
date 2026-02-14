@@ -768,7 +768,7 @@ class GrowthCurveRenderer {
 
         const title = svg.append('text')
             .attr('class', 'graph-title')
-            .attr('x', width / 2 + ox)
+            .attr('x', margin.left + (width - margin.left - margin.right) / 2 + ox)
             .attr('y', margin.top / 2 + oy)
             .attr('text-anchor', 'middle')
             .style('font-family', s.titleFont.family)

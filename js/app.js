@@ -1156,7 +1156,10 @@ class App {
         } else {
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont' },
-                { label: 'Legend Title', textKey: 'legendTitle', fontKey: 'legendTitleFont' }
+                { label: 'Legend Title', textKey: 'legendTitle', fontKey: 'legendTitleFont' },
+                { label: 'Row Labels', fontKey: 'rowLabelFont' },
+                { label: 'Column Labels', fontKey: 'colLabelFont' },
+                { label: 'Group Labels', fontKey: 'groupLabelFont' }
             ];
         }
 
@@ -1219,10 +1222,13 @@ class App {
             fc.appendChild(famSel);
 
             const sizeInp = document.createElement('input');
-            sizeInp.type = 'number'; sizeInp.min = 6; sizeInp.max = 48; sizeInp.value = font.size;
+            sizeInp.type = 'number'; sizeInp.min = 6; sizeInp.max = 48;
+            sizeInp.value = font.size || '';
+            sizeInp.placeholder = 'Auto';
             sizeInp.addEventListener('input', () => {
-                const v = parseInt(sizeInp.value);
-                if (v && v >= 6) { getFont().size = v; this.updateGraph(); }
+                const v = sizeInp.value.trim();
+                getFont().size = v === '' ? null : (parseInt(v) || null);
+                this.updateGraph();
             });
             fc.appendChild(sizeInp);
 

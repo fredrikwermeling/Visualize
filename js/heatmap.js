@@ -28,6 +28,8 @@ class HeatmapRenderer {
             colLabelAngle: 45,
             colLabelOverrides: {},
             rowLabelOverrides: {},
+            rowLabelFont: { family: 'Aptos Display', size: null, bold: false, italic: false },
+            colLabelFont: { family: 'Aptos Display', size: null, bold: false, italic: false },
             excludedCells: new Set()
         };
         // Drag offsets for movable elements
@@ -589,7 +591,8 @@ class HeatmapRenderer {
 
     _drawRowLabels(g, labels, order, yScale, xOffset) {
         const bandHeight = yScale.bandwidth();
-        const fontSize = Math.min(bandHeight * 0.8, 12);
+        const rlf = this.settings.rowLabelFont || {};
+        const fontSize = rlf.size || Math.min(bandHeight * 0.8, 12);
         const overrides = this.settings.rowLabelOverrides || {};
         const self = this;
 
@@ -602,6 +605,9 @@ class HeatmapRenderer {
                 .attr('text-anchor', 'start')
                 .attr('dominant-baseline', 'central')
                 .attr('font-size', fontSize + 'px')
+                .attr('font-family', rlf.family || 'Aptos Display')
+                .attr('font-weight', rlf.bold ? 'bold' : 'normal')
+                .attr('font-style', rlf.italic ? 'italic' : 'normal')
                 .attr('fill', '#333')
                 .style('cursor', 'pointer')
                 .text(displayName);
@@ -651,7 +657,8 @@ class HeatmapRenderer {
 
     _drawColLabels(g, labels, order, xScale, yOffset) {
         const bandWidth = xScale.bandwidth();
-        const fontSize = Math.min(bandWidth * 0.8, 12);
+        const clf = this.settings.colLabelFont || {};
+        const fontSize = clf.size || Math.min(bandWidth * 0.8, 12);
         const angle = this.settings.colLabelAngle ?? 45;
         const overrides = this.settings.colLabelOverrides || {};
         const self = this;
@@ -663,6 +670,9 @@ class HeatmapRenderer {
             const cy = yOffset + 6;
             const el = g.append('text')
                 .attr('font-size', fontSize + 'px')
+                .attr('font-family', clf.family || 'Aptos Display')
+                .attr('font-weight', clf.bold ? 'bold' : 'normal')
+                .attr('font-style', clf.italic ? 'italic' : 'normal')
                 .attr('fill', '#333')
                 .style('cursor', 'pointer')
                 .text(displayName);

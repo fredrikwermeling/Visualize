@@ -491,7 +491,13 @@ tr:hover .row-delete-btn {
 .control-grid-2col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2px 10px;
+    gap: 2px 8px;
+}
+
+/* Full-width sections (not inside graph-controls 2-col grid) get 4 columns */
+.volcano-controls .control-grid-2col,
+.growth-controls .control-grid-2col {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
 .control-grid-2col .control-group {
@@ -500,11 +506,78 @@ tr:hover .row-delete-btn {
 
 .control-grid-2col .control-group label {
     flex: 0 0 auto;
-    min-width: 50px;
+    min-width: 40px;
+    font-size: 11px;
 }
 
 .control-grid-2col .span-2 {
     grid-column: span 2;
+}
+
+.control-grid-2col .span-4 {
+    grid-column: span 4;
+}
+
+/* Number input with +/- stepper buttons */
+.num-stepper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.num-stepper input[type="number"] {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 4px;
+    border: 1px solid var(--gray-200);
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    font-size: 12px;
+    text-align: center;
+    -moz-appearance: textfield;
+}
+
+.num-stepper input[type="number"]::-webkit-inner-spin-button,
+.num-stepper input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.num-stepper .step-btn {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 26px;
+    border: 1px solid var(--gray-200);
+    background: var(--gray-50, #f9fafb);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    user-select: none;
+}
+
+.num-stepper .step-btn:hover {
+    background: var(--green-50);
+    border-color: var(--green-300);
+}
+
+.num-stepper .step-btn:active {
+    background: var(--green-100);
+}
+
+.num-stepper .step-btn.step-minus {
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.num-stepper .step-btn.step-plus {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 /* Stats Results */

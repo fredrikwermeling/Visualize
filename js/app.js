@@ -36,11 +36,50 @@ class App {
 
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
+        this._wrapNumberInputs();
 
         // Load sample data and draw initial graph
         this._applyMode();
         this.dataTable.loadHeatmapSampleData();
         this.updateGraph();
+    }
+
+    _wrapNumberInputs() {
+        // Wrap all number inputs inside control grids with +/- stepper buttons
+        document.querySelectorAll('.control-grid-2col .control-group input[type="number"]').forEach(input => {
+            const parent = input.parentElement;
+            if (parent.querySelector('.num-stepper')) return; // already wrapped
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'num-stepper';
+
+            const minus = document.createElement('button');
+            minus.className = 'step-btn step-minus';
+            minus.textContent = '\u2212';
+            minus.type = 'button';
+            minus.tabIndex = -1;
+            minus.addEventListener('mousedown', e => e.preventDefault());
+            minus.addEventListener('click', () => {
+                input.stepDown();
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            const plus = document.createElement('button');
+            plus.className = 'step-btn step-plus';
+            plus.textContent = '+';
+            plus.type = 'button';
+            plus.tabIndex = -1;
+            plus.addEventListener('mousedown', e => e.preventDefault());
+            plus.addEventListener('click', () => {
+                input.stepUp();
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            input.parentNode.insertBefore(wrapper, input);
+            wrapper.appendChild(minus);
+            wrapper.appendChild(input);
+            wrapper.appendChild(plus);
+        });
     }
 
     // --- Event binding ---
@@ -751,6 +790,10 @@ class App {
         // Volcano controls
         const volcanoControls = document.getElementById('volcanoControls');
         if (volcanoControls) volcanoControls.style.display = isVolcano ? '' : 'none';
+
+        // Hide graph-controls wrapper for modes that don't use it
+        const graphControlsEl = document.querySelector('.graph-controls');
+        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap) ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {

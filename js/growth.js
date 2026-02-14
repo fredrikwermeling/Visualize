@@ -48,12 +48,55 @@ class GrowthCurveRenderer {
                 '#0072B2', '#E69F00', '#009E73', '#CC79A7',
                 '#56B4E9', '#D55E00', '#F0E442', '#000000',
                 '#0072B2', '#E69F00'
+            ],
+            earth: [
+                '#8B4513', '#A0522D', '#6B8E23', '#556B2F',
+                '#B8860B', '#D2691E', '#CD853F', '#DEB887',
+                '#808000', '#BDB76B'
+            ],
+            ocean: [
+                '#003F5C', '#2F4B7C', '#665191', '#A05195',
+                '#D45087', '#F95D6A', '#FF7C43', '#FFA600',
+                '#488F31', '#00C9A7'
+            ],
+            neon: [
+                '#FF006E', '#FB5607', '#FFBE0B', '#3A86FF',
+                '#8338EC', '#06D6A0', '#EF476F', '#FFD166',
+                '#118AB2', '#073B4C'
+            ],
+            black: [
+                '#000000', '#000000', '#000000', '#000000',
+                '#000000', '#000000', '#000000', '#000000',
+                '#000000', '#000000'
             ]
         };
+
+        // Per-group symbol cycle for "per-group" mode or "black" theme
+        this.symbolCycle = ['circle', 'square', 'triangle', 'diamond', 'cross', 'star'];
     }
 
     setSignificance(markers) {
         this.significanceMarkers = markers || [];
+    }
+
+    _getSymbolForGroup(gi) {
+        const s = this.settings;
+        if (s.symbolShape === 'per-group' || s.colorTheme === 'black') {
+            return this.symbolCycle[gi % this.symbolCycle.length];
+        }
+        return s.symbolShape || 'circle';
+    }
+
+    _d3Symbol(shape) {
+        const map = {
+            circle: d3.symbolCircle,
+            square: d3.symbolSquare,
+            triangle: d3.symbolTriangle,
+            diamond: d3.symbolDiamond,
+            cross: d3.symbolCross,
+            star: d3.symbolStar
+        };
+        return map[shape] || d3.symbolCircle;
     }
 
     _getColor(index) {
@@ -130,6 +173,7 @@ class GrowthCurveRenderer {
         // Draw per group
         groups.forEach((groupName, gi) => {
             const color = this._getColor(gi);
+            const symbol = this._getSymbolForGroup(gi);
             const subjectIds = groupMap[groupName] || [];
             const groupStats = this._calcGroupStats(subjects, groupName, timepoints, subjectIds);
 
@@ -138,9 +182,9 @@ class GrowthCurveRenderer {
                 this._drawSubjectLines(g, timepoints, subjectIds, subjects, color, xScale, yScale);
             }
 
-            // Group mean + error ribbon
+            // Group mean + error
             if (s.showGroupMeans) {
-                this._drawGroupMean(g, timepoints, groupStats.means, groupStats.errors, color, xScale, yScale);
+                this._drawGroupMean(g, timepoints, groupStats.means, groupStats.errors, color, xScale, yScale, symbol);
             }
         });
 
@@ -207,26 +251,38 @@ class GrowthCurveRenderer {
         });
     }
 
-    _drawGroupMean(g, timepoints, means, errors, color, xScale, yScale) {
+    _drawGroupMean(g, timepoints, means, errors, color, xScale, yScale, symbol) {
         const s = this.settings;
+        const errStyle = s.errorStyle || 'ribbon';
+        const errDir = s.errorDir || 'both';
+        const capW = s.capWidth !== undefined ? s.capWidth : 6;
+        const symSize = s.symbolSize || 4;
 
-        // SEM/SD ribbon
         const validData = timepoints.map((t, i) => ({
             t, mean: means[i], err: errors[i]
         })).filter(d => d.mean !== null && !isNaN(d.mean));
 
-        const area = d3.area()
-            .x(d => xScale(d.t))
-            .y0(d => yScale(d.mean - d.err))
-            .y1(d => yScale(d.mean + d.err));
+        // Ribbon
+        if (errStyle === 'ribbon' || errStyle === 'both') {
+            const area = d3.area()
+                .x(d => xScale(d.t))
+                .y0(d => {
+                    const lo = errDir === 'above' ? d.mean : d.mean - d.err;
+                    return yScale(lo);
+                })
+                .y1(d => {
+                    const hi = errDir === 'below' ? d.mean : d.mean + d.err;
+                    return yScale(hi);
+                });
 
-        g.append('path')
-            .datum(validData)
-            .attr('fill', color)
-            .attr('fill-opacity', 0.15)
-            .attr('stroke', 'none')
-            .attr('class', 'sem-ribbon')
-            .attr('d', area);
+            g.append('path')
+                .datum(validData)
+                .attr('fill', color)
+                .attr('fill-opacity', 0.15)
+                .attr('stroke', 'none')
+                .attr('class', 'sem-ribbon')
+                .attr('d', area);
+        }
 
         // Mean line
         const line = d3.line()
@@ -238,19 +294,47 @@ class GrowthCurveRenderer {
             .datum(validData)
             .attr('fill', 'none')
             .attr('stroke', color)
-            .attr('stroke-width', s.meanLineWidth)
+            .attr('stroke-width', s.meanLineWidth || 2.5)
             .attr('d', line);
 
-        // Mean dots
+        // Error bars (line + cap)
+        if (errStyle === 'bars' || errStyle === 'both') {
+            validData.forEach(d => {
+                const x = xScale(d.t);
+                const yMean = yScale(d.mean);
+                const yHi = yScale(d.mean + d.err);
+                const yLo = yScale(d.mean - d.err);
+                const halfCap = capW / 2;
+
+                if (errDir !== 'below') {
+                    // Upper bar
+                    g.append('line').attr('x1', x).attr('y1', yMean).attr('x2', x).attr('y2', yHi)
+                        .attr('stroke', color).attr('stroke-width', 1.2);
+                    if (capW > 0) g.append('line').attr('x1', x - halfCap).attr('y1', yHi).attr('x2', x + halfCap).attr('y2', yHi)
+                        .attr('stroke', color).attr('stroke-width', 1.2);
+                }
+                if (errDir !== 'above') {
+                    // Lower bar
+                    g.append('line').attr('x1', x).attr('y1', yMean).attr('x2', x).attr('y2', yLo)
+                        .attr('stroke', color).attr('stroke-width', 1.2);
+                    if (capW > 0) g.append('line').attr('x1', x - halfCap).attr('y1', yLo).attr('x2', x + halfCap).attr('y2', yLo)
+                        .attr('stroke', color).attr('stroke-width', 1.2);
+                }
+            });
+        }
+
+        // Symbols at mean points
+        const symType = this._d3Symbol(symbol);
+        const symGen = d3.symbol().type(symType).size(symSize * symSize * Math.PI);
+
         g.selectAll(null)
             .data(validData)
             .enter()
-            .append('circle')
-            .attr('cx', d => xScale(d.t))
-            .attr('cy', d => yScale(d.mean))
-            .attr('r', 3)
+            .append('path')
+            .attr('transform', d => `translate(${xScale(d.t)},${yScale(d.mean)})`)
+            .attr('d', symGen)
             .attr('fill', color)
-            .attr('stroke', '#fff')
+            .attr('stroke', s.colorTheme === 'black' ? '#fff' : '#fff')
             .attr('stroke-width', 1);
     }
 
@@ -356,6 +440,7 @@ class GrowthCurveRenderer {
 
         groups.forEach((groupName, i) => {
             const color = this._getColor(i);
+            const symbol = this._getSymbolForGroup(i);
             const row = legend.append('g')
                 .attr('transform', `translate(5, ${i * 18 + 5})`);
 
@@ -365,8 +450,17 @@ class GrowthCurveRenderer {
                 .attr('stroke', color)
                 .attr('stroke-width', 2);
 
+            const symType = this._d3Symbol(symbol);
+            const symGen = d3.symbol().type(symType).size(36);
+            row.append('path')
+                .attr('transform', 'translate(8,6)')
+                .attr('d', symGen)
+                .attr('fill', color)
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 0.5);
+
             row.append('text')
-                .attr('x', 20)
+                .attr('x', 22)
                 .attr('y', 10)
                 .style('font-size', '11px')
                 .style('font-family', 'Aptos Display, sans-serif')

@@ -573,6 +573,12 @@ class App {
             document.getElementById('growthYMax').value = '';
             document.getElementById('growthColorTheme').value = 'default';
             document.getElementById('growthErrorType').value = 'sem';
+            document.getElementById('growthErrorStyle').value = 'ribbon';
+            document.getElementById('growthErrorDir').value = 'both';
+            document.getElementById('growthSymbol').value = 'circle';
+            document.getElementById('growthSymbolSize').value = '4';
+            document.getElementById('growthMeanLineWidth').value = '2.5';
+            document.getElementById('growthCapWidth').value = '6';
             document.getElementById('growthShowIndividual').checked = true;
             document.getElementById('growthShowMean').checked = true;
             this._growthTableData = null;
@@ -717,6 +723,27 @@ class App {
         document.querySelectorAll('.heatmap-only').forEach(el => {
             el.style.display = isHeatmap ? 'inline-block' : 'none';
         });
+
+        // Filter test type options by mode
+        const testSel = document.getElementById('testType');
+        if (testSel) {
+            testSel.querySelectorAll('optgroup').forEach(og => {
+                const label = og.getAttribute('label') || '';
+                if (label === 'Growth Curves') {
+                    og.style.display = isGrowth ? '' : 'none';
+                } else {
+                    og.style.display = isGrowth ? 'none' : '';
+                }
+            });
+            // Reset to appropriate default when switching modes
+            if (isGrowth && testSel.value !== 'two-way-rm-anova' && testSel.value !== 'none') {
+                testSel.value = 'two-way-rm-anova';
+                testSel.dispatchEvent(new Event('change'));
+            } else if (!isGrowth && testSel.value === 'two-way-rm-anova') {
+                testSel.value = 'one-way-anova';
+                testSel.dispatchEvent(new Event('change'));
+            }
+        }
     }
 
     _bindHeatmapControls() {
@@ -753,14 +780,14 @@ class App {
     }
 
     _bindGrowthControls() {
-        ['growthWidth', 'growthHeight', 'growthYMin', 'growthYMax'].forEach(id => {
+        ['growthWidth', 'growthHeight', 'growthYMin', 'growthYMax', 'growthSymbolSize', 'growthMeanLineWidth', 'growthCapWidth'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
                 this.growthRenderer._titleOffset = { x: 0, y: 0 };
                 this.updateGraph();
             });
         });
-        ['growthColorTheme', 'growthErrorType'].forEach(id => {
+        ['growthColorTheme', 'growthErrorType', 'growthErrorStyle', 'growthErrorDir', 'growthSymbol'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
         });
@@ -1042,6 +1069,12 @@ class App {
             yAxisMax: yMaxVal === '' ? null : parseFloat(yMaxVal),
             colorTheme: document.getElementById('growthColorTheme')?.value || 'default',
             errorType: document.getElementById('growthErrorType')?.value || 'sem',
+            errorStyle: document.getElementById('growthErrorStyle')?.value || 'ribbon',
+            errorDir: document.getElementById('growthErrorDir')?.value || 'both',
+            symbolShape: document.getElementById('growthSymbol')?.value || 'circle',
+            symbolSize: parseFloat(document.getElementById('growthSymbolSize')?.value) || 4,
+            meanLineWidth: parseFloat(document.getElementById('growthMeanLineWidth')?.value) || 2.5,
+            capWidth: parseFloat(document.getElementById('growthCapWidth')?.value) || 6,
             showIndividualLines: document.getElementById('growthShowIndividual')?.checked ?? true,
             showGroupMeans: document.getElementById('growthShowMean')?.checked ?? true
         };

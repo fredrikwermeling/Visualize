@@ -37,6 +37,7 @@
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
                     <button class="mode-btn" data-mode="column">Column</button>
                     <button class="mode-btn" data-mode="growth">Growth</button>
+                    <button id="resetMode" class="btn btn-secondary" style="margin-left:auto;padding:2px 8px;font-size:10px" title="Reset current mode settings to defaults">Reset</button>
                 </div>
                 <h2>Data Input</h2>
                 
@@ -469,6 +470,26 @@
                                 <label>Control:</label>
                                 <select id="dunnettControlIndex"></select>
                             </div>
+                            <div class="control-group" id="growthCorrectionGroup" style="display:none">
+                                <label>Correct:</label>
+                                <select id="growthCorrectionMethod">
+                                    <option value="holm">Holm-Bonferroni</option>
+                                    <option value="bonferroni">Bonferroni</option>
+                                    <option value="sidak">Sidak</option>
+                                    <option value="none">None (uncorrected)</option>
+                                </select>
+                            </div>
+                            <div class="control-group" id="growthCompareGroup" style="display:none">
+                                <label>Compare:</label>
+                                <select id="growthCompareMode">
+                                    <option value="all">All pairwise</option>
+                                    <option value="control">vs Control</option>
+                                </select>
+                            </div>
+                            <div class="control-group" id="growthControlGroup" style="display:none">
+                                <label>Control:</label>
+                                <select id="growthControlSelect"></select>
+                            </div>
                             <div class="control-group" id="twoGroupSelectGroup" style="display:none">
                                 <label>Group 1:</label>
                                 <select id="twoGroupSelect1"></select>
@@ -487,6 +508,7 @@
                             <button id="runStats" class="btn btn-primary" style="padding:6px 14px">Run Test</button>
                             <button id="clearStats" class="btn btn-secondary" style="padding:6px 14px">Clear</button>
                             <label style="font-size:12px;display:flex;align-items:center;gap:3px;margin-left:auto"><input type="checkbox" id="showStatsLegend"> Legend</label>
+                            <label style="font-size:12px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="showStatsInfoBox"> Info box</label>
                         </div>
                         <div id="statsResults" class="stats-results"></div>
                     </div>

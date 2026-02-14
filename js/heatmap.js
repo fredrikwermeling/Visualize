@@ -263,6 +263,10 @@ class HeatmapRenderer {
         const isWinsorized = this.settings.winsorize !== 'none';
         this._drawColorLegend(svg, colorScale, width - legendWidth - 5, marginTop, legendWidth - 10, cellAreaHeight, isWinsorized, legendTitle);
 
+        // Info box (SVG, for export)
+        if (this.settings.showInfoBox) {
+            this._drawInfoBox(svg, marginLeft, height, width);
+        }
     }
 
     _getAutoLegendTitle() {
@@ -1271,6 +1275,64 @@ class HeatmapRenderer {
         sizeInput.addEventListener('mousedown', (e) => e.stopPropagation());
 
         return { toolbar, familySelect, sizeInput, boldBtn, italicBtn };
+    }
+
+    _drawInfoBox(svg, marginLeft, height, width) {
+        const s = this.settings;
+        const lines = [];
+        const clusterLabels = { none: 'None', rows: 'Rows', cols: 'Columns', both: 'Both' };
+        const linkageLabels = { average: 'Average (UPGMA)', complete: 'Complete', single: 'Single' };
+        const normLabels = { none: 'None', all: 'Whole dataset', row: 'Per row', col: 'Per column' };
+        const normMethodLabels = { zscore: 'Mean/SD (z-score)', robust: 'Median/MAD' };
+
+        lines.push(`Clustering: ${clusterLabels[s.cluster] || 'None'}${s.cluster !== 'none' ? ' (' + (linkageLabels[s.linkage] || s.linkage) + ', Euclidean)' : ''}`);
+        if (s.normalize !== 'none') lines.push(`Normalization: ${normLabels[s.normalize]}, ${normMethodLabels[s.normMethod] || s.normMethod}`);
+        if (s.winsorize !== 'none') lines.push(`Winsorized: ${s.winsorize}\u2013${100 - parseFloat(s.winsorize)} percentile`);
+        if (s.outlierMode && s.outlierMode !== 'none') lines.push(`Outlier detection: IQR method (per ${s.outlierMode === 'col' ? 'column' : 'row'})`);
+        lines.push(`Analysis: jStat (JavaScript Statistical Library)`);
+
+        if (!this._infoBoxOffset) this._infoBoxOffset = { x: 0, y: 0 };
+        const ox = this._infoBoxOffset.x;
+        const oy = this._infoBoxOffset.y;
+        const boxX = marginLeft + ox;
+        const boxY = height - 5 + oy;
+
+        const infoG = svg.append('g')
+            .attr('class', 'stats-info-box')
+            .attr('transform', `translate(${boxX},${boxY})`);
+
+        const lineHeight = 12;
+        const padding = 6;
+
+        lines.forEach((line, i) => {
+            infoG.append('text')
+                .attr('x', padding)
+                .attr('y', padding + i * lineHeight + 9)
+                .style('font-family', 'Aptos Display, sans-serif')
+                .style('font-size', '9px')
+                .style('fill', '#555')
+                .text(line);
+        });
+
+        const bbox = infoG.node().getBBox();
+        infoG.insert('rect', 'text')
+            .attr('x', bbox.x - 3)
+            .attr('y', bbox.y - 2)
+            .attr('width', bbox.width + 6)
+            .attr('height', bbox.height + 4)
+            .attr('fill', '#fff')
+            .attr('fill-opacity', 0.92)
+            .attr('stroke', '#ddd')
+            .attr('stroke-width', 0.5)
+            .attr('rx', 3);
+
+        const self = this;
+        infoG.call(d3.drag().on('drag', function(event) {
+            if (!self._infoBoxOffset) self._infoBoxOffset = { x: 0, y: 0 };
+            self._infoBoxOffset.x += event.dx;
+            self._infoBoxOffset.y += event.dy;
+            d3.select(this).attr('transform', `translate(${marginLeft + self._infoBoxOffset.x},${height - 5 + self._infoBoxOffset.y})`);
+        })).style('cursor', 'move');
     }
 
     _drawTitle(svg, width, title) {

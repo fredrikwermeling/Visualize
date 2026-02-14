@@ -503,6 +503,11 @@ class GraphRenderer {
             this._drawStatsLegend(g);
         }
 
+        // Draw stats info box
+        if (this.settings.infoBox) {
+            this._drawInfoBox(g);
+        }
+
         // Draw group color legend
         if (this.settings.showGroupLegend) {
             this._drawGroupLegend(g, filteredData);
@@ -2223,6 +2228,62 @@ class GraphRenderer {
             })
             .on('end', function() { d3.select(this).style('cursor', 'grab'); })
         );
+    }
+
+    _drawInfoBox(g) {
+        const info = this.settings.infoBox;
+        if (!info) return;
+
+        const lines = [];
+        if (info.test) lines.push(`Test: ${info.test}`);
+        if (info.postHoc) lines.push(`Post-hoc: ${info.postHoc}`);
+        if (info.sig) lines.push(info.sig);
+        if (info.n) lines.push(info.n);
+        if (info.pkg) lines.push(`Analysis: ${info.pkg}`);
+
+        if (!this.settings.infoBoxOffset) this.settings.infoBoxOffset = { x: 0, y: 0 };
+        const off = this.settings.infoBoxOffset;
+        const boxX = 0 + off.x;
+        const boxY = this.innerHeight + 55 + off.y;
+
+        const infoG = g.append('g')
+            .attr('class', 'stats-info-box')
+            .attr('transform', `translate(${boxX},${boxY})`);
+
+        const lineHeight = 12;
+        const padding = 6;
+
+        lines.forEach((line, i) => {
+            infoG.append('text')
+                .attr('x', padding)
+                .attr('y', padding + i * lineHeight + 9)
+                .style('font-family', this.settings.fontFamily || 'Aptos Display, sans-serif')
+                .style('font-size', '9px')
+                .style('fill', '#555')
+                .text(line);
+        });
+
+        const bbox = infoG.node().getBBox();
+        infoG.insert('rect', 'text')
+            .attr('x', bbox.x - 3)
+            .attr('y', bbox.y - 2)
+            .attr('width', bbox.width + 6)
+            .attr('height', bbox.height + 4)
+            .attr('fill', '#fff')
+            .attr('fill-opacity', 0.92)
+            .attr('stroke', '#ddd')
+            .attr('stroke-width', 0.5)
+            .attr('rx', 3);
+
+        const self = this;
+        infoG.call(d3.drag().on('drag', function(event) {
+            if (!self.settings.infoBoxOffset) self.settings.infoBoxOffset = { x: 0, y: 0 };
+            self.settings.infoBoxOffset.x += event.dx;
+            self.settings.infoBoxOffset.y += event.dy;
+            const newX = 0 + self.settings.infoBoxOffset.x;
+            const newY = self.innerHeight + 55 + self.settings.infoBoxOffset.y;
+            d3.select(this).attr('transform', `translate(${newX},${newY})`);
+        })).style('cursor', 'move');
     }
 
     _drawGroupLegend(g, data) {

@@ -176,6 +176,11 @@ class GrowthCurveRenderer {
             this._drawSignificanceMarkers(g, this.significanceMarkers, growthData, xScale, yScale, innerH);
         }
 
+        // Info box
+        if (s.infoBox) {
+            this._drawInfoBox(svg, s.infoBox, margin, width, height);
+        }
+
         // Tooltip
         this._setupTooltip(svg, g, growthData, xScale, yScale, innerW, innerH);
     }
@@ -484,5 +489,62 @@ class GrowthCurveRenderer {
             .on('mouseleave', function() {
                 tooltip.style.display = 'none';
             });
+    }
+
+    _drawInfoBox(svg, info, margin, width, height) {
+        if (!info) return;
+
+        const lines = [];
+        if (info.test) lines.push(`Test: ${info.test}`);
+        if (info.postHoc) lines.push(`Post-hoc: ${info.postHoc}`);
+        if (info.sig) lines.push(info.sig);
+        if (info.n) lines.push(info.n);
+        if (info.factors) info.factors.forEach(f => lines.push(f));
+        if (info.pkg) lines.push(`Analysis: ${info.pkg}`);
+
+        if (!this._infoBoxOffset) this._infoBoxOffset = { x: 0, y: 0 };
+        const ox = this._infoBoxOffset.x;
+        const oy = this._infoBoxOffset.y;
+        const boxX = margin.left + 5 + ox;
+        const boxY = height - 10 + oy;
+
+        const infoG = svg.append('g')
+            .attr('class', 'stats-info-box')
+            .attr('transform', `translate(${boxX},${boxY})`);
+
+        const lineHeight = 12;
+        const padding = 6;
+
+        lines.forEach((line, i) => {
+            infoG.append('text')
+                .attr('x', padding)
+                .attr('y', padding + i * lineHeight + 9)
+                .style('font-family', 'Aptos Display, sans-serif')
+                .style('font-size', '9px')
+                .style('fill', '#555')
+                .text(line);
+        });
+
+        // Background
+        const bbox = infoG.node().getBBox();
+        infoG.insert('rect', 'text')
+            .attr('x', bbox.x - 3)
+            .attr('y', bbox.y - 2)
+            .attr('width', bbox.width + 6)
+            .attr('height', bbox.height + 4)
+            .attr('fill', '#fff')
+            .attr('fill-opacity', 0.92)
+            .attr('stroke', '#ddd')
+            .attr('stroke-width', 0.5)
+            .attr('rx', 3);
+
+        // Draggable
+        const self = this;
+        infoG.call(d3.drag().on('drag', function(event) {
+            if (!self._infoBoxOffset) self._infoBoxOffset = { x: 0, y: 0 };
+            self._infoBoxOffset.x += event.dx;
+            self._infoBoxOffset.y += event.dy;
+            d3.select(this).attr('transform', `translate(${margin.left + 5 + self._infoBoxOffset.x},${height - 10 + self._infoBoxOffset.y})`);
+        })).style('cursor', 'move');
     }
 }

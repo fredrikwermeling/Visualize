@@ -666,35 +666,67 @@ class Statistics {
         };
     }
 
-    static growthPostHoc(growthData) {
+    static growthPostHoc(growthData, options = {}) {
         const { timepoints, groups, subjects, groupMap } = growthData;
-        const results = [];
-        const numComparisons = timepoints.length * (groups.length * (groups.length - 1)) / 2;
+        const correction = options.correction || 'holm';
+        const compareMode = options.compareMode || 'all';  // 'all' or 'control'
+        const controlGroup = options.controlGroup || groups[0];
 
+        // Build raw p-values for all relevant comparisons
+        const raw = [];
         timepoints.forEach((t, ti) => {
-            for (let g1 = 0; g1 < groups.length; g1++) {
-                for (let g2 = g1 + 1; g2 < groups.length; g2++) {
-                    // Collect values at this timepoint for each group
-                    const vals1 = (groupMap[groups[g1]] || []).map(sid => subjects[sid]?.[ti]).filter(v => v !== null && !isNaN(v));
-                    const vals2 = (groupMap[groups[g2]] || []).map(sid => subjects[sid]?.[ti]).filter(v => v !== null && !isNaN(v));
-
-                    if (vals1.length < 2 || vals2.length < 2) continue;
-
-                    const result = this.tTest(vals1, vals2, false);
-                    const correctedP = Math.min(result.p * numComparisons, 1);
-                    const sigLabel = this.getSignificanceLevel(correctedP);
-
-                    results.push({
-                        timepoint: t,
-                        group1: groups[g1],
-                        group2: groups[g2],
-                        p: result.p,
-                        correctedP,
-                        significant: correctedP < 0.05,
-                        sigLabel
-                    });
+            const pairs = [];
+            if (compareMode === 'control') {
+                // Only compare each group vs control
+                groups.forEach(g => {
+                    if (g === controlGroup) return;
+                    pairs.push([controlGroup, g]);
+                });
+            } else {
+                // All pairwise
+                for (let g1 = 0; g1 < groups.length; g1++) {
+                    for (let g2 = g1 + 1; g2 < groups.length; g2++) {
+                        pairs.push([groups[g1], groups[g2]]);
+                    }
                 }
             }
+
+            pairs.forEach(([gn1, gn2]) => {
+                const vals1 = (groupMap[gn1] || []).map(sid => subjects[sid]?.[ti]).filter(v => v !== null && !isNaN(v));
+                const vals2 = (groupMap[gn2] || []).map(sid => subjects[sid]?.[ti]).filter(v => v !== null && !isNaN(v));
+                if (vals1.length < 2 || vals2.length < 2) return;
+
+                const result = this.tTest(vals1, vals2, false);
+                raw.push({ timepoint: t, group1: gn1, group2: gn2, p: result.p });
+            });
+        });
+
+        // Apply correction
+        const m = raw.length;
+        const results = raw.map((r, i) => ({ ...r, correctedP: r.p }));
+
+        if (correction === 'bonferroni') {
+            results.forEach(r => { r.correctedP = Math.min(r.p * m, 1); });
+        } else if (correction === 'holm') {
+            // Holm-Bonferroni: sort by p, multiply by (m - rank)
+            const sorted = results.map((r, i) => ({ r, i, p: r.p })).sort((a, b) => a.p - b.p);
+            sorted.forEach((item, rank) => {
+                item.r.correctedP = Math.min(item.r.p * (m - rank), 1);
+            });
+            // Enforce monotonicity
+            let maxP = 0;
+            sorted.forEach(item => {
+                maxP = Math.max(maxP, item.r.correctedP);
+                item.r.correctedP = maxP;
+            });
+        } else if (correction === 'sidak') {
+            results.forEach(r => { r.correctedP = Math.min(1 - Math.pow(1 - r.p, m), 1); });
+        }
+        // correction === 'none': correctedP stays = p
+
+        results.forEach(r => {
+            r.significant = r.correctedP < 0.05;
+            r.sigLabel = this.getSignificanceLevel(r.correctedP);
         });
 
         return results;

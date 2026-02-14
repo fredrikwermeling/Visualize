@@ -244,17 +244,30 @@ class App {
         // Show/hide post-hoc controls based on test type
         document.getElementById('testType').addEventListener('change', (e) => {
             const isMultiGroup = this._isMultiGroupTest(e.target.value);
+            const isGrowth = this._isGrowthTest(e.target.value);
             const isFriedman = e.target.value === 'friedman';
             document.getElementById('postHocGroup').style.display = (isMultiGroup && !isFriedman) ? '' : 'none';
             this._updatePostHocAdvice();
             this._updateDunnettVisibility();
             this._updateTwoGroupSelectors();
             this._updateTestDescription();
+            this._updateGrowthStatsVisibility(isGrowth);
         });
 
         document.getElementById('postHocMethod').addEventListener('change', () => {
             this._updatePostHocAdvice();
             this._updateDunnettVisibility();
+        });
+
+        // Growth compare mode toggle
+        document.getElementById('growthCompareMode').addEventListener('change', (e) => {
+            document.getElementById('growthControlGroup').style.display = e.target.value === 'control' ? '' : 'none';
+        });
+
+        // Info box checkbox
+        document.getElementById('showStatsInfoBox').addEventListener('change', (e) => {
+            this._statsInfoBoxVisible = e.target.checked;
+            this.updateGraph();
         });
 
         // Initialize post-hoc visibility
@@ -264,6 +277,8 @@ class App {
         this._updatePostHocAdvice();
         this._updateTwoGroupSelectors();
         this._updateTestDescription();
+        this._statsInfoBoxVisible = false;
+        this._statsInfoText = null;
     }
 
     _isMultiGroupTest(testType) {
@@ -272,6 +287,29 @@ class App {
 
     _isGrowthTest(testType) {
         return testType === 'two-way-rm-anova';
+    }
+
+    _updateGrowthStatsVisibility(isGrowth) {
+        document.getElementById('growthCorrectionGroup').style.display = isGrowth ? '' : 'none';
+        document.getElementById('growthCompareGroup').style.display = isGrowth ? '' : 'none';
+        const compareMode = document.getElementById('growthCompareMode').value;
+        document.getElementById('growthControlGroup').style.display = (isGrowth && compareMode === 'control') ? '' : 'none';
+        if (isGrowth) this._populateGrowthControlSelect();
+    }
+
+    _populateGrowthControlSelect() {
+        const sel = document.getElementById('growthControlSelect');
+        const growthData = this.dataTable.getGrowthData();
+        if (!sel || !growthData) return;
+        const prev = sel.value;
+        sel.innerHTML = '';
+        growthData.groups.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g;
+            opt.textContent = g;
+            sel.appendChild(opt);
+        });
+        if (prev && growthData.groups.includes(prev)) sel.value = prev;
     }
 
     _updateTestDescription() {
@@ -508,6 +546,64 @@ class App {
                 this.updateGraph();
             });
         });
+
+        // Reset button
+        const resetBtn = document.getElementById('resetMode');
+        if (resetBtn) resetBtn.addEventListener('click', () => this._resetCurrentMode());
+    }
+
+    _resetCurrentMode() {
+        this._clearStats();
+        this._lastAutoSizeKey = null;
+        this._statsInfoText = null;
+        this._statsInfoBoxVisible = false;
+        const infoBox = document.getElementById('showStatsInfoBox');
+        if (infoBox) infoBox.checked = false;
+
+        if (this.mode === 'growth') {
+            this.growthRenderer.setSignificance([]);
+            this.growthRenderer._titleOffset = { x: 0, y: 0 };
+            this.growthRenderer._legendOffset = { x: 0, y: 0 };
+            this.growthRenderer.settings.title = 'Growth Curve';
+            this.growthRenderer.settings.xLabel = 'Time';
+            this.growthRenderer.settings.yLabel = 'Value';
+            document.getElementById('growthWidth').value = 400;
+            document.getElementById('growthHeight').value = 300;
+            document.getElementById('growthYMin').value = '';
+            document.getElementById('growthYMax').value = '';
+            document.getElementById('growthColorTheme').value = 'default';
+            document.getElementById('growthErrorType').value = 'sem';
+            document.getElementById('growthShowIndividual').checked = true;
+            document.getElementById('growthShowMean').checked = true;
+            this._growthTableData = null;
+            this.dataTable.loadGrowthSampleData();
+        } else if (this.mode === 'column') {
+            this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
+            this.graphRenderer._titleOffset = { x: 0, y: 0 };
+            document.getElementById('graphWidth').value = 150;
+            document.getElementById('graphHeight').value = 200;
+            document.getElementById('yAxisMin').value = '';
+            document.getElementById('yAxisMax').value = '';
+            document.getElementById('yAxisTickStep').value = '';
+            document.getElementById('colorTheme').value = 'default';
+            document.getElementById('showGroupLegend').checked = false;
+            this._columnTableData = null;
+            this.dataTable.loadSampleData();
+        } else {
+            this.heatmapRenderer._titleOffset = { x: 0, y: 0 };
+            this.heatmapRenderer._legendOffset = { x: 0, y: 0 };
+            document.getElementById('heatmapWidth').value = 300;
+            document.getElementById('heatmapHeight').value = 300;
+            document.getElementById('heatmapCluster').value = 'none';
+            document.getElementById('heatmapNormalize').value = 'none';
+            document.getElementById('heatmapColorScheme').value = 'Viridis';
+            document.getElementById('heatmapShowValues').checked = false;
+            document.getElementById('heatmapShowGroupBar').checked = false;
+            document.getElementById('heatmapShowInfo').checked = false;
+            this._heatmapTableData = null;
+            this.dataTable.loadHeatmapSampleData();
+        }
+        this.updateGraph();
     }
 
     _saveTableData(mode) {
@@ -1069,6 +1165,7 @@ class App {
             const matrixData = this.dataTable.getMatrixData();
             this._autoSizeDimensions(matrixData);
             const settings = this._getHeatmapSettings();
+            settings.showInfoBox = document.getElementById('heatmapShowInfo')?.checked || false;
             this.heatmapRenderer.render(matrixData, settings);
             this._updateHeatmapInfo(settings, infoEl);
             this._updateHeatmapColManager(matrixData);
@@ -1083,6 +1180,7 @@ class App {
             if (infoEl) infoEl.style.display = 'none';
             const growthData = this.dataTable.getGrowthData();
             const growthSettings = this._getGrowthSettings();
+            growthSettings.infoBox = this._statsInfoBoxVisible ? this._statsInfoText : null;
             this.growthRenderer.render(growthData, growthSettings);
             return;
         }
@@ -1090,6 +1188,7 @@ class App {
 
         const data = this.dataTable.getData();
         this._autoSizeDimensions(data);
+        this.graphRenderer.settings.infoBox = this._statsInfoBoxVisible ? this._statsInfoText : null;
         this.graphRenderer.render(data);
 
         // Sync X-angle dropdown to show effective angle when auto-forced
@@ -1512,6 +1611,15 @@ class App {
         // Set test name for legend
         this.graphRenderer.updateSettings({ statsTestName: testName });
 
+        // Info box text
+        this._statsInfoText = {
+            test: testName,
+            postHoc: null,
+            sig: '* p < 0.05, ** p < 0.01, *** p < 0.001',
+            n: `${group1.label}: n=${group1.values.length}, ${group2.label}: n=${group2.values.length}`,
+            pkg: 'jStat (JavaScript Statistical Library)'
+        };
+
         // Add significance bracket to graph
         this.graphRenderer.setSignificance([{
             group1Index,
@@ -1733,6 +1841,19 @@ class App {
         }
 
         this._showStatsResult(html);
+
+        // Info box text
+        const postHocMethod = document.getElementById('postHocMethod')?.value || '';
+        const postHocLabels = { tukey: 'Tukey HSD', bonferroni: 'Bonferroni', holm: 'Holm-Bonferroni', dunnett: 'Dunnett (vs control)' };
+        const nStrs = filledGroups.map(g => `${g.label}: n=${g.values.length}`).join(', ');
+        this._statsInfoText = {
+            test: testName,
+            postHoc: significantPairs.length > 0 ? (postHocLabels[postHocMethod] || postHocMethod) : null,
+            sig: '* p < 0.05, ** p < 0.01, *** p < 0.001',
+            n: nStrs,
+            pkg: 'jStat (JavaScript Statistical Library)'
+        };
+
         this.graphRenderer.setSignificance(significantPairs);
         this.updateGraph();
     }
@@ -1743,6 +1864,19 @@ class App {
             this._showStatsResult('Need at least 2 groups and 2 timepoints for two-way RM ANOVA.');
             return;
         }
+
+        // Populate and read options
+        this._populateGrowthControlSelect();
+        const correction = document.getElementById('growthCorrectionMethod')?.value || 'holm';
+        const compareMode = document.getElementById('growthCompareMode')?.value || 'all';
+        const controlGroup = document.getElementById('growthControlSelect')?.value || growthData.groups[0];
+
+        const correctionLabels = {
+            holm: 'Holm-Bonferroni', bonferroni: 'Bonferroni',
+            sidak: '\u0160id\u00e1k', none: 'Uncorrected'
+        };
+        const corrLabel = correctionLabels[correction] || correction;
+        const compareLabel = compareMode === 'control' ? `vs ${controlGroup}` : 'all pairwise';
 
         try {
             const result = Statistics.twoWayRepeatedMeasuresAnova(growthData);
@@ -1766,23 +1900,36 @@ class App {
                 html += `<div class="result-item"><span class="result-label">${f.label}:</span> <span class="result-value">F(${f.data.df1},${f.data.df2}) = ${f.data.F.toFixed(3)}, ${pFormatted} <span class="${isSig ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
             });
 
-            // Always show post-hoc comparisons as clickable rows
+            // Post-hoc comparisons as clickable rows
             html += `<hr style="margin:6px 0;border-color:#eee">`;
-            html += `<div class="result-item" style="font-weight:600">Per-timepoint comparisons (Bonferroni) — click to show on graph</div>`;
+            html += `<div class="result-item" style="font-weight:600">Post-hoc: ${compareLabel}, ${corrLabel} — click to show on graph</div>`;
             html += `<div style="margin:4px 0"><button class="btn btn-secondary growth-sig-all" style="padding:1px 6px;font-size:10px">Show sig.</button> <button class="btn btn-secondary growth-sig-none" style="padding:1px 6px;font-size:10px">Clear all</button></div>`;
 
-            const postHoc = Statistics.growthPostHoc(growthData);
+            const postHoc = Statistics.growthPostHoc(growthData, { correction, compareMode, controlGroup });
             postHoc.forEach((r, idx) => {
                 const pFormatted = Statistics.formatPValue(r.correctedP);
                 const isSig = r.significant;
                 const cls = isSig ? 'significant' : 'not-significant';
                 html += `<div class="result-item growth-posthoc-row" data-idx="${idx}" style="cursor:pointer;padding:2px 4px;border-radius:3px" title="Click to toggle on graph">`;
-                html += `<span class="result-value" style="font-size:12px">t=${r.timepoint}: ${r.group1} vs ${r.group2} — ${pFormatted} <span class="${cls}">${r.sigLabel}</span></span>`;
+                html += `<span class="result-value" style="font-size:12px">t=${r.timepoint}: ${r.group1} vs ${r.group2} \u2014 ${pFormatted} <span class="${cls}">${r.sigLabel}</span></span>`;
                 html += `</div>`;
             });
 
             this._showStatsResult(html);
             this._bindGrowthPostHocToggles(postHoc);
+
+            // Build info text for SVG info box
+            const nPerGroup = growthData.groups.map(g => (growthData.groupMap[g] || []).length);
+            const nStr = nPerGroup.every(n => n === nPerGroup[0]) ? `n = ${nPerGroup[0]}/group` : nPerGroup.map((n, i) => `${growthData.groups[i]}: n=${n}`).join(', ');
+            this._statsInfoText = {
+                test: testName,
+                postHoc: `Per-timepoint t-tests (${compareLabel}), ${corrLabel} correction`,
+                sig: '* p < 0.05, ** p < 0.01, *** p < 0.001',
+                n: nStr,
+                pkg: 'jStat (JavaScript Statistical Library)',
+                factors: factors.map(f => `${f.label}: F(${f.data.df1},${f.data.df2})=${f.data.F.toFixed(2)}, ${Statistics.formatPValue(f.data.p)}`)
+            };
+            this.updateGraph();
         } catch (e) {
             this._showStatsResult(`Error: ${e.message}`);
         }
@@ -1863,6 +2010,7 @@ class App {
         container.classList.add('empty');
         this.graphRenderer.setSignificance([]);
         this.growthRenderer.setSignificance([]);
+        this._statsInfoText = null;
     }
 }
 

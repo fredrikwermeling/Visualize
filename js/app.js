@@ -104,7 +104,7 @@ class App {
         });
 
         // Heatmap dimension controls
-        ['heatmapWidth', 'heatmapHeight'].forEach(id => {
+        ['heatmapWidth', 'heatmapHeight', 'heatmapLegendWidth'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
                 this.heatmapRenderer._titleOffset = { x: 0, y: 0 };
@@ -577,11 +577,11 @@ class App {
             this.growthRenderer.settings.titleOffset = { x: 0, y: 0 };
             this.growthRenderer.settings.xLabelOffset = { x: 0, y: 0 };
             this.growthRenderer.settings.yLabelOffset = { x: 0, y: 0 };
-            this.growthRenderer.settings.titleFont = { family: 'Aptos Display', size: 18, bold: true, italic: false };
-            this.growthRenderer.settings.xLabelFont = { family: 'Aptos Display', size: 15, bold: false, italic: false };
-            this.growthRenderer.settings.yLabelFont = { family: 'Aptos Display', size: 15, bold: false, italic: false };
-            this.growthRenderer.settings.xTickFont = { family: 'Aptos Display', size: 12, bold: false, italic: false };
-            this.growthRenderer.settings.yTickFont = { family: 'Aptos Display', size: 12, bold: false, italic: false };
+            this.growthRenderer.settings.titleFont = { family: 'Arial', size: 18, bold: true, italic: false };
+            this.growthRenderer.settings.xLabelFont = { family: 'Arial', size: 15, bold: false, italic: false };
+            this.growthRenderer.settings.yLabelFont = { family: 'Arial', size: 15, bold: false, italic: false };
+            this.growthRenderer.settings.xTickFont = { family: 'Arial', size: 12, bold: false, italic: false };
+            this.growthRenderer.settings.yTickFont = { family: 'Arial', size: 12, bold: false, italic: false };
             this.growthRenderer.settings.xTickStep = null;
             this.growthRenderer.settings.yTickStep = null;
             document.getElementById('growthWidth').value = 400;
@@ -1064,16 +1064,16 @@ class App {
         const panel = document.getElementById('textSettingsPanel');
         const handle = document.getElementById('textSettingsDragHandle');
         if (!panel || !handle) return;
-        let startX, startY, startLeft, startTop;
+        let offsetX, offsetY;
         handle.addEventListener('mousedown', (e) => {
             if (e.target.tagName === 'BUTTON') return;
             e.preventDefault();
-            startX = e.clientX; startY = e.clientY;
             const rect = panel.getBoundingClientRect();
-            startLeft = rect.left; startTop = rect.top;
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
             const onMove = (ev) => {
-                panel.style.left = (startLeft + ev.clientX - startX) + 'px';
-                panel.style.top = (startTop + ev.clientY - startY) + 'px';
+                panel.style.left = (ev.clientX - offsetX) + 'px';
+                panel.style.top = (ev.clientY - offsetY) + 'px';
                 panel.style.right = 'auto';
             };
             const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
@@ -1113,13 +1113,14 @@ class App {
         if (!panel || !body) return;
 
         // Position near the toolbar if not already placed
-        if (!panel.style.left || panel.style.display === 'none') {
+        if (!this._textSettingsPlaced || panel.style.display === 'none') {
             const toolbar = document.getElementById('drawingToolbar');
             if (toolbar) {
                 const rect = toolbar.getBoundingClientRect();
-                panel.style.left = (rect.left + window.scrollX) + 'px';
-                panel.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+                panel.style.left = rect.left + 'px';
+                panel.style.top = (rect.bottom + 4) + 'px';
                 panel.style.right = 'auto';
+                this._textSettingsPlaced = true;
             }
         }
         panel.style.display = '';
@@ -1133,7 +1134,7 @@ class App {
 
         const renderer = this._getTextSettingsRenderer();
         const s = renderer.settings;
-        const families = ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
+        const families = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
 
         // Define elements per mode
         let elements;
@@ -1296,7 +1297,8 @@ class App {
             groupLabelItemOffsets: this.heatmapRenderer.settings.groupLabelItemOffsets || {},
             colLabelOverrides: this.heatmapRenderer.settings.colLabelOverrides || {},
             rowLabelOverrides: this.heatmapRenderer.settings.rowLabelOverrides || {},
-            outlierMode: document.getElementById('heatmapOutlierMode')?.value || 'none'
+            outlierMode: document.getElementById('heatmapOutlierMode')?.value || 'none',
+            legendBarWidth: parseInt(document.getElementById('heatmapLegendWidth')?.value) || null
         };
     }
 

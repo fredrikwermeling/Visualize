@@ -272,6 +272,10 @@
                                     <option value="row">By row</option>
                                 </select>
                             </div>
+                            <div class="hm-ctrl">
+                                <label>Legend W</label>
+                                <input type="number" id="heatmapLegendWidth" value="" placeholder="Auto" min="20" max="150" step="5">
+                            </div>
                         </div>
                         <div id="outlierExplanation" style="display:none;font-size:11px;color:#666;margin:2px 0 6px;padding:4px 6px;background:#f8f8f8;border:1px solid #e5e7eb;border-radius:3px;line-height:1.5">
                             <b>Outlier detection (Tukey's fences):</b> For each row or column, the interquartile range (IQR = Q3 &minus; Q1) is calculated. Values below <b>Q1 &minus; 1.5 &times; IQR</b> or above <b>Q3 + 1.5 &times; IQR</b> are flagged as outliers and marked with a black dot. This is a standard non-parametric method that does not assume normality.
@@ -549,6 +553,17 @@
 
                     <div class="control-section">
                         <h3>Export</h3>
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px">
+                            <label style="font-weight:500;color:#4b5563">PNG scale:</label>
+                            <select id="pngScale" style="padding:2px 4px;border:1px solid #e5e7eb;border-radius:4px;font-size:11px">
+                                <option value="1">1x</option>
+                                <option value="2" selected>2x</option>
+                                <option value="3">3x</option>
+                                <option value="4">4x</option>
+                                <option value="6">6x</option>
+                                <option value="8">8x</option>
+                            </select>
+                        </div>
                         <div class="export-grid">
                             <button id="exportPNG" class="btn btn-primary">PNG</button>
                             <button id="exportSVG" class="btn btn-primary">SVG</button>

@@ -1150,7 +1150,7 @@ tr:hover .row-delete-btn {
 
 /* Text Settings Panel */
 .text-settings-panel {
-    position: absolute;
+    position: fixed;
     z-index: 300;
     background: var(--bg-white);
     border: 1px solid var(--gray-200);

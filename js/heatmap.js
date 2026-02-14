@@ -15,9 +15,9 @@ class HeatmapRenderer {
             legendTitle: null,  // null = auto-generate, '' = hidden, string = custom
             title: 'Heatmap',
             groupColorOverrides: {},  // { groupName: '#color' }
-            titleFont: { family: 'Aptos Display', size: 18, bold: true, italic: false },
-            legendTitleFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
-            groupLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
+            titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
+            legendTitleFont: { family: 'Arial', size: 15, bold: false, italic: false },
+            groupLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
             groupLabelOverrides: {},  // { groupName: 'overriddenText' }
             groupLabelItemOffsets: {},  // { groupName: {x,y} } per-item drag offsets
             groupColorTheme: 'default',  // color theme for group bar
@@ -28,8 +28,9 @@ class HeatmapRenderer {
             colLabelAngle: 45,
             colLabelOverrides: {},
             rowLabelOverrides: {},
-            rowLabelFont: { family: 'Aptos Display', size: null, bold: false, italic: false },
-            colLabelFont: { family: 'Aptos Display', size: null, bold: false, italic: false },
+            rowLabelFont: { family: 'Arial', size: null, bold: false, italic: false },
+            colLabelFont: { family: 'Arial', size: null, bold: false, italic: false },
+            legendBarWidth: null,  // null = auto (50px)
             excludedCells: new Set()
         };
         // Drag offsets for movable elements
@@ -179,7 +180,7 @@ class HeatmapRenderer {
             : colAngle === 90
                 ? Math.min(maxColLabelLen * 7, 120)  // vertical: full text length
                 : Math.min(maxColLabelLen * 5, 80);   // angled: diagonal projection
-        const legendWidth = 50;
+        const legendWidth = this.settings.legendBarWidth || 50;
         const legendTitleExtra = legendTitle ? 16 : 0;
 
         const marginTop = titleHeight + colDendroHeight + groupLegendHeight + 5;
@@ -605,7 +606,7 @@ class HeatmapRenderer {
                 .attr('text-anchor', 'start')
                 .attr('dominant-baseline', 'central')
                 .attr('font-size', fontSize + 'px')
-                .attr('font-family', rlf.family || 'Aptos Display')
+                .attr('font-family', rlf.family || 'Arial')
                 .attr('font-weight', rlf.bold ? 'bold' : 'normal')
                 .attr('font-style', rlf.italic ? 'italic' : 'normal')
                 .attr('fill', '#333')
@@ -670,7 +671,7 @@ class HeatmapRenderer {
             const cy = yOffset + 6;
             const el = g.append('text')
                 .attr('font-size', fontSize + 'px')
-                .attr('font-family', clf.family || 'Aptos Display')
+                .attr('font-family', clf.family || 'Arial')
                 .attr('font-weight', clf.bold ? 'bold' : 'normal')
                 .attr('font-style', clf.italic ? 'italic' : 'normal')
                 .attr('fill', '#333')
@@ -1076,7 +1077,7 @@ class HeatmapRenderer {
             const ltOy = this._legendTitleOffset.y;
             const ltf = this.settings.legendTitleFont;
             const ltEl = lg.append('text')
-                .attr('x', w / 2 + ltOx).attr('y', h + 24 + ltOy)
+                .attr('x', w / 2 + ltOx).attr('y', h + 30 + ltOy)
                 .attr('text-anchor', 'middle')
                 .attr('font-size', ltf.size + 'px')
                 .attr('font-family', ltf.family)
@@ -1099,7 +1100,7 @@ class HeatmapRenderer {
                     this._legendTitleOffset.x += event.dx;
                     this._legendTitleOffset.y += event.dy;
                     ltEl.attr('x', w / 2 + this._legendTitleOffset.x)
-                        .attr('y', h + 24 + this._legendTitleOffset.y);
+                        .attr('y', h + 30 + this._legendTitleOffset.y);
                 })
                 .on('end', () => {
                     if (!ltDragged) {
@@ -1242,7 +1243,7 @@ class HeatmapRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f;
             opt.textContent = f;
@@ -1318,7 +1319,7 @@ class HeatmapRenderer {
             infoG.append('text')
                 .attr('x', padding)
                 .attr('y', padding + i * lineHeight + 9)
-                .style('font-family', 'Aptos Display, sans-serif')
+                .style('font-family', 'Arial, sans-serif')
                 .style('font-size', '9px')
                 .style('fill', '#555')
                 .text(line);

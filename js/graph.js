@@ -13,7 +13,7 @@ class GraphRenderer {
             title: 'Graph Title',
             xLabel: 'Groups',
             yLabel: 'Values',
-            fontFamily: 'Aptos Display',
+            fontFamily: 'Arial',
             fontSize: 12,
             fontBold: false,
             fontItalic: false,
@@ -23,12 +23,12 @@ class GraphRenderer {
             yAxisTickStep: null,  // null = auto-scale
             yAxisScaleType: 'linear',
             // Per-label font settings
-            titleFont:  { family: 'Aptos Display', size: 18, bold: true,  italic: false },
-            xLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
-            yLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
+            titleFont:  { family: 'Arial', size: 18, bold: true,  italic: false },
+            xLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
+            yLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
             // Tick fonts (separate for x and y)
-            xTickFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
-            yTickFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
+            xTickFont: { family: 'Arial', size: 15, bold: false, italic: false },
+            yTickFont: { family: 'Arial', size: 15, bold: false, italic: false },
             // Color
             colorTheme: 'default',
             colorOverrides: {},
@@ -49,7 +49,7 @@ class GraphRenderer {
             GROUP_LEGEND_WIDTH: 130,
             groupLegendOffset: { x: 0, y: 0 },     // drag offset for whole legend
             groupLegendItemOffsets: {},               // { index: {x, y} } per-item offsets
-            groupLegendFont: { family: 'Aptos Display', size: 12, bold: false, italic: false },
+            groupLegendFont: { family: 'Arial', size: 12, bold: false, italic: false },
             // Group label display
             showAxisGroupLabels: true,
             // Label visibility & position offsets
@@ -907,7 +907,7 @@ class GraphRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f;
             opt.textContent = f;
@@ -2257,7 +2257,7 @@ class GraphRenderer {
             infoG.append('text')
                 .attr('x', padding)
                 .attr('y', padding + i * lineHeight + 9)
-                .style('font-family', this.settings.fontFamily || 'Aptos Display, sans-serif')
+                .style('font-family', this.settings.fontFamily || 'Arial, sans-serif')
                 .style('font-size', '9px')
                 .style('fill', '#555')
                 .text(line);
@@ -2442,7 +2442,7 @@ class GraphRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f; opt.textContent = f;
             if (f === lf.family) opt.selected = true;

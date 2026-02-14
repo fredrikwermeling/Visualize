@@ -21,8 +21,8 @@ class ExportManager {
         const url = URL.createObjectURL(svgBlob);
 
         const img = new Image();
-        // Use 2x resolution for crisp export
-        const scale = 2;
+        const scaleEl = document.getElementById('pngScale');
+        const scale = scaleEl ? parseInt(scaleEl.value) || 2 : 2;
 
         img.onload = () => {
             const canvas = document.createElement('canvas');
@@ -175,7 +175,8 @@ class ExportManager {
             const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(svgBlob);
             const img = new Image();
-            const scale = 2;
+            const scaleEl = document.getElementById('pngScale');
+            const scale = scaleEl ? parseInt(scaleEl.value) || 2 : 2;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 canvas.width = svgEl.getAttribute('width') * scale;

@@ -18,11 +18,11 @@ class GrowthCurveRenderer {
             errorType: 'sem',
             width: 400,
             height: 300,
-            titleFont: { family: 'Aptos Display', size: 18, bold: true, italic: false },
-            xLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
-            yLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
-            xTickFont: { family: 'Aptos Display', size: 12, bold: false, italic: false },
-            yTickFont: { family: 'Aptos Display', size: 12, bold: false, italic: false },
+            titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
+            xLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
+            yLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
+            xTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
+            yTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             xTickStep: null,
             yTickStep: null
         };
@@ -133,7 +133,7 @@ class GrowthCurveRenderer {
             .append('svg')
             .attr('width', width)
             .attr('height', height)
-            .style('font-family', 'Aptos Display, sans-serif');
+            .style('font-family', 'Arial, sans-serif');
 
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
@@ -508,7 +508,7 @@ class GrowthCurveRenderer {
                 .attr('x', 22)
                 .attr('y', 10)
                 .style('font-size', '11px')
-                .style('font-family', 'Aptos Display, sans-serif')
+                .style('font-family', 'Arial, sans-serif')
                 .text(groupName);
         });
 
@@ -541,7 +541,7 @@ class GrowthCurveRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f; opt.textContent = f;
             if (f === fontObj.family) opt.selected = true;
@@ -866,7 +866,7 @@ class GrowthCurveRenderer {
             infoG.append('text')
                 .attr('x', padding)
                 .attr('y', padding + i * lineHeight + 9)
-                .style('font-family', 'Aptos Display, sans-serif')
+                .style('font-family', 'Arial, sans-serif')
                 .style('font-size', '9px')
                 .style('fill', '#555')
                 .text(line);

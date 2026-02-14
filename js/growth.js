@@ -26,6 +26,7 @@ class GrowthCurveRenderer {
         };
         this._titleOffset = { x: 0, y: 0 };
         this._legendOffset = { x: 0, y: 0 };
+        this.significanceMarkers = []; // [{timepoint, group1, group2, sigLabel}]
 
         this.colorThemes = {
             default: [
@@ -49,6 +50,10 @@ class GrowthCurveRenderer {
                 '#0072B2', '#E69F00'
             ]
         };
+    }
+
+    setSignificance(markers) {
+        this.significanceMarkers = markers || [];
     }
 
     _getColor(index) {
@@ -95,9 +100,10 @@ class GrowthCurveRenderer {
         });
         let yMin = s.yAxisMin !== null && s.yAxisMin !== undefined ? s.yAxisMin : d3.min(allVals);
         let yMax = s.yAxisMax !== null && s.yAxisMax !== undefined ? s.yAxisMax : d3.max(allVals);
-        // Add 5% padding
+        // Add padding — extra top space if significance markers are present
+        const topPad = this.significanceMarkers.length > 0 ? 0.15 : 0.05;
         if (s.yAxisMin === null || s.yAxisMin === undefined) yMin = yMin - (yMax - yMin) * 0.05;
-        if (s.yAxisMax === null || s.yAxisMax === undefined) yMax = yMax + (yMax - yMin) * 0.05;
+        if (s.yAxisMax === null || s.yAxisMax === undefined) yMax = yMax + (yMax - yMin) * topPad;
 
         const yScale = d3.scaleLinear()
             .domain([yMin, yMax])
@@ -164,6 +170,11 @@ class GrowthCurveRenderer {
 
         // Title (draggable)
         this._drawTitle(svg, width, margin);
+
+        // Significance markers
+        if (this.significanceMarkers.length > 0) {
+            this._drawSignificanceMarkers(g, this.significanceMarkers, growthData, xScale, yScale, innerH);
+        }
 
         // Tooltip
         this._setupTooltip(svg, g, growthData, xScale, yScale, innerW, innerH);
@@ -238,22 +249,54 @@ class GrowthCurveRenderer {
             .attr('stroke-width', 1);
     }
 
-    _drawSignificanceMarkers(g, results, xScale, yScale) {
-        if (!results || results.length === 0) return;
+    _drawSignificanceMarkers(g, markers, growthData, xScale, yScale, innerH) {
+        if (!markers || markers.length === 0) return;
 
-        results.forEach(r => {
-            if (!r.significant) return;
-            const x = xScale(r.timepoint);
-            const y = yScale.range()[0] + 15; // below x-axis area — or above max
+        const { timepoints, groups, subjects, groupMap } = growthData;
 
-            g.append('text')
-                .attr('x', x)
-                .attr('y', -5)
-                .attr('text-anchor', 'middle')
-                .style('font-size', '14px')
-                .style('font-weight', 'bold')
-                .style('fill', '#c0392b')
-                .text(r.sigLabel);
+        // Group markers by timepoint for stacking
+        const byTimepoint = {};
+        markers.forEach(m => {
+            if (!byTimepoint[m.timepoint]) byTimepoint[m.timepoint] = [];
+            byTimepoint[m.timepoint].push(m);
+        });
+
+        Object.entries(byTimepoint).forEach(([tp, mList]) => {
+            const t = parseFloat(tp);
+            const ti = timepoints.indexOf(t);
+            if (ti < 0) return;
+            const x = xScale(t);
+
+            // Find max Y value at this timepoint across all visible groups
+            let maxY = -Infinity;
+            groups.forEach(gName => {
+                const sids = groupMap[gName] || [];
+                sids.forEach(sid => {
+                    const v = subjects[sid]?.[ti];
+                    if (v !== null && !isNaN(v) && v > maxY) maxY = v;
+                });
+            });
+
+            // Stack markers above the highest point
+            mList.forEach((m, si) => {
+                const yPos = yScale(maxY) - 12 - si * 18;
+                const label = `${m.sigLabel}`;
+                const compLabel = `${m.group1} vs ${m.group2}`;
+
+                // Bracket + star
+                const sigG = g.append('g').attr('class', 'growth-sig-marker');
+
+                sigG.append('text')
+                    .attr('x', x)
+                    .attr('y', yPos)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '16px')
+                    .style('font-weight', 'bold')
+                    .style('fill', '#c0392b')
+                    .text(label);
+
+                sigG.append('title').text(compLabel);
+            });
         });
     }
 

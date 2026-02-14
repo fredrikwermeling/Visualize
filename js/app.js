@@ -1766,25 +1766,89 @@ class App {
                 html += `<div class="result-item"><span class="result-label">${f.label}:</span> <span class="result-value">F(${f.data.df1},${f.data.df2}) = ${f.data.F.toFixed(3)}, ${pFormatted} <span class="${isSig ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
             });
 
-            // Post-hoc if interaction is significant
-            if (result.interaction.p < 0.05) {
-                html += `<hr style="margin:6px 0;border-color:#eee">`;
-                html += `<div class="result-item" style="font-weight:600">Post-hoc: per-timepoint group comparisons (Bonferroni)</div>`;
-                const postHoc = Statistics.growthPostHoc(growthData);
-                const sigResults = postHoc.filter(r => r.significant);
-                if (sigResults.length > 0) {
-                    sigResults.forEach(r => {
-                        html += `<div class="result-item" style="font-size:12px"><span class="result-value">t=${r.timepoint}: ${r.group1} vs ${r.group2} — ${Statistics.formatPValue(r.correctedP)} ${r.sigLabel}</span></div>`;
-                    });
-                } else {
-                    html += `<div class="result-item" style="color:#888;font-size:12px"><em>No individual timepoints reached significance after Bonferroni correction</em></div>`;
-                }
-            }
+            // Always show post-hoc comparisons as clickable rows
+            html += `<hr style="margin:6px 0;border-color:#eee">`;
+            html += `<div class="result-item" style="font-weight:600">Per-timepoint comparisons (Bonferroni) — click to show on graph</div>`;
+            html += `<div style="margin:4px 0"><button class="btn btn-secondary growth-sig-all" style="padding:1px 6px;font-size:10px">Show sig.</button> <button class="btn btn-secondary growth-sig-none" style="padding:1px 6px;font-size:10px">Clear all</button></div>`;
+
+            const postHoc = Statistics.growthPostHoc(growthData);
+            postHoc.forEach((r, idx) => {
+                const pFormatted = Statistics.formatPValue(r.correctedP);
+                const isSig = r.significant;
+                const cls = isSig ? 'significant' : 'not-significant';
+                html += `<div class="result-item growth-posthoc-row" data-idx="${idx}" style="cursor:pointer;padding:2px 4px;border-radius:3px" title="Click to toggle on graph">`;
+                html += `<span class="result-value" style="font-size:12px">t=${r.timepoint}: ${r.group1} vs ${r.group2} — ${pFormatted} <span class="${cls}">${r.sigLabel}</span></span>`;
+                html += `</div>`;
+            });
 
             this._showStatsResult(html);
+            this._bindGrowthPostHocToggles(postHoc);
         } catch (e) {
             this._showStatsResult(`Error: ${e.message}`);
         }
+    }
+
+    _bindGrowthPostHocToggles(postHocResults) {
+        const container = document.getElementById('statsResults');
+        if (!container) return;
+
+        // Track which rows are active
+        const activeSet = new Set();
+        const self = this;
+
+        const updateMarkers = () => {
+            const markers = [];
+            activeSet.forEach(idx => {
+                const r = postHocResults[idx];
+                markers.push({
+                    timepoint: r.timepoint,
+                    group1: r.group1,
+                    group2: r.group2,
+                    sigLabel: r.sigLabel
+                });
+            });
+            self.growthRenderer.setSignificance(markers);
+            self.updateGraph();
+        };
+
+        // Click individual rows
+        container.querySelectorAll('.growth-posthoc-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const idx = parseInt(row.dataset.idx);
+                if (activeSet.has(idx)) {
+                    activeSet.delete(idx);
+                    row.style.background = '';
+                } else {
+                    activeSet.add(idx);
+                    row.style.background = '#e8f5e9';
+                }
+                updateMarkers();
+            });
+        });
+
+        // Show all significant
+        const allBtn = container.querySelector('.growth-sig-all');
+        if (allBtn) allBtn.addEventListener('click', () => {
+            activeSet.clear();
+            postHocResults.forEach((r, idx) => {
+                if (r.significant) activeSet.add(idx);
+            });
+            container.querySelectorAll('.growth-posthoc-row').forEach(row => {
+                const idx = parseInt(row.dataset.idx);
+                row.style.background = activeSet.has(idx) ? '#e8f5e9' : '';
+            });
+            updateMarkers();
+        });
+
+        // Clear all
+        const noneBtn = container.querySelector('.growth-sig-none');
+        if (noneBtn) noneBtn.addEventListener('click', () => {
+            activeSet.clear();
+            container.querySelectorAll('.growth-posthoc-row').forEach(row => {
+                row.style.background = '';
+            });
+            updateMarkers();
+        });
     }
 
     _showStatsResult(html) {
@@ -1798,6 +1862,7 @@ class App {
         container.innerHTML = '';
         container.classList.add('empty');
         this.graphRenderer.setSignificance([]);
+        this.growthRenderer.setSignificance([]);
     }
 }
 

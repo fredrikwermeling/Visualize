@@ -131,6 +131,7 @@ header {
 .graph-panel .graph-controls,
 .graph-panel .heatmap-controls,
 .graph-panel .growth-controls,
+.graph-panel .volcano-controls,
 .graph-panel > input[type="hidden"] {
     margin-left: 14px;
     margin-right: 14px;
@@ -142,7 +143,14 @@ header {
 
 .graph-panel .graph-controls,
 .graph-panel .heatmap-controls,
-.graph-panel .growth-controls {
+.graph-panel .growth-controls,
+.graph-panel .volcano-controls {
+    margin-bottom: 14px;
+}
+
+.graph-panel > .control-section {
+    margin-left: 14px;
+    margin-right: 14px;
     margin-bottom: 14px;
 }
 

@@ -535,8 +535,8 @@ class GrowthCurveRenderer {
                 .style('font-style', lf.italic ? 'italic' : 'normal')
                 .text(displayLabel);
 
-            // Dblclick to open group edit popup
-            row.on('dblclick', function(event) {
+            // Dblclick to open group edit popup (use native listener to bypass d3.drag suppression)
+            row.node().addEventListener('dblclick', function(event) {
                 event.stopPropagation();
                 self._openGroupEditPopup(event, groupName, i);
             });
@@ -550,17 +550,34 @@ class GrowthCurveRenderer {
             .attr('width', bbox.width + 8)
             .attr('height', bbox.height + 6);
 
-        // Make legend draggable
+        // Make legend draggable (apply to bgRect so rows can get dblclick)
         const drag = d3.drag()
-            .filter(ev => ev.detail < 2) // don't start drag on dblclick
             .on('drag', function(event) {
                 self._legendOffset.x += event.dx;
                 self._legendOffset.y += event.dy;
                 const newX = width - margin.right - 10 + self._legendOffset.x;
                 const newY = margin.top + 5 + self._legendOffset.y;
-                d3.select(this).attr('transform', `translate(${newX},${newY})`);
+                legend.attr('transform', `translate(${newX},${newY})`);
             });
-        legend.call(drag).style('cursor', 'move');
+        bgRect.call(drag).style('cursor', 'move');
+
+        // Also allow dragging from rows but with dblclick support
+        legend.selectAll('.legend-entry').each(function() {
+            const entry = d3.select(this);
+            let dragStarted = false;
+            const entryDrag = d3.drag()
+                .on('start', () => { dragStarted = false; })
+                .on('drag', function(event) {
+                    dragStarted = true;
+                    self._legendOffset.x += event.dx;
+                    self._legendOffset.y += event.dy;
+                    const newX = width - margin.right - 10 + self._legendOffset.x;
+                    const newY = margin.top + 5 + self._legendOffset.y;
+                    legend.attr('transform', `translate(${newX},${newY})`);
+                })
+                .clickDistance(4);
+            entry.call(entryDrag);
+        });
     }
 
     _openGroupEditPopup(event, groupName, groupIndex) {

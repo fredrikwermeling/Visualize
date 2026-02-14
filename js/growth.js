@@ -535,11 +535,6 @@ class GrowthCurveRenderer {
                 .style('font-style', lf.italic ? 'italic' : 'normal')
                 .text(displayLabel);
 
-            // Dblclick to open group edit popup (use native listener to bypass d3.drag suppression)
-            row.node().addEventListener('dblclick', function(event) {
-                event.stopPropagation();
-                self._openGroupEditPopup(event, groupName, i);
-            });
         });
 
         // Size background
@@ -550,110 +545,113 @@ class GrowthCurveRenderer {
             .attr('width', bbox.width + 8)
             .attr('height', bbox.height + 6);
 
-        // Make legend draggable (apply to bgRect so rows can get dblclick)
+        // Drag + manual double-click detection (d3.drag blocks native dblclick)
+        let lastClickTime = 0;
+        let dragged = false;
         const drag = d3.drag()
+            .on('start', () => { dragged = false; })
             .on('drag', function(event) {
+                dragged = true;
                 self._legendOffset.x += event.dx;
                 self._legendOffset.y += event.dy;
                 const newX = width - margin.right - 10 + self._legendOffset.x;
                 const newY = margin.top + 5 + self._legendOffset.y;
                 legend.attr('transform', `translate(${newX},${newY})`);
+            })
+            .on('end', function(event) {
+                if (dragged) return;
+                const now = Date.now();
+                if (now - lastClickTime < 400) {
+                    lastClickTime = 0;
+                    self._openLegendEditPopup(event.sourceEvent, groups);
+                } else {
+                    lastClickTime = now;
+                }
             });
-        bgRect.call(drag).style('cursor', 'move');
-
-        // Also allow dragging from rows but with dblclick support
-        legend.selectAll('.legend-entry').each(function() {
-            const entry = d3.select(this);
-            let dragStarted = false;
-            const entryDrag = d3.drag()
-                .on('start', () => { dragStarted = false; })
-                .on('drag', function(event) {
-                    dragStarted = true;
-                    self._legendOffset.x += event.dx;
-                    self._legendOffset.y += event.dy;
-                    const newX = width - margin.right - 10 + self._legendOffset.x;
-                    const newY = margin.top + 5 + self._legendOffset.y;
-                    legend.attr('transform', `translate(${newX},${newY})`);
-                })
-                .clickDistance(4);
-            entry.call(entryDrag);
-        });
+        legend.call(drag).style('cursor', 'move');
     }
 
-    _openGroupEditPopup(event, groupName, groupIndex) {
+    _openLegendEditPopup(event, groups) {
         document.querySelectorAll('.svg-edit-popup').forEach(p => p.remove());
 
         const s = this.settings;
         if (!s.groupOverrides) s.groupOverrides = {};
-        const ov = s.groupOverrides[groupName] || {};
 
         const popup = document.createElement('div');
         popup.className = 'svg-edit-popup';
-        popup.style.cssText = `position:fixed;left:${event.clientX + 10}px;top:${event.clientY - 10}px;z-index:10000`;
+        popup.style.cssText = `position:fixed;left:${event.clientX + 10}px;top:${Math.max(10, event.clientY - 20)}px;z-index:10000;max-height:80vh;overflow-y:auto`;
 
-        // Label input
-        const labelRow = document.createElement('div');
-        labelRow.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:6px';
-        const labelInput = document.createElement('input');
-        labelInput.type = 'text';
-        labelInput.className = 'svg-inline-edit';
-        labelInput.value = ov.label || groupName;
-        labelInput.placeholder = groupName;
-        labelRow.appendChild(labelInput);
-        popup.appendChild(labelRow);
+        const heading = document.createElement('div');
+        heading.textContent = 'Legend Settings';
+        heading.style.cssText = 'font-weight:600;font-size:12px;margin-bottom:8px;border-bottom:1px solid #e5e7eb;padding-bottom:4px';
+        popup.appendChild(heading);
 
-        // Color + Symbol row
-        const csRow = document.createElement('div');
-        csRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px';
-
-        const colorLabel = document.createElement('span');
-        colorLabel.textContent = 'Color:';
-        colorLabel.style.cssText = 'font-size:11px;font-weight:500';
-        csRow.appendChild(colorLabel);
-
-        const colorInput = document.createElement('input');
-        colorInput.type = 'color';
-        colorInput.value = ov.color || this._getColor(groupIndex);
-        colorInput.style.cssText = 'width:28px;height:22px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0';
-        csRow.appendChild(colorInput);
-
-        const symLabel = document.createElement('span');
-        symLabel.textContent = 'Symbol:';
-        symLabel.style.cssText = 'font-size:11px;font-weight:500;margin-left:4px';
-        csRow.appendChild(symLabel);
-
-        const symSelect = document.createElement('select');
-        symSelect.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px';
-        const currentSymbol = ov.symbol || this._getSymbolForGroup(groupIndex);
-        ['circle', 'square', 'triangle', 'diamond', 'cross', 'star'].forEach(sym => {
-            const opt = document.createElement('option');
-            opt.value = sym;
-            opt.textContent = sym.charAt(0).toUpperCase() + sym.slice(1);
-            if (sym === currentSymbol) opt.selected = true;
-            symSelect.appendChild(opt);
-        });
-        csRow.appendChild(symSelect);
-        popup.appendChild(csRow);
-
-        // Font toolbar
+        // Font toolbar for legend font (shared)
         const lf = s.legendFont || { family: 'Arial', size: 11, bold: false, italic: false };
         const toolbar = this._createFontToolbar(lf);
         popup.appendChild(toolbar);
 
+        const sep = document.createElement('hr');
+        sep.style.cssText = 'border:none;border-top:1px solid #e5e7eb;margin:8px 0';
+        popup.appendChild(sep);
+
+        // Per-group rows
+        const groupInputs = [];
+        groups.forEach((groupName, i) => {
+            const ov = s.groupOverrides[groupName] || {};
+
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:5px;margin-bottom:6px';
+
+            // Color
+            const colorInput = document.createElement('input');
+            colorInput.type = 'color';
+            colorInput.value = ov.color || this._getColor(i);
+            colorInput.style.cssText = 'width:24px;height:20px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0;flex:0 0 24px';
+            row.appendChild(colorInput);
+
+            // Symbol
+            const symSelect = document.createElement('select');
+            symSelect.style.cssText = 'font-size:10px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;flex:0 0 auto;width:58px';
+            const currentSymbol = ov.symbol || this._getSymbolForGroup(i, groupName);
+            ['circle', 'square', 'triangle', 'diamond', 'cross', 'star'].forEach(sym => {
+                const opt = document.createElement('option');
+                opt.value = sym;
+                opt.textContent = sym.charAt(0).toUpperCase() + sym.slice(1);
+                if (sym === currentSymbol) opt.selected = true;
+                symSelect.appendChild(opt);
+            });
+            row.appendChild(symSelect);
+
+            // Label
+            const labelInput = document.createElement('input');
+            labelInput.type = 'text';
+            labelInput.className = 'svg-inline-edit';
+            labelInput.value = ov.label || groupName;
+            labelInput.placeholder = groupName;
+            labelInput.style.cssText = 'flex:1;min-width:60px;padding:2px 4px;font-size:11px';
+            row.appendChild(labelInput);
+
+            popup.appendChild(row);
+            groupInputs.push({ groupName, colorInput, symSelect, labelInput });
+        });
+
         // Buttons
         const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;gap:4px;margin-top:6px';
+        btnRow.style.cssText = 'display:flex;gap:4px;margin-top:8px';
 
         const applyBtn = document.createElement('button');
         applyBtn.className = 'svg-edit-btn';
         applyBtn.textContent = 'Apply';
         applyBtn.addEventListener('click', () => {
-            if (!s.groupOverrides[groupName]) s.groupOverrides[groupName] = {};
-            const val = labelInput.value.trim();
-            if (val && val !== groupName) s.groupOverrides[groupName].label = val;
-            else delete s.groupOverrides[groupName].label;
-            s.groupOverrides[groupName].color = colorInput.value;
-            s.groupOverrides[groupName].symbol = symSelect.value;
+            groupInputs.forEach(({ groupName, colorInput, symSelect, labelInput }) => {
+                if (!s.groupOverrides[groupName]) s.groupOverrides[groupName] = {};
+                s.groupOverrides[groupName].color = colorInput.value;
+                s.groupOverrides[groupName].symbol = symSelect.value;
+                const val = labelInput.value.trim();
+                if (val && val !== groupName) s.groupOverrides[groupName].label = val;
+                else delete s.groupOverrides[groupName].label;
+            });
             popup.remove();
             if (window.app) window.app.updateGraph();
         });
@@ -661,9 +659,9 @@ class GrowthCurveRenderer {
 
         const resetBtn = document.createElement('button');
         resetBtn.className = 'svg-edit-btn';
-        resetBtn.textContent = 'Reset';
+        resetBtn.textContent = 'Reset All';
         resetBtn.addEventListener('click', () => {
-            delete s.groupOverrides[groupName];
+            s.groupOverrides = {};
             popup.remove();
             if (window.app) window.app.updateGraph();
         });
@@ -677,9 +675,6 @@ class GrowthCurveRenderer {
 
         popup.appendChild(btnRow);
         document.body.appendChild(popup);
-
-        labelInput.focus();
-        labelInput.select();
 
         // Close on outside click
         setTimeout(() => {

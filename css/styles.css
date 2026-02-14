@@ -1148,6 +1148,116 @@ tr:hover .row-delete-btn {
     display: none;
 }
 
+/* Text Settings Panel */
+.text-settings-panel {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 300;
+    background: var(--bg-white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 340px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.text-settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--green-600);
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.text-settings-header .svg-edit-btn {
+    background: transparent;
+    color: white;
+    border-color: rgba(255,255,255,0.3);
+    font-size: 16px;
+}
+
+.text-settings-header .svg-edit-btn:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+.text-settings-body {
+    padding: 8px 10px;
+}
+
+.text-settings-row {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 4px 6px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.text-settings-row:last-child {
+    border-bottom: none;
+}
+
+.text-settings-row label.ts-label {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--green-800);
+    margin-bottom: 2px;
+}
+
+.text-settings-row input[type="checkbox"] {
+    accent-color: var(--green-600);
+    width: 14px;
+    height: 14px;
+}
+
+.text-settings-row input[type="text"] {
+    padding: 3px 6px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-family: 'Open Sans', sans-serif;
+}
+
+.text-settings-row input[type="text"]:focus {
+    outline: none;
+    border-color: var(--green-500);
+    box-shadow: 0 0 0 2px rgba(94, 140, 49, 0.2);
+}
+
+.ts-font-controls {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-top: 2px;
+}
+
+.ts-font-controls select,
+.ts-font-controls input[type="number"] {
+    padding: 2px 4px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-family: 'Open Sans', sans-serif;
+}
+
+.ts-font-controls select { width: 100px; }
+.ts-font-controls input[type="number"] { width: 42px; text-align: center; }
+
+.ts-font-controls .svg-edit-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    line-height: 20px;
+}
+
 /* Expand table button */
 .expand-btn {
     margin-left: auto;

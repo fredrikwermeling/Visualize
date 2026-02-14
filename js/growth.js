@@ -26,6 +26,12 @@ class GrowthCurveRenderer {
         };
         this._titleOffset = { x: 0, y: 0 };
         this._legendOffset = { x: 0, y: 0 };
+        this.settings.showTitle = true;
+        this.settings.showXLabel = true;
+        this.settings.showYLabel = true;
+        this.settings.titleOffset = { x: 0, y: 0 };
+        this.settings.xLabelOffset = { x: 0, y: 0 };
+        this.settings.yLabelOffset = { x: 0, y: 0 };
         this.significanceMarkers = []; // [{timepoint, group1, group2, sigLabel}]
 
         this.colorThemes = {
@@ -192,28 +198,53 @@ class GrowthCurveRenderer {
         this._drawLegend(svg, groups, width, margin);
 
         // X-axis label
-        svg.append('text')
-            .attr('x', margin.left + innerW / 2)
-            .attr('y', height - 10)
-            .attr('text-anchor', 'middle')
-            .style('font-family', s.xLabelFont.family)
-            .style('font-size', s.xLabelFont.size + 'px')
-            .style('font-weight', s.xLabelFont.bold ? 'bold' : 'normal')
-            .text(s.xLabel);
+        if (s.showXLabel !== false) {
+            const xLabelEl = svg.append('text')
+                .attr('class', 'x-label axis-label')
+                .attr('x', margin.left + innerW / 2 + (s.xLabelOffset.x || 0))
+                .attr('y', height - 10 + (s.xLabelOffset.y || 0))
+                .attr('text-anchor', 'middle')
+                .style('font-family', s.xLabelFont.family)
+                .style('font-size', s.xLabelFont.size + 'px')
+                .style('font-weight', s.xLabelFont.bold ? 'bold' : 'normal')
+                .style('font-style', s.xLabelFont.italic ? 'italic' : 'normal')
+                .style('cursor', 'grab')
+                .text(s.xLabel);
+            this._makeLabelDrag(xLabelEl, 'xLabelOffset');
+            xLabelEl.on('dblclick', (event) => { event.stopPropagation(); this._startInlineEdit(event, 'xLabel'); });
+        }
 
         // Y-axis label
-        svg.append('text')
-            .attr('transform', 'rotate(-90)')
-            .attr('x', -(margin.top + innerH / 2))
-            .attr('y', 15)
-            .attr('text-anchor', 'middle')
-            .style('font-family', s.yLabelFont.family)
-            .style('font-size', s.yLabelFont.size + 'px')
-            .style('font-weight', s.yLabelFont.bold ? 'bold' : 'normal')
-            .text(s.yLabel);
+        if (s.showYLabel !== false) {
+            const yLabelEl = svg.append('text')
+                .attr('class', 'y-label axis-label')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -(margin.top + innerH / 2) + (s.yLabelOffset.x || 0))
+                .attr('y', 15 + (s.yLabelOffset.y || 0))
+                .attr('text-anchor', 'middle')
+                .style('font-family', s.yLabelFont.family)
+                .style('font-size', s.yLabelFont.size + 'px')
+                .style('font-weight', s.yLabelFont.bold ? 'bold' : 'normal')
+                .style('font-style', s.yLabelFont.italic ? 'italic' : 'normal')
+                .style('cursor', 'grab')
+                .text(s.yLabel);
+            this._makeLabelDrag(yLabelEl, 'yLabelOffset');
+            yLabelEl.on('dblclick', (event) => { event.stopPropagation(); this._startInlineEdit(event, 'yLabel'); });
+        }
 
-        // Title (draggable)
+        // Title (draggable + inline edit)
         this._drawTitle(svg, width, margin);
+
+        // Tick font dblclick - axes are the first two g children inside main g
+        const axisGs = g.node().querySelectorAll(':scope > g');
+        if (axisGs[0]) {
+            d3.select(axisGs[0]).selectAll('text').style('cursor', 'pointer')
+                .on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event, 'x'); });
+        }
+        if (axisGs[1]) {
+            d3.select(axisGs[1]).selectAll('text').style('cursor', 'pointer')
+                .on('dblclick', (event) => { event.stopPropagation(); this._openTickFontPopup(event, 'y'); });
+        }
 
         // Significance markers
         if (this.significanceMarkers.length > 0) {
@@ -488,45 +519,253 @@ class GrowthCurveRenderer {
         legend.call(drag).style('cursor', 'move');
     }
 
+    // --- Font toolbar & inline editing (same pattern as graph.js) ---
+
+    _createFontToolbar(fontObj) {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'svg-edit-toolbar';
+
+        const familySelect = document.createElement('select');
+        familySelect.className = 'svg-edit-font-family';
+        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f; opt.textContent = f;
+            if (f === fontObj.family) opt.selected = true;
+            familySelect.appendChild(opt);
+        });
+        toolbar.appendChild(familySelect);
+
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'number'; sizeInput.className = 'svg-edit-font-size';
+        sizeInput.min = 8; sizeInput.max = 36; sizeInput.value = fontObj.size;
+        toolbar.appendChild(sizeInput);
+
+        const boldBtn = document.createElement('button');
+        boldBtn.className = 'svg-edit-btn' + (fontObj.bold ? ' active' : '');
+        boldBtn.innerHTML = '<b>B</b>'; boldBtn.title = 'Bold';
+        boldBtn.addEventListener('mousedown', e => e.preventDefault());
+        boldBtn.addEventListener('click', e => { e.preventDefault(); boldBtn.classList.toggle('active'); });
+        toolbar.appendChild(boldBtn);
+
+        const italicBtn = document.createElement('button');
+        italicBtn.className = 'svg-edit-btn' + (fontObj.italic ? ' active' : '');
+        italicBtn.innerHTML = '<i>I</i>'; italicBtn.title = 'Italic';
+        italicBtn.addEventListener('mousedown', e => e.preventDefault());
+        italicBtn.addEventListener('click', e => { e.preventDefault(); italicBtn.classList.toggle('active'); });
+        toolbar.appendChild(italicBtn);
+
+        familySelect.addEventListener('mousedown', e => e.stopPropagation());
+        sizeInput.addEventListener('mousedown', e => e.stopPropagation());
+
+        return { toolbar, familySelect, sizeInput, boldBtn, italicBtn };
+    }
+
+    _openTickFontPopup(event, axis) {
+        const existing = document.querySelector('.svg-edit-popup');
+        if (existing) existing.remove();
+
+        if (window.app) window.app.saveUndoState();
+
+        const textEl = event.target;
+        const rect = textEl.getBoundingClientRect();
+        const fontObj = axis === 'y' ? this.settings.yTickFont : this.settings.xTickFont;
+
+        const popup = document.createElement('div');
+        popup.className = 'svg-edit-popup';
+        popup.style.left = `${rect.left + window.scrollX}px`;
+        popup.style.top = `${rect.top + window.scrollY - 40}px`;
+
+        const { toolbar, familySelect, sizeInput, boldBtn, italicBtn } = this._createFontToolbar(fontObj);
+        popup.appendChild(toolbar);
+        document.body.appendChild(popup);
+
+        const commit = () => {
+            if (!document.body.contains(popup)) return;
+            fontObj.family = familySelect.value;
+            fontObj.size = parseInt(sizeInput.value) || fontObj.size;
+            fontObj.bold = boldBtn.classList.contains('active');
+            fontObj.italic = italicBtn.classList.contains('active');
+            popup.remove();
+            if (window.app) window.app.updateGraph();
+        };
+
+        popup.addEventListener('focusout', () => {
+            setTimeout(() => {
+                if (document.body.contains(popup) && !popup.contains(document.activeElement)) commit();
+            }, 100);
+        });
+        familySelect.focus();
+    }
+
+    _startInlineEdit(event, labelType) {
+        const existing = document.querySelector('.svg-edit-popup');
+        if (existing) existing.remove();
+
+        const textEl = event.target;
+        const rect = textEl.getBoundingClientRect();
+
+        const map = {
+            title:  { settingsKey: 'title',  inputId: 'graphTitle',  fontKey: 'titleFont',  visKey: 'showTitle' },
+            xLabel: { settingsKey: 'xLabel', inputId: 'xAxisLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+            yLabel: { settingsKey: 'yLabel', inputId: 'yAxisLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' }
+        };
+        const { settingsKey, inputId, fontKey, visKey } = map[labelType];
+        const fontObj = this.settings[fontKey];
+
+        if (window.app) window.app.saveUndoState();
+
+        const popup = document.createElement('div');
+        popup.className = 'svg-edit-popup';
+        popup.style.left = `${rect.left + window.scrollX}px`;
+        popup.style.top = `${rect.top + window.scrollY - 40}px`;
+
+        const { toolbar, familySelect, sizeInput, boldBtn, italicBtn } = this._createFontToolbar(fontObj);
+
+        // Hide button
+        const hideBtn = document.createElement('button');
+        hideBtn.className = 'svg-edit-btn';
+        hideBtn.textContent = '\u{1F6AB}'; hideBtn.title = 'Hide this label';
+        hideBtn.style.marginLeft = '4px';
+        hideBtn.addEventListener('mousedown', e => e.preventDefault());
+        hideBtn.addEventListener('click', e => {
+            e.preventDefault();
+            this.settings[visKey] = false;
+            popup.remove();
+            if (window.app) window.app.updateGraph();
+        });
+        toolbar.appendChild(hideBtn);
+        popup.appendChild(toolbar);
+
+        const input = document.createElement('input');
+        input.type = 'text'; input.className = 'svg-inline-edit';
+        input.value = this.settings[settingsKey];
+        input.style.fontSize = `${fontObj.size}px`;
+        input.style.fontFamily = fontObj.family;
+        input.style.width = `${Math.max(rect.width + 40, 160)}px`;
+        popup.appendChild(input);
+
+        document.body.appendChild(popup);
+        input.focus(); input.select();
+
+        const commit = () => {
+            if (!document.body.contains(popup)) return;
+            this.settings[settingsKey] = input.value;
+            fontObj.family = familySelect.value;
+            fontObj.size = parseInt(sizeInput.value) || fontObj.size;
+            fontObj.bold = boldBtn.classList.contains('active');
+            fontObj.italic = italicBtn.classList.contains('active');
+            const sidebarInput = document.getElementById(inputId);
+            if (sidebarInput) sidebarInput.value = input.value;
+            popup.remove();
+            if (window.app) window.app.updateGraph();
+        };
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); popup.remove(); }
+        });
+
+        popup.addEventListener('focusout', () => {
+            setTimeout(() => {
+                if (document.body.contains(popup) && !popup.contains(document.activeElement)) commit();
+            }, 100);
+        });
+
+        familySelect.addEventListener('change', () => { input.style.fontFamily = familySelect.value; });
+        sizeInput.addEventListener('input', () => { input.style.fontSize = `${sizeInput.value}px`; });
+    }
+
+    _makeLabelDrag(selection, offsetKey) {
+        const self = this;
+        let startX, startY, origOffset, didDrag;
+
+        selection.call(d3.drag()
+            .filter(function(event) {
+                return !event.ctrlKey && !event.button && event.detail < 2;
+            })
+            .on('start', function(event) {
+                event.sourceEvent.stopPropagation();
+                if (window.app) window.app.saveUndoState();
+                startX = event.x; startY = event.y;
+                origOffset = { ...self.settings[offsetKey] };
+                didDrag = false;
+                d3.select(this).style('cursor', 'grabbing');
+            })
+            .on('drag', function(event) {
+                const dx = event.x - startX, dy = event.y - startY;
+                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
+                self.settings[offsetKey] = { x: origOffset.x + dx, y: origOffset.y + dy };
+                const baseX = parseFloat(d3.select(this).attr('x')) || 0;
+                const baseY = parseFloat(d3.select(this).attr('y')) || 0;
+                d3.select(this).attr('x', baseX + (event.dx || 0))
+                    .attr('y', baseY + (event.dy || 0));
+            })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                if (didDrag) {
+                    if (window.app) window.app.updateGraph();
+                } else {
+                    self._selectLabelForNudge(d3.select(this), offsetKey);
+                }
+            })
+        );
+    }
+
+    _selectLabelForNudge(el, offsetKey) {
+        this._nudgeOffsetKey = offsetKey;
+        if (this._labelNudgeHandler) document.removeEventListener('keydown', this._labelNudgeHandler);
+
+        this._labelNudgeHandler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+            if (!this._nudgeOffsetKey) return;
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : 2;
+            const off = this.settings[this._nudgeOffsetKey];
+            if (!off) return;
+            if (e.key === 'ArrowUp') off.y -= step;
+            else if (e.key === 'ArrowDown') off.y += step;
+            else if (e.key === 'ArrowLeft') off.x -= step;
+            else if (e.key === 'ArrowRight') off.x += step;
+            if (window.app) window.app.updateGraph();
+        };
+        document.addEventListener('keydown', this._labelNudgeHandler);
+
+        if (this._labelNudgeDeselect) document.removeEventListener('mousedown', this._labelNudgeDeselect);
+        this._labelNudgeDeselect = (e) => {
+            if (e.target.closest && e.target.closest('.graph-title, .axis-label')) return;
+            this._nudgeOffsetKey = null;
+            document.removeEventListener('keydown', this._labelNudgeHandler);
+            document.removeEventListener('mousedown', this._labelNudgeDeselect);
+            this._labelNudgeHandler = null;
+            this._labelNudgeDeselect = null;
+            if (window.app) window.app.updateGraph();
+        };
+        setTimeout(() => { document.addEventListener('mousedown', this._labelNudgeDeselect); }, 0);
+        if (window.app) window.app.updateGraph();
+    }
+
     _drawTitle(svg, width, margin) {
         const s = this.settings;
-        const ox = this._titleOffset.x;
-        const oy = this._titleOffset.y;
+        if (s.showTitle === false) return;
+
+        const ox = (s.titleOffset && s.titleOffset.x) || 0;
+        const oy = (s.titleOffset && s.titleOffset.y) || 0;
 
         const title = svg.append('text')
+            .attr('class', 'graph-title')
             .attr('x', width / 2 + ox)
             .attr('y', margin.top / 2 + oy)
             .attr('text-anchor', 'middle')
             .style('font-family', s.titleFont.family)
             .style('font-size', s.titleFont.size + 'px')
             .style('font-weight', s.titleFont.bold ? 'bold' : 'normal')
-            .style('cursor', 'move')
+            .style('font-style', s.titleFont.italic ? 'italic' : 'normal')
+            .style('cursor', 'grab')
             .text(s.title);
 
-        // Draggable title
-        const self = this;
-        const drag = d3.drag()
-            .on('drag', function(event) {
-                self._titleOffset.x += event.dx;
-                self._titleOffset.y += event.dy;
-                d3.select(this)
-                    .attr('x', width / 2 + self._titleOffset.x)
-                    .attr('y', margin.top / 2 + self._titleOffset.y);
-            });
-        title.call(drag);
-
-        // Double-click to edit
-        title.on('dblclick', function() {
-            const el = d3.select(this);
-            const current = el.text();
-            const input = prompt('Edit title:', current);
-            if (input !== null) {
-                s.title = input;
-                el.text(input);
-                const hiddenTitle = document.getElementById('graphTitle');
-                if (hiddenTitle) hiddenTitle.value = input;
-            }
-        });
+        this._makeLabelDrag(title, 'titleOffset');
+        title.on('dblclick', (event) => { event.stopPropagation(); this._startInlineEdit(event, 'title'); });
     }
 
     _setupTooltip(svg, g, growthData, xScale, yScale, innerW, innerH) {

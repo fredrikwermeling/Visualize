@@ -37,7 +37,8 @@
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
                     <button class="mode-btn" data-mode="column">Column</button>
                     <button class="mode-btn" data-mode="growth">Growth</button>
-                    <button id="resetMode" class="btn btn-secondary" style="margin-left:auto;padding:2px 8px;font-size:10px" title="Reset current mode settings to defaults">Reset</button>
+                    <button id="textSettingsBtn" class="btn btn-secondary" style="margin-left:auto;padding:2px 8px;font-size:10px" title="Edit all text elements">Aa</button>
+                    <button id="resetMode" class="btn btn-secondary" style="padding:2px 8px;font-size:10px" title="Reset current mode settings to defaults">Reset</button>
                 </div>
                 <h2>Data Input</h2>
                 
@@ -559,6 +560,15 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Text Settings Panel -->
+    <div id="textSettingsPanel" class="text-settings-panel" style="display:none">
+        <div class="text-settings-header">
+            <span>Text Settings</span>
+            <button id="textSettingsClose" class="svg-edit-btn" title="Close">&times;</button>
+        </div>
+        <div id="textSettingsBody" class="text-settings-body"></div>
     </div>
 
     <!-- JavaScript Modules -->

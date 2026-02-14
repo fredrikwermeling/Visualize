@@ -32,6 +32,7 @@ class App {
         this._bindGrowthControls();
 
         this._bindGroupToggleButtons();
+        this._bindTextSettingsPanel();
 
         // Load sample data and draw initial graph
         this._applyMode();
@@ -567,6 +568,17 @@ class App {
             this.growthRenderer.settings.title = 'Growth Curve';
             this.growthRenderer.settings.xLabel = 'Time';
             this.growthRenderer.settings.yLabel = 'Value';
+            this.growthRenderer.settings.showTitle = true;
+            this.growthRenderer.settings.showXLabel = true;
+            this.growthRenderer.settings.showYLabel = true;
+            this.growthRenderer.settings.titleOffset = { x: 0, y: 0 };
+            this.growthRenderer.settings.xLabelOffset = { x: 0, y: 0 };
+            this.growthRenderer.settings.yLabelOffset = { x: 0, y: 0 };
+            this.growthRenderer.settings.titleFont = { family: 'Aptos Display', size: 18, bold: true, italic: false };
+            this.growthRenderer.settings.xLabelFont = { family: 'Aptos Display', size: 15, bold: false, italic: false };
+            this.growthRenderer.settings.yLabelFont = { family: 'Aptos Display', size: 15, bold: false, italic: false };
+            this.growthRenderer.settings.xTickFont = { family: 'Aptos Display', size: 12, bold: false, italic: false };
+            this.growthRenderer.settings.yTickFont = { family: 'Aptos Display', size: 12, bold: false, italic: false };
             document.getElementById('growthWidth').value = 400;
             document.getElementById('growthHeight').value = 300;
             document.getElementById('growthYMin').value = '';
@@ -784,6 +796,7 @@ class App {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
                 this.growthRenderer._titleOffset = { x: 0, y: 0 };
+                this.growthRenderer.settings.titleOffset = { x: 0, y: 0 };
                 this.updateGraph();
             });
         });
@@ -1029,6 +1042,150 @@ class App {
             settings.hiddenGroups = allLabels;
             container.querySelectorAll('.marker-row').forEach(r => r.style.opacity = '0.4');
             this.updateGraph();
+        });
+    }
+
+    // --- Text Settings Panel ---
+
+    _bindTextSettingsPanel() {
+        const btn = document.getElementById('textSettingsBtn');
+        const closeBtn = document.getElementById('textSettingsClose');
+        if (btn) btn.addEventListener('click', () => this._toggleTextSettingsPanel());
+        if (closeBtn) closeBtn.addEventListener('click', () => this._closeTextSettingsPanel());
+    }
+
+    _toggleTextSettingsPanel() {
+        const panel = document.getElementById('textSettingsPanel');
+        if (!panel) return;
+        if (panel.style.display === 'none') {
+            this._openTextSettingsPanel();
+        } else {
+            this._closeTextSettingsPanel();
+        }
+    }
+
+    _closeTextSettingsPanel() {
+        const panel = document.getElementById('textSettingsPanel');
+        if (panel) panel.style.display = 'none';
+    }
+
+    _openTextSettingsPanel() {
+        const panel = document.getElementById('textSettingsPanel');
+        const body = document.getElementById('textSettingsBody');
+        if (!panel || !body) return;
+
+        panel.style.display = '';
+        body.innerHTML = '';
+
+        // Determine which renderer/settings to use based on mode
+        let renderer, elements;
+        if (this.mode === 'column') {
+            renderer = this.graphRenderer;
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'X Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+                { label: 'Y Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'X Tick Font', fontKey: 'xTickFont' },
+                { label: 'Y Tick Font', fontKey: 'yTickFont' }
+            ];
+        } else if (this.mode === 'growth') {
+            renderer = this.growthRenderer;
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'X Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+                { label: 'Y Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'X Tick Font', fontKey: 'xTickFont' },
+                { label: 'Y Tick Font', fontKey: 'yTickFont' }
+            ];
+        } else {
+            renderer = this.heatmapRenderer;
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont' },
+                { label: 'Legend Title', textKey: 'legendTitle', fontKey: 'legendTitleFont' }
+            ];
+        }
+
+        const s = renderer.settings;
+        const families = ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
+
+        elements.forEach(el => {
+            const row = document.createElement('div');
+            row.className = 'text-settings-row';
+
+            // Section label
+            const sectionLabel = document.createElement('label');
+            sectionLabel.className = 'ts-label';
+            sectionLabel.textContent = el.label;
+            row.appendChild(sectionLabel);
+
+            const font = s[el.fontKey];
+            if (!font) { body.appendChild(row); return; }
+
+            // Visibility checkbox (if applicable)
+            if (el.visKey) {
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = s[el.visKey] !== false;
+                cb.addEventListener('change', () => {
+                    s[el.visKey] = cb.checked;
+                    this.updateGraph();
+                });
+                row.appendChild(cb);
+            } else {
+                row.appendChild(document.createElement('span')); // spacer
+            }
+
+            // Text input (if applicable)
+            if (el.textKey) {
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.value = s[el.textKey] || '';
+                inp.addEventListener('input', () => {
+                    s[el.textKey] = inp.value;
+                    // Sync hidden inputs
+                    if (el.textKey === 'title') { const h = document.getElementById('graphTitle'); if (h) h.value = inp.value; }
+                    if (el.textKey === 'xLabel') { const h = document.getElementById('xAxisLabel'); if (h) h.value = inp.value; }
+                    if (el.textKey === 'yLabel') { const h = document.getElementById('yAxisLabel'); if (h) h.value = inp.value; }
+                    this.updateGraph();
+                });
+                row.appendChild(inp);
+            } else {
+                row.appendChild(document.createElement('span')); // spacer for font-only rows
+            }
+
+            // Font controls row
+            const fc = document.createElement('div');
+            fc.className = 'ts-font-controls';
+
+            const famSel = document.createElement('select');
+            families.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f; opt.textContent = f;
+                if (f === font.family) opt.selected = true;
+                famSel.appendChild(opt);
+            });
+            famSel.addEventListener('change', () => { font.family = famSel.value; this.updateGraph(); });
+            fc.appendChild(famSel);
+
+            const sizeInp = document.createElement('input');
+            sizeInp.type = 'number'; sizeInp.min = 6; sizeInp.max = 48; sizeInp.value = font.size;
+            sizeInp.addEventListener('input', () => { font.size = parseInt(sizeInp.value) || font.size; this.updateGraph(); });
+            fc.appendChild(sizeInp);
+
+            const boldBtn = document.createElement('button');
+            boldBtn.className = 'svg-edit-btn' + (font.bold ? ' active' : '');
+            boldBtn.innerHTML = '<b>B</b>';
+            boldBtn.addEventListener('click', () => { font.bold = !font.bold; boldBtn.classList.toggle('active'); this.updateGraph(); });
+            fc.appendChild(boldBtn);
+
+            const italicBtn = document.createElement('button');
+            italicBtn.className = 'svg-edit-btn' + (font.italic ? ' active' : '');
+            italicBtn.innerHTML = '<i>I</i>';
+            italicBtn.addEventListener('click', () => { font.italic = !font.italic; italicBtn.classList.toggle('active'); this.updateGraph(); });
+            fc.appendChild(italicBtn);
+
+            row.appendChild(fc);
+            body.appendChild(row);
         });
     }
 

@@ -244,22 +244,51 @@ class ExportManager {
 
         if (source.nodeType === Node.ELEMENT_NODE) {
             const computed = window.getComputedStyle(source);
-            const important = [
+            const svgProps = [
                 'font-family', 'font-size', 'font-weight', 'font-style',
-                'fill', 'stroke', 'stroke-width', 'opacity',
-                'text-anchor', 'dominant-baseline'
+                'font-variant', 'letter-spacing', 'text-decoration',
+                'text-anchor', 'dominant-baseline', 'alignment-baseline',
+                'fill', 'fill-opacity', 'fill-rule',
+                'stroke', 'stroke-width', 'stroke-opacity',
+                'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin',
+                'opacity', 'visibility', 'display',
+                'clip-path', 'clip-rule', 'mask',
+                'color', 'cursor', 'direction',
+                'marker-start', 'marker-mid', 'marker-end',
+                'shape-rendering', 'text-rendering', 'image-rendering',
+                'overflow', 'pointer-events',
+                'word-spacing', 'writing-mode',
+                'paint-order', 'vector-effect',
+                'stop-color', 'stop-opacity',
+                'flood-color', 'flood-opacity',
+                'lighting-color', 'color-interpolation', 'color-interpolation-filters'
             ];
 
-            important.forEach(prop => {
+            svgProps.forEach(prop => {
                 const val = computed.getPropertyValue(prop);
-                if (val) {
+                if (val && val !== '' && val !== 'none' && val !== 'normal' && val !== 'auto'
+                    && val !== 'visible' && val !== 'inherit' && val !== 'initial'
+                    && val !== '0px' && val !== 'default') {
+                    // Keep meaningful values
+                    if (prop === 'display' && val === 'inline') return;
+                    if (prop === 'visibility' && val === 'visible') return;
+                    if (prop === 'opacity' && val === '1') return;
+                    if (prop === 'fill-opacity' && val === '1') return;
+                    if (prop === 'stroke-opacity' && val === '1') return;
+                    if (prop === 'fill-rule' && val === 'nonzero') return;
                     target.style.setProperty(prop, val);
                 }
             });
+
+            // Also copy transform attribute if present
+            if (source.getAttribute('transform') && !target.getAttribute('transform')) {
+                target.setAttribute('transform', source.getAttribute('transform'));
+            }
         }
 
         for (let i = 0; i < sourceChildren.length; i++) {
-            if (sourceChildren[i].nodeType === Node.ELEMENT_NODE) {
+            if (sourceChildren[i].nodeType === Node.ELEMENT_NODE &&
+                targetChildren[i] && targetChildren[i].nodeType === Node.ELEMENT_NODE) {
                 this._inlineStyles(sourceChildren[i], targetChildren[i]);
             }
         }

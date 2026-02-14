@@ -545,6 +545,9 @@ class App {
                 // Restore saved data or load sample
                 this._restoreTableData(this.mode);
                 this.updateGraph();
+                // Rebuild text settings panel if open
+                const tsPanel = document.getElementById('textSettingsPanel');
+                if (tsPanel && tsPanel.style.display !== 'none') this._buildTextSettingsRows();
             });
         });
 
@@ -579,6 +582,8 @@ class App {
             this.growthRenderer.settings.yLabelFont = { family: 'Aptos Display', size: 15, bold: false, italic: false };
             this.growthRenderer.settings.xTickFont = { family: 'Aptos Display', size: 12, bold: false, italic: false };
             this.growthRenderer.settings.yTickFont = { family: 'Aptos Display', size: 12, bold: false, italic: false };
+            this.growthRenderer.settings.xTickStep = null;
+            this.growthRenderer.settings.yTickStep = null;
             document.getElementById('growthWidth').value = 400;
             document.getElementById('growthHeight').value = 300;
             document.getElementById('growthYMin').value = '';
@@ -1052,13 +1057,38 @@ class App {
         const closeBtn = document.getElementById('textSettingsClose');
         if (btn) btn.addEventListener('click', () => this._toggleTextSettingsPanel());
         if (closeBtn) closeBtn.addEventListener('click', () => this._closeTextSettingsPanel());
+        this._makeTextSettingsDraggable();
+    }
+
+    _makeTextSettingsDraggable() {
+        const panel = document.getElementById('textSettingsPanel');
+        const handle = document.getElementById('textSettingsDragHandle');
+        if (!panel || !handle) return;
+        let startX, startY, startLeft, startTop;
+        handle.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            e.preventDefault();
+            startX = e.clientX; startY = e.clientY;
+            const rect = panel.getBoundingClientRect();
+            startLeft = rect.left; startTop = rect.top;
+            const onMove = (ev) => {
+                panel.style.left = (startLeft + ev.clientX - startX) + 'px';
+                panel.style.top = (startTop + ev.clientY - startY) + 'px';
+                panel.style.right = 'auto';
+            };
+            const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
     }
 
     _toggleTextSettingsPanel() {
         const panel = document.getElementById('textSettingsPanel');
         if (!panel) return;
+        const btn = document.getElementById('textSettingsBtn');
         if (panel.style.display === 'none') {
             this._openTextSettingsPanel();
+            if (btn) btn.classList.add('active');
         } else {
             this._closeTextSettingsPanel();
         }
@@ -1067,6 +1097,14 @@ class App {
     _closeTextSettingsPanel() {
         const panel = document.getElementById('textSettingsPanel');
         if (panel) panel.style.display = 'none';
+        const btn = document.getElementById('textSettingsBtn');
+        if (btn) btn.classList.remove('active');
+    }
+
+    _getTextSettingsRenderer() {
+        if (this.mode === 'column') return this.graphRenderer;
+        if (this.mode === 'growth') return this.growthRenderer;
+        return this.heatmapRenderer;
     }
 
     _openTextSettingsPanel() {
@@ -1074,86 +1112,99 @@ class App {
         const body = document.getElementById('textSettingsBody');
         if (!panel || !body) return;
 
+        // Position near the toolbar if not already placed
+        if (!panel.style.left || panel.style.display === 'none') {
+            const toolbar = document.getElementById('drawingToolbar');
+            if (toolbar) {
+                const rect = toolbar.getBoundingClientRect();
+                panel.style.left = (rect.left + window.scrollX) + 'px';
+                panel.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+                panel.style.right = 'auto';
+            }
+        }
         panel.style.display = '';
+        this._buildTextSettingsRows();
+    }
+
+    _buildTextSettingsRows() {
+        const body = document.getElementById('textSettingsBody');
+        if (!body) return;
         body.innerHTML = '';
 
-        // Determine which renderer/settings to use based on mode
-        let renderer, elements;
+        const renderer = this._getTextSettingsRenderer();
+        const s = renderer.settings;
+        const families = ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
+
+        // Define elements per mode
+        let elements;
         if (this.mode === 'column') {
-            renderer = this.graphRenderer;
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
-                { label: 'X Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
-                { label: 'Y Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
-                { label: 'X Tick Font', fontKey: 'xTickFont' },
-                { label: 'Y Tick Font', fontKey: 'yTickFont' }
+                { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+                { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'X Tick Font (group names)', fontKey: 'xTickFont' },
+                { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yAxisTickStep' }
             ];
         } else if (this.mode === 'growth') {
-            renderer = this.growthRenderer;
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
-                { label: 'X Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
-                { label: 'Y Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
-                { label: 'X Tick Font', fontKey: 'xTickFont' },
-                { label: 'Y Tick Font', fontKey: 'yTickFont' }
+                { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+                { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'X Tick Font', fontKey: 'xTickFont', tickStep: 'xTickStep' },
+                { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yTickStep' }
             ];
         } else {
-            renderer = this.heatmapRenderer;
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont' },
                 { label: 'Legend Title', textKey: 'legendTitle', fontKey: 'legendTitleFont' }
             ];
         }
 
-        const s = renderer.settings;
-        const families = ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
-
         elements.forEach(el => {
             const row = document.createElement('div');
             row.className = 'text-settings-row';
 
-            // Section label
             const sectionLabel = document.createElement('label');
             sectionLabel.className = 'ts-label';
             sectionLabel.textContent = el.label;
             row.appendChild(sectionLabel);
 
-            const font = s[el.fontKey];
+            // Get font directly from settings each time (not cached)
+            const getFont = () => s[el.fontKey];
+            const font = getFont();
             if (!font) { body.appendChild(row); return; }
 
-            // Visibility checkbox (if applicable)
-            if (el.visKey) {
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.checked = s[el.visKey] !== false;
-                cb.addEventListener('change', () => {
-                    s[el.visKey] = cb.checked;
-                    this.updateGraph();
-                });
-                row.appendChild(cb);
-            } else {
-                row.appendChild(document.createElement('span')); // spacer
+            // Visibility + text row
+            if (el.visKey !== undefined || el.textKey) {
+                const inputRow = document.createElement('div');
+                inputRow.style.cssText = 'display:flex;align-items:center;gap:4px;grid-column:1/-1';
+
+                if (el.visKey) {
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.checked = s[el.visKey] !== false;
+                    cb.title = 'Show/hide';
+                    cb.addEventListener('change', () => { s[el.visKey] = cb.checked; this.updateGraph(); });
+                    inputRow.appendChild(cb);
+                }
+
+                if (el.textKey) {
+                    const inp = document.createElement('input');
+                    inp.type = 'text';
+                    inp.value = s[el.textKey] || '';
+                    inp.style.cssText = 'flex:1;padding:3px 6px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px';
+                    inp.addEventListener('input', () => {
+                        s[el.textKey] = inp.value;
+                        const syncMap = { title: 'graphTitle', xLabel: 'xAxisLabel', yLabel: 'yAxisLabel' };
+                        if (syncMap[el.textKey]) { const h = document.getElementById(syncMap[el.textKey]); if (h) h.value = inp.value; }
+                        this.updateGraph();
+                    });
+                    inputRow.appendChild(inp);
+                }
+                row.appendChild(inputRow);
             }
 
-            // Text input (if applicable)
-            if (el.textKey) {
-                const inp = document.createElement('input');
-                inp.type = 'text';
-                inp.value = s[el.textKey] || '';
-                inp.addEventListener('input', () => {
-                    s[el.textKey] = inp.value;
-                    // Sync hidden inputs
-                    if (el.textKey === 'title') { const h = document.getElementById('graphTitle'); if (h) h.value = inp.value; }
-                    if (el.textKey === 'xLabel') { const h = document.getElementById('xAxisLabel'); if (h) h.value = inp.value; }
-                    if (el.textKey === 'yLabel') { const h = document.getElementById('yAxisLabel'); if (h) h.value = inp.value; }
-                    this.updateGraph();
-                });
-                row.appendChild(inp);
-            } else {
-                row.appendChild(document.createElement('span')); // spacer for font-only rows
-            }
-
-            // Font controls row
+            // Font controls
             const fc = document.createElement('div');
             fc.className = 'ts-font-controls';
 
@@ -1164,25 +1215,54 @@ class App {
                 if (f === font.family) opt.selected = true;
                 famSel.appendChild(opt);
             });
-            famSel.addEventListener('change', () => { font.family = famSel.value; this.updateGraph(); });
+            famSel.addEventListener('change', () => { getFont().family = famSel.value; this.updateGraph(); });
             fc.appendChild(famSel);
 
             const sizeInp = document.createElement('input');
             sizeInp.type = 'number'; sizeInp.min = 6; sizeInp.max = 48; sizeInp.value = font.size;
-            sizeInp.addEventListener('input', () => { font.size = parseInt(sizeInp.value) || font.size; this.updateGraph(); });
+            sizeInp.addEventListener('input', () => {
+                const v = parseInt(sizeInp.value);
+                if (v && v >= 6) { getFont().size = v; this.updateGraph(); }
+            });
             fc.appendChild(sizeInp);
 
             const boldBtn = document.createElement('button');
             boldBtn.className = 'svg-edit-btn' + (font.bold ? ' active' : '');
             boldBtn.innerHTML = '<b>B</b>';
-            boldBtn.addEventListener('click', () => { font.bold = !font.bold; boldBtn.classList.toggle('active'); this.updateGraph(); });
+            boldBtn.addEventListener('click', () => {
+                const f = getFont(); f.bold = !f.bold;
+                boldBtn.classList.toggle('active'); this.updateGraph();
+            });
             fc.appendChild(boldBtn);
 
             const italicBtn = document.createElement('button');
             italicBtn.className = 'svg-edit-btn' + (font.italic ? ' active' : '');
             italicBtn.innerHTML = '<i>I</i>';
-            italicBtn.addEventListener('click', () => { font.italic = !font.italic; italicBtn.classList.toggle('active'); this.updateGraph(); });
+            italicBtn.addEventListener('click', () => {
+                const f = getFont(); f.italic = !f.italic;
+                italicBtn.classList.toggle('active'); this.updateGraph();
+            });
             fc.appendChild(italicBtn);
+
+            // Tick step control
+            if (el.tickStep) {
+                const stepLabel = document.createElement('span');
+                stepLabel.textContent = 'every';
+                stepLabel.style.cssText = 'font-size:10px;color:#6b7280;margin-left:4px';
+                fc.appendChild(stepLabel);
+                const stepInp = document.createElement('input');
+                stepInp.type = 'number'; stepInp.min = 0; stepInp.step = 'any';
+                stepInp.placeholder = 'Auto';
+                stepInp.style.cssText = 'width:50px;text-align:center';
+                stepInp.value = s[el.tickStep] || '';
+                stepInp.title = 'Tick interval (leave empty for auto)';
+                stepInp.addEventListener('input', () => {
+                    const v = stepInp.value.trim();
+                    s[el.tickStep] = v === '' ? null : parseFloat(v);
+                    this.updateGraph();
+                });
+                fc.appendChild(stepInp);
+            }
 
             row.appendChild(fc);
             body.appendChild(row);

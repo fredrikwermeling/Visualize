@@ -1150,15 +1150,13 @@ tr:hover .row-delete-btn {
 
 /* Text Settings Panel */
 .text-settings-panel {
-    position: fixed;
-    top: 80px;
-    right: 20px;
+    position: absolute;
     z-index: 300;
     background: var(--bg-white);
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    width: 340px;
+    width: 360px;
     max-height: 80vh;
     overflow-y: auto;
 }
@@ -1173,6 +1171,8 @@ tr:hover .row-delete-btn {
     font-weight: 600;
     font-size: 13px;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    cursor: move;
+    user-select: none;
 }
 
 .text-settings-header .svg-edit-btn {

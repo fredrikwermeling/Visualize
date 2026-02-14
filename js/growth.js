@@ -22,7 +22,9 @@ class GrowthCurveRenderer {
             xLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
             yLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
             xTickFont: { family: 'Aptos Display', size: 12, bold: false, italic: false },
-            yTickFont: { family: 'Aptos Display', size: 12, bold: false, italic: false }
+            yTickFont: { family: 'Aptos Display', size: 12, bold: false, italic: false },
+            xTickStep: null,
+            yTickStep: null
         };
         this._titleOffset = { x: 0, y: 0 };
         this._legendOffset = { x: 0, y: 0 };
@@ -160,21 +162,33 @@ class GrowthCurveRenderer {
             .nice();
 
         // Axes
-        const xAxis = d3.axisBottom(xScale).ticks(Math.min(timepoints.length, 10));
+        const xAxis = d3.axisBottom(xScale);
+        if (s.xTickStep) {
+            xAxis.tickValues(d3.range(xScale.domain()[0], xScale.domain()[1] + s.xTickStep * 0.5, s.xTickStep));
+        } else {
+            xAxis.ticks(Math.min(timepoints.length, 10));
+        }
         const yAxis = d3.axisLeft(yScale);
+        if (s.yTickStep) {
+            yAxis.tickValues(d3.range(yScale.domain()[0], yScale.domain()[1] + s.yTickStep * 0.5, s.yTickStep));
+        }
 
         g.append('g')
             .attr('transform', `translate(0,${innerH})`)
             .call(xAxis)
             .selectAll('text')
             .style('font-family', s.xTickFont.family)
-            .style('font-size', s.xTickFont.size + 'px');
+            .style('font-size', s.xTickFont.size + 'px')
+            .style('font-weight', s.xTickFont.bold ? 'bold' : 'normal')
+            .style('font-style', s.xTickFont.italic ? 'italic' : 'normal');
 
         g.append('g')
             .call(yAxis)
             .selectAll('text')
             .style('font-family', s.yTickFont.family)
-            .style('font-size', s.yTickFont.size + 'px');
+            .style('font-size', s.yTickFont.size + 'px')
+            .style('font-weight', s.yTickFont.bold ? 'bold' : 'normal')
+            .style('font-style', s.yTickFont.italic ? 'italic' : 'normal');
 
         // Draw per group
         groups.forEach((groupName, gi) => {

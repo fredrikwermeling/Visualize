@@ -37,8 +37,7 @@
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
                     <button class="mode-btn" data-mode="column">Column</button>
                     <button class="mode-btn" data-mode="growth">Growth</button>
-                    <button id="textSettingsBtn" class="btn btn-secondary" style="margin-left:auto;padding:2px 8px;font-size:10px" title="Edit all text elements">Aa</button>
-                    <button id="resetMode" class="btn btn-secondary" style="padding:2px 8px;font-size:10px" title="Reset current mode settings to defaults">Reset</button>
+                    <button id="resetMode" class="btn btn-secondary" style="margin-left:auto;padding:2px 8px;font-size:10px" title="Reset current mode settings to defaults">Reset</button>
                 </div>
                 <h2>Data Input</h2>
                 
@@ -136,6 +135,8 @@
                     <button id="drawUndo" class="draw-tool-btn" title="Undo last action">&#8630;</button>
                     <button id="drawDeleteSelected" class="draw-tool-btn" title="Delete selected annotation">&#10005;</button>
                     <button id="drawClearAll" class="draw-tool-btn" title="Clear all annotations">&#128465;</button>
+                    <span class="drawing-separator"></span>
+                    <button id="textSettingsBtn" class="draw-tool-btn" title="Text Settings">Aa</button>
                 </div>
 
                 <!-- Graph Container -->
@@ -562,9 +563,9 @@
         </div>
     </div>
 
-    <!-- Text Settings Panel -->
+    <!-- Text Settings Panel (draggable, positioned near graph) -->
     <div id="textSettingsPanel" class="text-settings-panel" style="display:none">
-        <div class="text-settings-header">
+        <div class="text-settings-header" id="textSettingsDragHandle">
             <span>Text Settings</span>
             <button id="textSettingsClose" class="svg-edit-btn" title="Close">&times;</button>
         </div>

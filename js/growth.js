@@ -545,30 +545,45 @@ class GrowthCurveRenderer {
             .attr('width', bbox.width + 8)
             .attr('height', bbox.height + 6);
 
-        // Drag + manual double-click detection (d3.drag blocks native dblclick)
-        let lastClickTime = 0;
-        let dragged = false;
-        const drag = d3.drag()
-            .on('start', () => { dragged = false; })
-            .on('drag', function(event) {
-                dragged = true;
-                self._legendOffset.x += event.dx;
-                self._legendOffset.y += event.dy;
+        // Manual drag + native dblclick (d3.drag blocks dblclick, so avoid it)
+        const legendNode = legend.node();
+        let isDragging = false, startX = 0, startY = 0;
+
+        legendNode.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            legendNode.style.cursor = 'grabbing';
+
+            const onMove = (me) => {
+                if (!isDragging) return;
+                const dx = me.clientX - startX;
+                const dy = me.clientY - startY;
+                startX = me.clientX;
+                startY = me.clientY;
+                self._legendOffset.x += dx;
+                self._legendOffset.y += dy;
                 const newX = width - margin.right - 10 + self._legendOffset.x;
                 const newY = margin.top + 5 + self._legendOffset.y;
                 legend.attr('transform', `translate(${newX},${newY})`);
-            })
-            .on('end', function(event) {
-                if (dragged) return;
-                const now = Date.now();
-                if (now - lastClickTime < 400) {
-                    lastClickTime = 0;
-                    self._openLegendEditPopup(event.sourceEvent, groups);
-                } else {
-                    lastClickTime = now;
-                }
-            });
-        legend.call(drag).style('cursor', 'move');
+            };
+            const onUp = () => {
+                isDragging = false;
+                legendNode.style.cursor = 'move';
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+
+        legendNode.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            self._openLegendEditPopup(e, groups);
+        });
+
+        legend.style('cursor', 'move');
     }
 
     _openLegendEditPopup(event, groups) {

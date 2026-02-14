@@ -7,6 +7,7 @@ class App {
         this.graphRenderer = new GraphRenderer('graphContainer');
         this.heatmapRenderer = new HeatmapRenderer('graphContainer');
         this.growthRenderer = new GrowthCurveRenderer('graphContainer');
+        this.volcanoRenderer = new VolcanoRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
         this.columnAnnotationManager = new AnnotationManager();
         this.heatmapAnnotationManager = new AnnotationManager();
@@ -18,6 +19,7 @@ class App {
         this._columnTableData = null;
         this._heatmapTableData = null;
         this._growthTableData = null;
+        this._volcanoTableData = null;
 
         // Bind event listeners
         this._bindTableControls();
@@ -30,6 +32,7 @@ class App {
         this._bindModeSelector();
         this._bindHeatmapControls();
         this._bindGrowthControls();
+        this._bindVolcanoControls();
 
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
@@ -58,6 +61,8 @@ class App {
                 this.dataTable.loadHeatmapSampleData();
             } else if (this.mode === 'growth') {
                 this.dataTable.loadGrowthSampleData();
+            } else if (this.mode === 'volcano') {
+                this.dataTable.loadVolcanoSampleData();
             } else {
                 this.dataTable.loadSampleData();
             }
@@ -414,17 +419,13 @@ class App {
 
     _bindExportControls() {
         document.getElementById('exportPNG').addEventListener('click', () => {
-            const title = this.mode === 'heatmap'
-                ? (this.heatmapRenderer.settings.title || 'heatmap')
-                : (this.graphRenderer.settings.title || 'graph');
+            const title = this._getActiveRenderer().settings.title || this.mode;
             const safeName = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             this._exportWithInfo('png', `${safeName}.png`);
         });
 
         document.getElementById('exportSVG').addEventListener('click', () => {
-            const title = this.mode === 'heatmap'
-                ? (this.heatmapRenderer.settings.title || 'heatmap')
-                : (this.graphRenderer.settings.title || 'graph');
+            const title = this._getActiveRenderer().settings.title || this.mode;
             const safeName = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             this._exportWithInfo('svg', `${safeName}.svg`);
         });
@@ -471,18 +472,10 @@ class App {
             }
         }
 
-        // Use container-based export for heatmap mode
-        if (this.mode === 'heatmap') {
-            const svgEl = document.getElementById('graphContainer').querySelector('svg');
-            if (svgEl) {
-                this.exportManager._exportSvgEl(svgEl, format, filename);
-            }
-        } else {
-            if (format === 'png') {
-                this.exportManager.exportPNG(filename);
-            } else {
-                this.exportManager.exportSVG(filename);
-            }
+        // Use container SVG for all modes
+        const svgEl = document.getElementById('graphContainer').querySelector('svg');
+        if (svgEl) {
+            this.exportManager._exportSvgEl(svgEl, format, filename);
         }
 
         // Restore SVG after a short delay
@@ -600,6 +593,18 @@ class App {
             document.getElementById('growthShowMean').checked = true;
             this._growthTableData = null;
             this.dataTable.loadGrowthSampleData();
+        } else if (this.mode === 'volcano') {
+            this.volcanoRenderer.settings = new VolcanoRenderer('graphContainer').settings;
+            document.getElementById('volcanoWidth').value = 450;
+            document.getElementById('volcanoHeight').value = 400;
+            document.getElementById('volcanoPThresh').value = 0.05;
+            document.getElementById('volcanoFCThresh').value = 1.0;
+            document.getElementById('volcanoPointSize').value = 4;
+            document.getElementById('volcanoTopLabels').value = 10;
+            document.getElementById('volcanoUpColor').value = '#E63946';
+            document.getElementById('volcanoDownColor').value = '#457B9D';
+            this._volcanoTableData = null;
+            this.dataTable.loadVolcanoSampleData();
         } else if (this.mode === 'column') {
             this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
             this.graphRenderer._titleOffset = { x: 0, y: 0 };
@@ -654,12 +659,12 @@ class App {
             ]);
             disabledRows.push(tr.classList.contains('row-disabled'));
         });
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : '_heatmapTableData';
         this[key] = { headers, rows, idData, disabledRows, numRows: rows.length };
     }
 
     _restoreTableData(mode) {
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : '_heatmapTableData';
         const saved = this[key];
         if (saved) {
             this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows, saved.idData);
@@ -680,6 +685,8 @@ class App {
                 this.dataTable.loadHeatmapSampleData();
             } else if (mode === 'growth') {
                 this.dataTable.loadGrowthSampleData();
+            } else if (mode === 'volcano') {
+                this.dataTable.loadVolcanoSampleData();
             } else {
                 this.dataTable.loadSampleData();
             }
@@ -690,6 +697,7 @@ class App {
         const isHeatmap = this.mode === 'heatmap';
         const isGrowth = this.mode === 'growth';
         const isColumn = this.mode === 'column';
+        const isVolcano = this.mode === 'volcano';
 
         // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
@@ -736,6 +744,10 @@ class App {
         const growthControls = document.getElementById('growthControls');
         if (growthControls) growthControls.style.display = isGrowth ? '' : 'none';
 
+        // Volcano controls
+        const volcanoControls = document.getElementById('volcanoControls');
+        if (volcanoControls) volcanoControls.style.display = isVolcano ? '' : 'none';
+
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
             el.style.display = isHeatmap ? 'inline-block' : 'none';
@@ -749,7 +761,7 @@ class App {
                 if (label === 'Growth Curves') {
                     og.style.display = isGrowth ? '' : 'none';
                 } else {
-                    og.style.display = isGrowth ? 'none' : '';
+                    og.style.display = (isGrowth || isVolcano) ? 'none' : '';
                 }
             });
             // Reset to appropriate default when switching modes
@@ -1101,10 +1113,15 @@ class App {
         if (btn) btn.classList.remove('active');
     }
 
-    _getTextSettingsRenderer() {
+    _getActiveRenderer() {
         if (this.mode === 'column') return this.graphRenderer;
         if (this.mode === 'growth') return this.growthRenderer;
+        if (this.mode === 'volcano') return this.volcanoRenderer;
         return this.heatmapRenderer;
+    }
+
+    _getTextSettingsRenderer() {
+        return this._getActiveRenderer();
     }
 
     _openTextSettingsPanel() {
@@ -1153,6 +1170,15 @@ class App {
                 { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
                 { label: 'X Tick Font', fontKey: 'xTickFont', tickStep: 'xTickStep' },
                 { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yTickStep' }
+            ];
+        } else if (this.mode === 'volcano') {
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+                { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'X Tick Font', fontKey: 'xTickFont' },
+                { label: 'Y Tick Font', fontKey: 'yTickFont' },
+                { label: 'Gene Labels', fontKey: 'labelFont' }
             ];
         } else {
             elements = [
@@ -1325,6 +1351,27 @@ class App {
         };
     }
 
+    _getVolcanoSettings() {
+        return {
+            width: parseInt(document.getElementById('volcanoWidth')?.value) || 450,
+            height: parseInt(document.getElementById('volcanoHeight')?.value) || 400,
+            pValueThreshold: parseFloat(document.getElementById('volcanoPThresh')?.value) || 0.05,
+            fcThreshold: parseFloat(document.getElementById('volcanoFCThresh')?.value) || 1.0,
+            pointSize: parseFloat(document.getElementById('volcanoPointSize')?.value) || 4,
+            showTopLabels: parseInt(document.getElementById('volcanoTopLabels')?.value) ?? 10,
+            upColor: document.getElementById('volcanoUpColor')?.value || '#E63946',
+            downColor: document.getElementById('volcanoDownColor')?.value || '#457B9D'
+        };
+    }
+
+    _bindVolcanoControls() {
+        const ids = ['volcanoWidth', 'volcanoHeight', 'volcanoPThresh', 'volcanoFCThresh', 'volcanoPointSize', 'volcanoTopLabels', 'volcanoUpColor', 'volcanoDownColor'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => this.updateGraph());
+        });
+    }
+
     _updateHeatmapInfo(settings, el) {
         if (!el) return;
         if (!settings.showInfo) {
@@ -1460,6 +1507,13 @@ class App {
             const growthSettings = this._getGrowthSettings();
             growthSettings.infoBox = this._statsInfoBoxVisible ? this._statsInfoText : null;
             this.growthRenderer.render(growthData, growthSettings);
+            return;
+        }
+        if (this.mode === 'volcano') {
+            if (infoEl) infoEl.style.display = 'none';
+            const volcanoData = this.dataTable.getVolcanoData();
+            const volcanoSettings = this._getVolcanoSettings();
+            this.volcanoRenderer.render(volcanoData, volcanoSettings);
             return;
         }
         if (infoEl) infoEl.style.display = 'none';

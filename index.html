@@ -37,8 +37,8 @@
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
                     <button class="mode-btn" data-mode="column">Column</button>
                     <button class="mode-btn" data-mode="growth">Time Series</button>
-                    <button class="mode-btn" data-mode="volcano" disabled title="Coming soon">Volcano</button>
-                    <button id="resetMode" class="btn btn-secondary" style="margin-left:auto;padding:2px 8px;font-size:10px" title="Reset current mode settings to defaults">Reset</button>
+                    <button class="mode-btn" data-mode="volcano">Volcano</button>
+                    <button id="resetMode" class="mode-reset-btn" title="Reset current mode settings to defaults">&#8635;</button>
                 </div>
                 <h2>Data Input</h2>
                 
@@ -351,6 +351,22 @@
                     </div>
                 </div>
 
+                <div id="volcanoControls" class="volcano-controls" style="display:none">
+                    <div class="control-section">
+                        <h3>Volcano Plot Settings</h3>
+                        <div class="control-grid-2col">
+                            <div class="control-group"><label>Width:</label><input type="number" id="volcanoWidth" value="450" min="200" step="10"></div>
+                            <div class="control-group"><label>Height:</label><input type="number" id="volcanoHeight" value="400" min="200" step="10"></div>
+                            <div class="control-group"><label>P thresh:</label><input type="number" id="volcanoPThresh" value="0.05" min="0" max="1" step="0.01"></div>
+                            <div class="control-group"><label>FC thresh:</label><input type="number" id="volcanoFCThresh" value="1.0" min="0" step="0.1"></div>
+                            <div class="control-group"><label>Point size:</label><input type="number" id="volcanoPointSize" value="4" min="1" max="20" step="0.5"></div>
+                            <div class="control-group"><label>Top labels:</label><input type="number" id="volcanoTopLabels" value="10" min="0" max="50" step="1"></div>
+                            <div class="control-group"><label>Up color:</label><input type="color" id="volcanoUpColor" value="#E63946"></div>
+                            <div class="control-group"><label>Down color:</label><input type="color" id="volcanoDownColor" value="#457B9D"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="graph-controls">
                     <div class="control-section">
                         <h3>Dimensions & Style</h3>
@@ -597,6 +613,7 @@
     <script src="js/clustering.js"></script>
     <script src="js/heatmap.js"></script>
     <script src="js/growth.js"></script>
+    <script src="js/volcano.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

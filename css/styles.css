@@ -906,8 +906,9 @@ tr:hover .row-delete-btn {
 }
 
 .mode-btn {
-    flex: 1;
-    padding: 8px 14px;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 4px;
     border: none;
     background: var(--gray-100);
     color: var(--gray-600);
@@ -916,6 +917,7 @@ tr:hover .row-delete-btn {
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
     font-family: 'Open Sans', sans-serif;
+    text-align: center;
 }
 
 .mode-btn:hover {
@@ -925,6 +927,23 @@ tr:hover .row-delete-btn {
 .mode-btn.active {
     background: var(--green-600);
     color: white;
+}
+
+.mode-reset-btn {
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    border: none;
+    background: var(--gray-100);
+    color: var(--gray-500);
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    border-left: 1px solid var(--gray-200);
+}
+
+.mode-reset-btn:hover {
+    background: var(--red-50, #fef2f2);
+    color: var(--red-600, #dc2626);
 }
 
 /* Heatmap Controls */

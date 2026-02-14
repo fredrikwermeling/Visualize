@@ -1005,4 +1005,84 @@ class DataTable {
             window.app.updateGraph();
         }
     }
+
+    getVolcanoData() {
+        // Expects columns: Gene/Feature, Log2FC, P-value
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+        const headers = [];
+        headerCells.forEach(th => {
+            const clone = th.cloneNode(true);
+            const btn = clone.querySelector('.th-delete-btn');
+            if (btn) btn.remove();
+            headers.push(clone.textContent.trim());
+        });
+
+        if (headers.length < 3) return null;
+
+        const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
+        const points = [];
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.id-cell):not(.row-toggle-cell)');
+            const name = cells[0]?.textContent.trim() || '';
+            const fc = parseFloat(cells[1]?.textContent.trim());
+            const pval = parseFloat(cells[2]?.textContent.trim());
+            if (name && !isNaN(fc) && !isNaN(pval)) {
+                points.push({ name, fc, pval });
+            }
+        });
+
+        return points.length > 0 ? { points } : null;
+    }
+
+    loadVolcanoSampleData() {
+        // Simulated differential expression data (gene name, log2FC, p-value)
+        const headers = ['Gene', 'Log2FC', 'P-value'];
+        const rowData = [
+            ['TP53', 2.8, 0.00001],
+            ['BRCA1', -2.1, 0.00005],
+            ['MYC', 3.5, 0.0000001],
+            ['EGFR', 1.9, 0.0003],
+            ['VEGFA', -1.5, 0.002],
+            ['KRAS', 2.2, 0.0001],
+            ['PIK3CA', -2.6, 0.00003],
+            ['PTEN', -3.1, 0.00000005],
+            ['RB1', -1.8, 0.001],
+            ['AKT1', 1.2, 0.01],
+            ['BRAF', 0.8, 0.05],
+            ['CDH1', -0.5, 0.3],
+            ['NOTCH1', 0.3, 0.6],
+            ['STAT3', 1.6, 0.004],
+            ['JAK2', 2.0, 0.0008],
+            ['FLT3', -1.1, 0.02],
+            ['NPM1', 0.4, 0.4],
+            ['IDH1', -0.2, 0.7],
+            ['CDKN2A', -2.4, 0.00008],
+            ['MDM2', 1.4, 0.008],
+            ['BCL2', 0.9, 0.06],
+            ['RAF1', 0.1, 0.9],
+            ['ERBB2', 2.5, 0.00006],
+            ['MAP2K1', 0.6, 0.15],
+            ['SMAD4', -1.3, 0.015],
+            ['FOXP3', -0.7, 0.12],
+            ['IL6', 1.7, 0.003],
+            ['TNF', 0.5, 0.25],
+            ['CXCL8', 2.9, 0.00002],
+            ['CCL2', -1.0, 0.04],
+            ['HIF1A', 0.2, 0.8],
+            ['MTOR', -0.4, 0.5],
+            ['SRC', 0.7, 0.08],
+            ['ABL1', -0.3, 0.65],
+            ['KIT', 1.1, 0.03],
+            ['MET', -1.6, 0.005],
+            ['ALK', 0.0, 0.95],
+            ['ROS1', -0.1, 0.85],
+            ['NRAS', 1.3, 0.009],
+            ['CTNNB1', -0.6, 0.2]
+        ];
+        this.setupTable(headers, Math.max(rowData.length, 10), rowData);
+
+        if (window.app) {
+            window.app.updateGraph();
+        }
+    }
 }

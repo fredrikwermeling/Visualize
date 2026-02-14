@@ -1,0 +1,445 @@
+// growth.js - Growth curve / time-series renderer
+
+class GrowthCurveRenderer {
+    constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        this.settings = {
+            title: 'Growth Curve',
+            xLabel: 'Time',
+            yLabel: 'Value',
+            showIndividualLines: true,
+            showGroupMeans: true,
+            lineWidth: 1.5,
+            individualLineOpacity: 0.3,
+            meanLineWidth: 2.5,
+            colorTheme: 'default',
+            yAxisMin: null,
+            yAxisMax: null,
+            errorType: 'sem',
+            width: 400,
+            height: 300,
+            titleFont: { family: 'Aptos Display', size: 18, bold: true, italic: false },
+            xLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
+            yLabelFont: { family: 'Aptos Display', size: 15, bold: false, italic: false },
+            xTickFont: { family: 'Aptos Display', size: 12, bold: false, italic: false },
+            yTickFont: { family: 'Aptos Display', size: 12, bold: false, italic: false }
+        };
+        this._titleOffset = { x: 0, y: 0 };
+        this._legendOffset = { x: 0, y: 0 };
+
+        this.colorThemes = {
+            default: [
+                '#5B8DB8', '#E8927C', '#7EBF7E', '#C490D1',
+                '#F2CC8F', '#81D4DB', '#FF9F9F', '#A8D5A2',
+                '#C2A0D5', '#F4B183'
+            ],
+            pastel: [
+                '#AEC6CF', '#FFB7B2', '#B5EAD7', '#C7CEEA',
+                '#FFDAC1', '#E2F0CB', '#F0E6EF', '#D4F0F0',
+                '#FCE1E4', '#DAEAF6'
+            ],
+            vivid: [
+                '#E63946', '#457B9D', '#2A9D8F', '#E9C46A',
+                '#F4A261', '#264653', '#A8DADC', '#F77F00',
+                '#D62828', '#023E8A'
+            ],
+            colorblind: [
+                '#0072B2', '#E69F00', '#009E73', '#CC79A7',
+                '#56B4E9', '#D55E00', '#F0E442', '#000000',
+                '#0072B2', '#E69F00'
+            ]
+        };
+    }
+
+    _getColor(index) {
+        const theme = this.colorThemes[this.settings.colorTheme] || this.colorThemes.default;
+        return theme[index % theme.length];
+    }
+
+    render(growthData, settings) {
+        if (settings) Object.assign(this.settings, settings);
+        this.container.innerHTML = '';
+
+        if (!growthData || !growthData.timepoints || growthData.timepoints.length === 0) {
+            this.container.innerHTML = '<div class="empty-state"><h3>Enter growth curve data to generate graph</h3><p>First column = time, remaining columns = Group_SubjectID</p></div>';
+            return;
+        }
+
+        const { timepoints, groups, subjects, groupMap } = growthData;
+        const s = this.settings;
+        const margin = { top: 50, right: 20, bottom: 60, left: 65 };
+        const width = s.width;
+        const height = s.height;
+        const innerW = width - margin.left - margin.right;
+        const innerH = height - margin.top - margin.bottom;
+
+        const svg = d3.select(this.container)
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .style('font-family', 'Aptos Display, sans-serif');
+
+        const g = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // X scale (linear time)
+        const xScale = d3.scaleLinear()
+            .domain([d3.min(timepoints), d3.max(timepoints)])
+            .range([0, innerW])
+            .nice();
+
+        // Y scale - compute from all values
+        let allVals = [];
+        Object.values(subjects).forEach(vals => {
+            vals.forEach(v => { if (v !== null && !isNaN(v)) allVals.push(v); });
+        });
+        let yMin = s.yAxisMin !== null && s.yAxisMin !== undefined ? s.yAxisMin : d3.min(allVals);
+        let yMax = s.yAxisMax !== null && s.yAxisMax !== undefined ? s.yAxisMax : d3.max(allVals);
+        // Add 5% padding
+        if (s.yAxisMin === null || s.yAxisMin === undefined) yMin = yMin - (yMax - yMin) * 0.05;
+        if (s.yAxisMax === null || s.yAxisMax === undefined) yMax = yMax + (yMax - yMin) * 0.05;
+
+        const yScale = d3.scaleLinear()
+            .domain([yMin, yMax])
+            .range([innerH, 0])
+            .nice();
+
+        // Axes
+        const xAxis = d3.axisBottom(xScale).ticks(Math.min(timepoints.length, 10));
+        const yAxis = d3.axisLeft(yScale);
+
+        g.append('g')
+            .attr('transform', `translate(0,${innerH})`)
+            .call(xAxis)
+            .selectAll('text')
+            .style('font-family', s.xTickFont.family)
+            .style('font-size', s.xTickFont.size + 'px');
+
+        g.append('g')
+            .call(yAxis)
+            .selectAll('text')
+            .style('font-family', s.yTickFont.family)
+            .style('font-size', s.yTickFont.size + 'px');
+
+        // Draw per group
+        groups.forEach((groupName, gi) => {
+            const color = this._getColor(gi);
+            const subjectIds = groupMap[groupName] || [];
+            const groupStats = this._calcGroupStats(subjects, groupName, timepoints, subjectIds);
+
+            // Individual subject lines
+            if (s.showIndividualLines) {
+                this._drawSubjectLines(g, timepoints, subjectIds, subjects, color, xScale, yScale);
+            }
+
+            // Group mean + error ribbon
+            if (s.showGroupMeans) {
+                this._drawGroupMean(g, timepoints, groupStats.means, groupStats.errors, color, xScale, yScale);
+            }
+        });
+
+        // Legend
+        this._drawLegend(svg, groups, width, margin);
+
+        // X-axis label
+        svg.append('text')
+            .attr('x', margin.left + innerW / 2)
+            .attr('y', height - 10)
+            .attr('text-anchor', 'middle')
+            .style('font-family', s.xLabelFont.family)
+            .style('font-size', s.xLabelFont.size + 'px')
+            .style('font-weight', s.xLabelFont.bold ? 'bold' : 'normal')
+            .text(s.xLabel);
+
+        // Y-axis label
+        svg.append('text')
+            .attr('transform', 'rotate(-90)')
+            .attr('x', -(margin.top + innerH / 2))
+            .attr('y', 15)
+            .attr('text-anchor', 'middle')
+            .style('font-family', s.yLabelFont.family)
+            .style('font-size', s.yLabelFont.size + 'px')
+            .style('font-weight', s.yLabelFont.bold ? 'bold' : 'normal')
+            .text(s.yLabel);
+
+        // Title (draggable)
+        this._drawTitle(svg, width, margin);
+
+        // Tooltip
+        this._setupTooltip(svg, g, growthData, xScale, yScale, innerW, innerH);
+    }
+
+    _drawSubjectLines(g, timepoints, subjectIds, subjects, color, xScale, yScale) {
+        const s = this.settings;
+        const line = d3.line()
+            .defined(d => d[1] !== null && !isNaN(d[1]))
+            .x(d => xScale(d[0]))
+            .y(d => yScale(d[1]));
+
+        subjectIds.forEach(sid => {
+            const vals = subjects[sid];
+            if (!vals) return;
+            const points = timepoints.map((t, i) => [t, vals[i]]);
+
+            g.append('path')
+                .datum(points)
+                .attr('fill', 'none')
+                .attr('stroke', color)
+                .attr('stroke-width', s.lineWidth)
+                .attr('stroke-opacity', s.individualLineOpacity)
+                .attr('d', line);
+        });
+    }
+
+    _drawGroupMean(g, timepoints, means, errors, color, xScale, yScale) {
+        const s = this.settings;
+
+        // SEM/SD ribbon
+        const validData = timepoints.map((t, i) => ({
+            t, mean: means[i], err: errors[i]
+        })).filter(d => d.mean !== null && !isNaN(d.mean));
+
+        const area = d3.area()
+            .x(d => xScale(d.t))
+            .y0(d => yScale(d.mean - d.err))
+            .y1(d => yScale(d.mean + d.err));
+
+        g.append('path')
+            .datum(validData)
+            .attr('fill', color)
+            .attr('fill-opacity', 0.15)
+            .attr('stroke', 'none')
+            .attr('class', 'sem-ribbon')
+            .attr('d', area);
+
+        // Mean line
+        const line = d3.line()
+            .defined(d => d.mean !== null && !isNaN(d.mean))
+            .x(d => xScale(d.t))
+            .y(d => yScale(d.mean));
+
+        g.append('path')
+            .datum(validData)
+            .attr('fill', 'none')
+            .attr('stroke', color)
+            .attr('stroke-width', s.meanLineWidth)
+            .attr('d', line);
+
+        // Mean dots
+        g.selectAll(null)
+            .data(validData)
+            .enter()
+            .append('circle')
+            .attr('cx', d => xScale(d.t))
+            .attr('cy', d => yScale(d.mean))
+            .attr('r', 3)
+            .attr('fill', color)
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1);
+    }
+
+    _drawSignificanceMarkers(g, results, xScale, yScale) {
+        if (!results || results.length === 0) return;
+
+        results.forEach(r => {
+            if (!r.significant) return;
+            const x = xScale(r.timepoint);
+            const y = yScale.range()[0] + 15; // below x-axis area — or above max
+
+            g.append('text')
+                .attr('x', x)
+                .attr('y', -5)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '14px')
+                .style('font-weight', 'bold')
+                .style('fill', '#c0392b')
+                .text(r.sigLabel);
+        });
+    }
+
+    _calcGroupStats(subjects, groupName, timepoints, subjectIds) {
+        const s = this.settings;
+        const means = [];
+        const sems = [];
+        const sds = [];
+
+        timepoints.forEach((t, ti) => {
+            const vals = [];
+            subjectIds.forEach(sid => {
+                const v = subjects[sid]?.[ti];
+                if (v !== null && v !== undefined && !isNaN(v)) vals.push(v);
+            });
+
+            if (vals.length === 0) {
+                means.push(null);
+                sems.push(0);
+                sds.push(0);
+            } else {
+                const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+                means.push(mean);
+                const variance = vals.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (vals.length > 1 ? vals.length - 1 : 1);
+                const sd = Math.sqrt(variance);
+                sds.push(sd);
+                sems.push(sd / Math.sqrt(vals.length));
+            }
+        });
+
+        const errors = s.errorType === 'sd' ? sds : sems;
+        return { means, sems, sds, errors };
+    }
+
+    _drawLegend(svg, groups, width, margin) {
+        const ox = this._legendOffset.x;
+        const oy = this._legendOffset.y;
+        const legendX = width - margin.right - 10 + ox;
+        const legendY = margin.top + 5 + oy;
+
+        const legend = svg.append('g')
+            .attr('class', 'growth-legend')
+            .attr('transform', `translate(${legendX},${legendY})`);
+
+        // Background
+        const bgRect = legend.append('rect')
+            .attr('fill', '#fff')
+            .attr('fill-opacity', 0.9)
+            .attr('stroke', '#ccc')
+            .attr('stroke-width', 0.5)
+            .attr('rx', 3);
+
+        groups.forEach((groupName, i) => {
+            const color = this._getColor(i);
+            const row = legend.append('g')
+                .attr('transform', `translate(5, ${i * 18 + 5})`);
+
+            row.append('line')
+                .attr('x1', 0).attr('y1', 6)
+                .attr('x2', 16).attr('y2', 6)
+                .attr('stroke', color)
+                .attr('stroke-width', 2);
+
+            row.append('text')
+                .attr('x', 20)
+                .attr('y', 10)
+                .style('font-size', '11px')
+                .style('font-family', 'Aptos Display, sans-serif')
+                .text(groupName);
+        });
+
+        // Size background
+        const bbox = legend.node().getBBox();
+        bgRect
+            .attr('x', bbox.x - 4)
+            .attr('y', bbox.y - 3)
+            .attr('width', bbox.width + 8)
+            .attr('height', bbox.height + 6);
+
+        // Make legend draggable
+        const self = this;
+        const drag = d3.drag()
+            .on('drag', function(event) {
+                self._legendOffset.x += event.dx;
+                self._legendOffset.y += event.dy;
+                const newX = width - margin.right - 10 + self._legendOffset.x;
+                const newY = margin.top + 5 + self._legendOffset.y;
+                d3.select(this).attr('transform', `translate(${newX},${newY})`);
+            });
+        legend.call(drag).style('cursor', 'move');
+    }
+
+    _drawTitle(svg, width, margin) {
+        const s = this.settings;
+        const ox = this._titleOffset.x;
+        const oy = this._titleOffset.y;
+
+        const title = svg.append('text')
+            .attr('x', width / 2 + ox)
+            .attr('y', margin.top / 2 + oy)
+            .attr('text-anchor', 'middle')
+            .style('font-family', s.titleFont.family)
+            .style('font-size', s.titleFont.size + 'px')
+            .style('font-weight', s.titleFont.bold ? 'bold' : 'normal')
+            .style('cursor', 'move')
+            .text(s.title);
+
+        // Draggable title
+        const self = this;
+        const drag = d3.drag()
+            .on('drag', function(event) {
+                self._titleOffset.x += event.dx;
+                self._titleOffset.y += event.dy;
+                d3.select(this)
+                    .attr('x', width / 2 + self._titleOffset.x)
+                    .attr('y', margin.top / 2 + self._titleOffset.y);
+            });
+        title.call(drag);
+
+        // Double-click to edit
+        title.on('dblclick', function() {
+            const el = d3.select(this);
+            const current = el.text();
+            const input = prompt('Edit title:', current);
+            if (input !== null) {
+                s.title = input;
+                el.text(input);
+                const hiddenTitle = document.getElementById('graphTitle');
+                if (hiddenTitle) hiddenTitle.value = input;
+            }
+        });
+    }
+
+    _setupTooltip(svg, g, growthData, xScale, yScale, innerW, innerH) {
+        let tooltip = document.getElementById('growth-tooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'growth-tooltip';
+            tooltip.className = 'growth-tooltip';
+            document.body.appendChild(tooltip);
+        }
+
+        const { timepoints, groups, subjects, groupMap } = growthData;
+        const self = this;
+
+        // Overlay rect for mouse events
+        g.append('rect')
+            .attr('width', innerW)
+            .attr('height', innerH)
+            .attr('fill', 'none')
+            .attr('pointer-events', 'all')
+            .on('mousemove', function(event) {
+                const [mx] = d3.pointer(event);
+                const xVal = xScale.invert(mx);
+
+                // Find closest timepoint
+                let closestIdx = 0;
+                let minDist = Infinity;
+                timepoints.forEach((t, i) => {
+                    const dist = Math.abs(t - xVal);
+                    if (dist < minDist) { minDist = dist; closestIdx = i; }
+                });
+
+                const t = timepoints[closestIdx];
+                let html = `<b>Time: ${t}</b><br>`;
+                groups.forEach((gName, gi) => {
+                    const color = self._getColor(gi);
+                    const sids = groupMap[gName] || [];
+                    const vals = sids.map(sid => subjects[sid]?.[closestIdx]).filter(v => v !== null && !isNaN(v));
+                    if (vals.length === 0) return;
+                    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+                    const variance = vals.reduce((s, v) => s + (v - mean) ** 2, 0) / (vals.length > 1 ? vals.length - 1 : 1);
+                    const sd = Math.sqrt(variance);
+                    const sem = sd / Math.sqrt(vals.length);
+                    const errVal = self.settings.errorType === 'sd' ? sd : sem;
+                    const errLabel = self.settings.errorType === 'sd' ? 'SD' : 'SEM';
+                    html += `<span style="color:${color}">\u25CF</span> ${gName}: ${mean.toFixed(2)} \u00B1 ${errVal.toFixed(2)} (${errLabel}, n=${vals.length})<br>`;
+                });
+
+                tooltip.innerHTML = html;
+                tooltip.style.display = 'block';
+                tooltip.style.left = (event.pageX + 12) + 'px';
+                tooltip.style.top = (event.pageY - 10) + 'px';
+            })
+            .on('mouseleave', function() {
+                tooltip.style.display = 'none';
+            });
+    }
+}

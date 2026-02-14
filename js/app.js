@@ -6,6 +6,7 @@ class App {
         this.dataTable = new DataTable('dataTable', 'tableBody', 'headerRow');
         this.graphRenderer = new GraphRenderer('graphContainer');
         this.heatmapRenderer = new HeatmapRenderer('graphContainer');
+        this.growthRenderer = new GrowthCurveRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
         this.columnAnnotationManager = new AnnotationManager();
         this.heatmapAnnotationManager = new AnnotationManager();
@@ -16,6 +17,7 @@ class App {
         // Separate data storage per mode
         this._columnTableData = null;
         this._heatmapTableData = null;
+        this._growthTableData = null;
 
         // Bind event listeners
         this._bindTableControls();
@@ -27,6 +29,7 @@ class App {
         this._bindDrawingTools();
         this._bindModeSelector();
         this._bindHeatmapControls();
+        this._bindGrowthControls();
 
         this._bindGroupToggleButtons();
 
@@ -52,6 +55,8 @@ class App {
         document.getElementById('addTestData').addEventListener('click', () => {
             if (this.mode === 'heatmap') {
                 this.dataTable.loadHeatmapSampleData();
+            } else if (this.mode === 'growth') {
+                this.dataTable.loadGrowthSampleData();
             } else {
                 this.dataTable.loadSampleData();
             }
@@ -265,6 +270,10 @@ class App {
         return testType === 'one-way-anova' || testType === 'kruskal-wallis' || testType === 'friedman';
     }
 
+    _isGrowthTest(testType) {
+        return testType === 'two-way-rm-anova';
+    }
+
     _updateTestDescription() {
         const descEl = document.getElementById('testDescription');
         if (!descEl) return;
@@ -278,7 +287,8 @@ class App {
             't-test-unpaired': '<b>Unpaired t-test</b> (Welch\'s) — Parametric, unpaired, compares 2 groups. Tests whether two independent group means differ. Assumes normality.',
             't-test-paired': '<b>Paired t-test</b> — Parametric, paired, compares 2 groups. Tests whether the mean difference between matched pairs is zero. Requires equal sample sizes.',
             'mann-whitney': '<b>Mann-Whitney U</b> — Non-parametric, unpaired, compares 2 groups. Rank-based alternative to unpaired t-test. No normality assumption.',
-            'wilcoxon': '<b>Wilcoxon signed-rank</b> — Non-parametric, paired, compares 2 groups. Rank-based alternative to paired t-test. Requires equal sample sizes.'
+            'wilcoxon': '<b>Wilcoxon signed-rank</b> — Non-parametric, paired, compares 2 groups. Rank-based alternative to paired t-test. Requires equal sample sizes.',
+            'two-way-rm-anova': '<b>Two-way RM ANOVA</b> — Parametric, repeated measures. Tests Group (between-subjects), Time (within-subjects), and Group\u00d7Time interaction. Use with Growth mode data.'
         };
 
         const desc = descriptions[testType];
@@ -525,12 +535,12 @@ class App {
             ]);
             disabledRows.push(tr.classList.contains('row-disabled'));
         });
-        const key = mode === 'column' ? '_columnTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : '_heatmapTableData';
         this[key] = { headers, rows, idData, disabledRows, numRows: rows.length };
     }
 
     _restoreTableData(mode) {
-        const key = mode === 'column' ? '_columnTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : '_heatmapTableData';
         const saved = this[key];
         if (saved) {
             this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows, saved.idData);
@@ -549,6 +559,8 @@ class App {
             // Load defaults
             if (mode === 'heatmap') {
                 this.dataTable.loadHeatmapSampleData();
+            } else if (mode === 'growth') {
+                this.dataTable.loadGrowthSampleData();
             } else {
                 this.dataTable.loadSampleData();
             }
@@ -557,6 +569,8 @@ class App {
 
     _applyMode() {
         const isHeatmap = this.mode === 'heatmap';
+        const isGrowth = this.mode === 'growth';
+        const isColumn = this.mode === 'column';
 
         // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
@@ -570,15 +584,15 @@ class App {
             document.querySelector('.graph-type-selector'),
             document.getElementById('groupManager')
         ];
-        columnEls.forEach(el => { if (el) el.style.display = isHeatmap ? 'none' : ''; });
+        columnEls.forEach(el => { if (el) el.style.display = isColumn ? '' : 'none'; });
 
         // Heatmap-specific: column/row order managers
         const heatmapColMgr = document.getElementById('heatmapColManager');
         if (heatmapColMgr) heatmapColMgr.style.display = isHeatmap ? '' : 'none';
 
-        // Hide all .column-only elements in heatmap mode
+        // Hide all .column-only elements except in column mode
         document.querySelectorAll('.column-only').forEach(el => {
-            el.style.display = isHeatmap ? 'none' : '';
+            el.style.display = isColumn ? '' : 'none';
         });
 
         // Control sections inside .graph-controls
@@ -587,14 +601,21 @@ class App {
             const h3 = section.querySelector('h3');
             if (!h3) return;
             const title = h3.textContent.trim();
-            if (title === 'Statistics' || title === 'Dimensions & Style') {
-                section.style.display = isHeatmap ? 'none' : '';
+            if (title === 'Dimensions & Style') {
+                section.style.display = isColumn ? '' : 'none';
+            }
+            if (title === 'Statistics') {
+                section.style.display = (isColumn || isGrowth) ? '' : 'none';
             }
         });
 
         // Heatmap controls
         const heatmapControls = document.getElementById('heatmapControls');
         if (heatmapControls) heatmapControls.style.display = isHeatmap ? '' : 'none';
+
+        // Growth controls
+        const growthControls = document.getElementById('growthControls');
+        if (growthControls) growthControls.style.display = isGrowth ? '' : 'none';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
@@ -632,6 +653,24 @@ class App {
         const viewColBtn = document.getElementById('viewAsColumn');
         if (viewColBtn) viewColBtn.addEventListener('click', () => {
             this._viewHeatmapAsColumn();
+        });
+    }
+
+    _bindGrowthControls() {
+        ['growthWidth', 'growthHeight', 'growthYMin', 'growthYMax'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => {
+                this.growthRenderer._titleOffset = { x: 0, y: 0 };
+                this.updateGraph();
+            });
+        });
+        ['growthColorTheme', 'growthErrorType'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', () => this.updateGraph());
+        });
+        ['growthShowIndividual', 'growthShowMean'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', () => this.updateGraph());
         });
     }
 
@@ -895,6 +934,23 @@ class App {
         };
     }
 
+    _getGrowthSettings() {
+        const yMinEl = document.getElementById('growthYMin');
+        const yMaxEl = document.getElementById('growthYMax');
+        const yMinVal = yMinEl ? yMinEl.value.trim() : '';
+        const yMaxVal = yMaxEl ? yMaxEl.value.trim() : '';
+        return {
+            width: parseInt(document.getElementById('growthWidth')?.value) || 400,
+            height: parseInt(document.getElementById('growthHeight')?.value) || 300,
+            yAxisMin: yMinVal === '' ? null : parseFloat(yMinVal),
+            yAxisMax: yMaxVal === '' ? null : parseFloat(yMaxVal),
+            colorTheme: document.getElementById('growthColorTheme')?.value || 'default',
+            errorType: document.getElementById('growthErrorType')?.value || 'sem',
+            showIndividualLines: document.getElementById('growthShowIndividual')?.checked ?? true,
+            showGroupMeans: document.getElementById('growthShowMean')?.checked ?? true
+        };
+    }
+
     _updateHeatmapInfo(settings, el) {
         if (!el) return;
         if (!settings.showInfo) {
@@ -1021,6 +1077,13 @@ class App {
             if (!heatSvg.empty()) {
                 this.heatmapAnnotationManager.drawAnnotations(heatSvg, { top: 0, left: 0, right: 0, bottom: 0 });
             }
+            return;
+        }
+        if (this.mode === 'growth') {
+            if (infoEl) infoEl.style.display = 'none';
+            const growthData = this.dataTable.getGrowthData();
+            const growthSettings = this._getGrowthSettings();
+            this.growthRenderer.render(growthData, growthSettings);
             return;
         }
         if (infoEl) infoEl.style.display = 'none';
@@ -1340,20 +1403,26 @@ class App {
     }
 
     _runStatisticalTest() {
-        const data = this.dataTable.getData();
-        const filledGroups = data.filter(d => d.values.length > 0);
-
-        if (filledGroups.length < 2) {
-            this._showStatsResult('Need at least 2 groups with data to run a test.');
-            return;
-        }
-
         const testType = document.getElementById('testType').value;
 
         if (testType === 'none') {
             this._clearStats();
             this.graphRenderer.setSignificance([]);
             this.updateGraph();
+            return;
+        }
+
+        // Two-way RM ANOVA (growth mode)
+        if (this._isGrowthTest(testType)) {
+            this._runGrowthAnova();
+            return;
+        }
+
+        const data = this.dataTable.getData();
+        const filledGroups = data.filter(d => d.values.length > 0);
+
+        if (filledGroups.length < 2) {
+            this._showStatsResult('Need at least 2 groups with data to run a test.');
             return;
         }
 
@@ -1666,6 +1735,56 @@ class App {
         this._showStatsResult(html);
         this.graphRenderer.setSignificance(significantPairs);
         this.updateGraph();
+    }
+
+    _runGrowthAnova() {
+        const growthData = this.dataTable.getGrowthData();
+        if (!growthData || growthData.groups.length < 2 || growthData.timepoints.length < 2) {
+            this._showStatsResult('Need at least 2 groups and 2 timepoints for two-way RM ANOVA.');
+            return;
+        }
+
+        try {
+            const result = Statistics.twoWayRepeatedMeasuresAnova(growthData);
+            const testName = 'Two-way RM ANOVA (Group \u00d7 Time)';
+
+            let html = `<div class="result-item"><span class="result-label">Test:</span> <span class="result-value">${testName}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">Groups:</span> <span class="result-value">${growthData.groups.join(', ')}</span></div>`;
+            html += `<div class="result-item"><span class="result-label">Timepoints:</span> <span class="result-value">${growthData.timepoints.join(', ')}</span></div>`;
+            html += `<hr style="margin:6px 0;border-color:#eee">`;
+
+            const factors = [
+                { label: 'Group', data: result.group },
+                { label: 'Time', data: result.time },
+                { label: 'Group \u00d7 Time', data: result.interaction }
+            ];
+
+            factors.forEach(f => {
+                const pFormatted = Statistics.formatPValue(f.data.p);
+                const sigLevel = Statistics.getSignificanceLevel(f.data.p);
+                const isSig = f.data.p < 0.05;
+                html += `<div class="result-item"><span class="result-label">${f.label}:</span> <span class="result-value">F(${f.data.df1},${f.data.df2}) = ${f.data.F.toFixed(3)}, ${pFormatted} <span class="${isSig ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
+            });
+
+            // Post-hoc if interaction is significant
+            if (result.interaction.p < 0.05) {
+                html += `<hr style="margin:6px 0;border-color:#eee">`;
+                html += `<div class="result-item" style="font-weight:600">Post-hoc: per-timepoint group comparisons (Bonferroni)</div>`;
+                const postHoc = Statistics.growthPostHoc(growthData);
+                const sigResults = postHoc.filter(r => r.significant);
+                if (sigResults.length > 0) {
+                    sigResults.forEach(r => {
+                        html += `<div class="result-item" style="font-size:12px"><span class="result-value">t=${r.timepoint}: ${r.group1} vs ${r.group2} — ${Statistics.formatPValue(r.correctedP)} ${r.sigLabel}</span></div>`;
+                    });
+                } else {
+                    html += `<div class="result-item" style="color:#888;font-size:12px"><em>No individual timepoints reached significance after Bonferroni correction</em></div>`;
+                }
+            }
+
+            this._showStatsResult(html);
+        } catch (e) {
+            this._showStatsResult(`Error: ${e.message}`);
+        }
     }
 
     _showStatsResult(html) {

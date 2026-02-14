@@ -531,4 +531,172 @@ class Statistics {
         if (p < 0.05) return '*';
         return 'ns';
     }
+
+    static twoWayRepeatedMeasuresAnova(growthData) {
+        const { timepoints, groups, subjects, groupMap } = growthData;
+        const a = groups.length;        // number of groups (between-subjects factor)
+        const b = timepoints.length;    // number of timepoints (within-subjects factor)
+
+        // Build data matrix: data[group][subject][time]
+        const groupData = [];
+        const nPerGroup = [];
+        for (let gi = 0; gi < a; gi++) {
+            const sids = groupMap[groups[gi]] || [];
+            const subjectData = [];
+            sids.forEach(sid => {
+                const vals = subjects[sid];
+                if (!vals) return;
+                // Only include subjects with all timepoints
+                const allValid = vals.every((v, ti) => ti >= b || (v !== null && !isNaN(v)));
+                if (allValid) subjectData.push(vals.slice(0, b));
+            });
+            groupData.push(subjectData);
+            nPerGroup.push(subjectData.length);
+        }
+
+        const N = nPerGroup.reduce((s, n) => s + n, 0); // total subjects
+        if (N < a + 1) throw new Error('Not enough subjects for RM ANOVA');
+
+        // Grand mean
+        let grandSum = 0, grandCount = 0;
+        groupData.forEach(gd => gd.forEach(sv => sv.forEach(v => { grandSum += v; grandCount++; })));
+        const grandMean = grandSum / grandCount;
+
+        // Group means (across all subjects and times)
+        const groupMeans = groupData.map(gd => {
+            let s = 0, c = 0;
+            gd.forEach(sv => sv.forEach(v => { s += v; c++; }));
+            return s / c;
+        });
+
+        // Time means (across all subjects and groups)
+        const timeMeans = [];
+        for (let ti = 0; ti < b; ti++) {
+            let s = 0, c = 0;
+            groupData.forEach(gd => gd.forEach(sv => { s += sv[ti]; c++; }));
+            timeMeans.push(s / c);
+        }
+
+        // Cell means (group x time)
+        const cellMeans = [];
+        for (let gi = 0; gi < a; gi++) {
+            cellMeans[gi] = [];
+            for (let ti = 0; ti < b; ti++) {
+                let s = 0, c = 0;
+                groupData[gi].forEach(sv => { s += sv[ti]; c++; });
+                cellMeans[gi][ti] = s / c;
+            }
+        }
+
+        // Subject means within each group
+        const subjectMeans = [];
+        for (let gi = 0; gi < a; gi++) {
+            subjectMeans[gi] = groupData[gi].map(sv => {
+                return sv.reduce((s, v) => s + v, 0) / sv.length;
+            });
+        }
+
+        // SS_Group (between-subjects)
+        let ssGroup = 0;
+        for (let gi = 0; gi < a; gi++) {
+            ssGroup += nPerGroup[gi] * b * (groupMeans[gi] - grandMean) ** 2;
+        }
+
+        // SS_Subjects(Group) — subjects nested within groups
+        let ssSubjects = 0;
+        for (let gi = 0; gi < a; gi++) {
+            for (let si = 0; si < nPerGroup[gi]; si++) {
+                ssSubjects += b * (subjectMeans[gi][si] - groupMeans[gi]) ** 2;
+            }
+        }
+
+        // SS_Time (within-subjects)
+        let ssTime = 0;
+        for (let ti = 0; ti < b; ti++) {
+            ssTime += N * (timeMeans[ti] - grandMean) ** 2;
+        }
+
+        // SS_Interaction (Group x Time)
+        let ssInteraction = 0;
+        for (let gi = 0; gi < a; gi++) {
+            for (let ti = 0; ti < b; ti++) {
+                ssInteraction += nPerGroup[gi] * (cellMeans[gi][ti] - groupMeans[gi] - timeMeans[ti] + grandMean) ** 2;
+            }
+        }
+
+        // SS_Error (residual within-subjects)
+        let ssError = 0;
+        for (let gi = 0; gi < a; gi++) {
+            for (let si = 0; si < nPerGroup[gi]; si++) {
+                for (let ti = 0; ti < b; ti++) {
+                    const residual = groupData[gi][si][ti] - cellMeans[gi][ti] - subjectMeans[gi][si] + groupMeans[gi];
+                    ssError += residual ** 2;
+                }
+            }
+        }
+
+        // Degrees of freedom
+        const dfGroup = a - 1;
+        const dfSubjects = N - a;
+        const dfTime = b - 1;
+        const dfInteraction = (a - 1) * (b - 1);
+        const dfError = (N - a) * (b - 1);
+
+        // Mean squares
+        const msGroup = ssGroup / dfGroup;
+        const msSubjects = ssSubjects / dfSubjects;
+        const msTime = ssTime / dfTime;
+        const msInteraction = ssInteraction / dfInteraction;
+        const msError = ssError / dfError;
+
+        // F ratios
+        const fGroup = msGroup / msSubjects;
+        const fTime = msTime / msError;
+        const fInteraction = msInteraction / msError;
+
+        // p-values
+        const pGroup = 1 - jStat.centralF.cdf(fGroup, dfGroup, dfSubjects);
+        const pTime = 1 - jStat.centralF.cdf(fTime, dfTime, dfError);
+        const pInteraction = 1 - jStat.centralF.cdf(fInteraction, dfInteraction, dfError);
+
+        return {
+            group: { F: fGroup, p: pGroup, df1: dfGroup, df2: dfSubjects },
+            time: { F: fTime, p: pTime, df1: dfTime, df2: dfError },
+            interaction: { F: fInteraction, p: pInteraction, df1: dfInteraction, df2: dfError }
+        };
+    }
+
+    static growthPostHoc(growthData) {
+        const { timepoints, groups, subjects, groupMap } = growthData;
+        const results = [];
+        const numComparisons = timepoints.length * (groups.length * (groups.length - 1)) / 2;
+
+        timepoints.forEach((t, ti) => {
+            for (let g1 = 0; g1 < groups.length; g1++) {
+                for (let g2 = g1 + 1; g2 < groups.length; g2++) {
+                    // Collect values at this timepoint for each group
+                    const vals1 = (groupMap[groups[g1]] || []).map(sid => subjects[sid]?.[ti]).filter(v => v !== null && !isNaN(v));
+                    const vals2 = (groupMap[groups[g2]] || []).map(sid => subjects[sid]?.[ti]).filter(v => v !== null && !isNaN(v));
+
+                    if (vals1.length < 2 || vals2.length < 2) continue;
+
+                    const result = this.tTest(vals1, vals2, false);
+                    const correctedP = Math.min(result.p * numComparisons, 1);
+                    const sigLabel = this.getSignificanceLevel(correctedP);
+
+                    results.push({
+                        timepoint: t,
+                        group1: groups[g1],
+                        group2: groups[g2],
+                        p: result.p,
+                        correctedP,
+                        significant: correctedP < 0.05,
+                        sigLabel
+                    });
+                }
+            }
+        });
+
+        return results;
+    }
 }

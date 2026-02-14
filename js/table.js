@@ -911,4 +911,96 @@ class DataTable {
             window.app.updateGraph();
         }
     }
+
+    getGrowthData() {
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+        const headers = [];
+        headerCells.forEach(th => {
+            const clone = th.cloneNode(true);
+            const btn = clone.querySelector('.th-delete-btn');
+            if (btn) btn.remove();
+            headers.push(clone.textContent.trim());
+        });
+
+        if (headers.length < 2) return null;
+
+        // Read all rows
+        const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
+        const rawRows = [];
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.id-cell):not(.row-toggle-cell)');
+            const rowVals = [];
+            cells.forEach(c => rowVals.push(c.textContent.trim()));
+            // Only include rows where at least the time column has a value
+            if (rowVals[0] !== '') rawRows.push(rowVals);
+        });
+
+        if (rawRows.length === 0) return null;
+
+        // First column = timepoints
+        const timepoints = rawRows.map(r => parseFloat(r[0])).filter(v => !isNaN(v));
+        const validRows = rawRows.filter(r => !isNaN(parseFloat(r[0])));
+
+        // Remaining columns: parse Group_SubjectID or Group SubjectID
+        const subjects = {};
+        const groupMap = {};
+        const groupsSet = [];
+
+        for (let c = 1; c < headers.length; c++) {
+            const h = headers[c];
+            if (!h) continue;
+            let group, subjectId;
+            // Try splitting by underscore first, then by last space
+            const uIdx = h.indexOf('_');
+            if (uIdx > 0) {
+                group = h.substring(0, uIdx);
+                subjectId = h;
+            } else {
+                const sIdx = h.lastIndexOf(' ');
+                if (sIdx > 0) {
+                    group = h.substring(0, sIdx);
+                    subjectId = h;
+                } else {
+                    group = h;
+                    subjectId = h;
+                }
+            }
+
+            if (!groupsSet.includes(group)) groupsSet.push(group);
+            if (!groupMap[group]) groupMap[group] = [];
+            if (!groupMap[group].includes(subjectId)) groupMap[group].push(subjectId);
+
+            const vals = validRows.map(r => {
+                const v = parseFloat(r[c]);
+                return isNaN(v) ? null : v;
+            });
+            subjects[subjectId] = vals;
+        }
+
+        return { timepoints, groups: groupsSet, subjects, groupMap };
+    }
+
+    loadGrowthSampleData() {
+        // 4 groups x 5 subjects x 6 timepoints — tumor growth data
+        const headers = [
+            'Time',
+            'Vehicle_S1', 'Vehicle_S2', 'Vehicle_S3', 'Vehicle_S4', 'Vehicle_S5',
+            'Low_S1', 'Low_S2', 'Low_S3', 'Low_S4', 'Low_S5',
+            'Mid_S1', 'Mid_S2', 'Mid_S3', 'Mid_S4', 'Mid_S5',
+            'High_S1', 'High_S2', 'High_S3', 'High_S4', 'High_S5'
+        ];
+        const rowData = [
+            [0,  100,105,98,102,97,  100,103,99,101,96,  101,99,104,98,102,  100,97,103,101,99],
+            [3,  145,152,138,148,142, 130,135,128,132,126, 118,122,115,120,117, 108,112,105,110,107],
+            [7,  210,225,198,218,205, 175,182,168,178,170, 145,150,138,148,142, 120,128,115,122,118],
+            [10, 310,335,290,320,300, 230,242,218,235,225, 175,185,165,180,172, 135,142,128,138,132],
+            [14, 450,480,420,460,440, 300,315,285,305,290, 210,225,198,218,205, 148,155,140,150,145],
+            [17, 620,660,580,640,600, 380,400,360,390,370, 245,260,230,252,240, 158,165,150,160,155]
+        ];
+        this.setupTable(headers, Math.max(rowData.length, 10), rowData);
+
+        if (window.app) {
+            window.app.updateGraph();
+        }
+    }
 }

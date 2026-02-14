@@ -36,6 +36,7 @@
                     <span class="mode-label">Graph Mode</span>
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
                     <button class="mode-btn" data-mode="column">Column</button>
+                    <button class="mode-btn" data-mode="growth">Growth</button>
                 </div>
                 <h2>Data Input</h2>
                 
@@ -280,6 +281,36 @@
                     </div>
                 </div>
 
+                <div id="growthControls" class="growth-controls" style="display:none">
+                    <div class="control-section">
+                        <h3>Growth Curve Settings</h3>
+                        <div class="control-grid-2col">
+                            <div class="control-group"><label>Width:</label><input type="number" id="growthWidth" value="400" min="100" step="10"></div>
+                            <div class="control-group"><label>Height:</label><input type="number" id="growthHeight" value="300" min="100" step="10"></div>
+                            <div class="control-group"><label>Y-Min:</label><input type="number" id="growthYMin" placeholder="Auto" step="any"></div>
+                            <div class="control-group"><label>Y-Max:</label><input type="number" id="growthYMax" placeholder="Auto" step="any"></div>
+                            <div class="control-group"><label>Colors:</label>
+                                <select id="growthColorTheme">
+                                    <option value="default">Default</option>
+                                    <option value="pastel">Pastel</option>
+                                    <option value="vivid">Vivid</option>
+                                    <option value="colorblind">Colorblind-safe</option>
+                                </select>
+                            </div>
+                            <div class="control-group"><label>Error:</label>
+                                <select id="growthErrorType">
+                                    <option value="sem">SEM</option>
+                                    <option value="sd">SD</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-top:6px">
+                            <label style="font-size:12px"><input type="checkbox" id="growthShowIndividual" checked> Individual lines</label>
+                            <label style="font-size:12px;margin-left:8px"><input type="checkbox" id="growthShowMean" checked> Group mean +/- error</label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="graph-controls">
                     <div class="control-section">
                         <h3>Dimensions & Style</h3>
@@ -410,6 +441,9 @@
                                         <option value="kruskal-wallis">Kruskal-Wallis</option>
                                         <option value="friedman">Friedman</option>
                                     </optgroup>
+                                    <optgroup label="Growth Curves">
+                                        <option value="two-way-rm-anova">Two-way RM ANOVA</option>
+                                    </optgroup>
                                     <optgroup label="Two-group">
                                         <option value="t-test-unpaired">T-test (Unpaired)</option>
                                         <option value="t-test-paired">T-test (Paired)</option>
@@ -481,6 +515,7 @@
     <script src="js/export.js"></script>
     <script src="js/clustering.js"></script>
     <script src="js/heatmap.js"></script>
+    <script src="js/growth.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

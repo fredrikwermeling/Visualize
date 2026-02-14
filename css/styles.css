@@ -130,6 +130,7 @@ header {
 .graph-panel .heatmap-info,
 .graph-panel .graph-controls,
 .graph-panel .heatmap-controls,
+.graph-panel .growth-controls,
 .graph-panel > input[type="hidden"] {
     margin-left: 14px;
     margin-right: 14px;
@@ -140,7 +141,8 @@ header {
 }
 
 .graph-panel .graph-controls,
-.graph-panel .heatmap-controls {
+.graph-panel .heatmap-controls,
+.graph-panel .growth-controls {
     margin-bottom: 14px;
 }
 
@@ -1108,6 +1110,43 @@ tr:hover .row-delete-btn {
 
 /* Heatmap-only export buttons */
 .heatmap-only { display: none; }
+
+/* Growth Curve Controls */
+.growth-controls {
+    margin-bottom: 10px;
+}
+
+.growth-controls .control-section {
+    padding: 10px 12px;
+    background-color: var(--gray-100);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--green-500);
+}
+
+.growth-controls .control-section h3 {
+    color: var(--green-800);
+    margin-bottom: 6px;
+    font-size: 0.95em;
+    font-weight: 600;
+}
+
+.sem-ribbon {
+    pointer-events: none;
+}
+
+.growth-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 1000;
+    white-space: nowrap;
+    line-height: 1.5;
+    display: none;
+}
 
 /* Expand table button */
 .expand-btn {

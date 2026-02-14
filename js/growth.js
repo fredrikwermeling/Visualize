@@ -426,7 +426,7 @@ class GrowthCurveRenderer {
                     .attr('text-anchor', 'middle')
                     .style('font-size', '16px')
                     .style('font-weight', 'bold')
-                    .style('fill', '#c0392b')
+                    .style('fill', '#333')
                     .text(label);
 
                 sigG.append('title').text(compLabel);

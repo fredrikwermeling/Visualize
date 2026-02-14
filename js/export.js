@@ -15,6 +15,7 @@ class ExportManager {
         // Clone the SVG and inline all computed styles
         const cloned = svgEl.cloneNode(true);
         this._inlineStyles(svgEl, cloned);
+        const dims = this._expandToFit(cloned);
 
         const svgData = new XMLSerializer().serializeToString(cloned);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -26,8 +27,8 @@ class ExportManager {
 
         img.onload = () => {
             const canvas = document.createElement('canvas');
-            canvas.width = svgEl.getAttribute('width') * scale;
-            canvas.height = svgEl.getAttribute('height') * scale;
+            canvas.width = dims.width * scale;
+            canvas.height = dims.height * scale;
 
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
@@ -65,6 +66,7 @@ class ExportManager {
         // Clone and inline styles for standalone SVG
         const cloned = svgEl.cloneNode(true);
         this._inlineStyles(svgEl, cloned);
+        this._expandToFit(cloned);
 
         // Add XML namespace
         cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -97,6 +99,7 @@ class ExportManager {
         // Clone the SVG and inline styles
         const cloned = svgEl.cloneNode(true);
         this._inlineStyles(svgEl, cloned);
+        const dims = this._expandToFit(cloned);
 
         // Add white background
         const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -116,8 +119,8 @@ class ExportManager {
 
         img.onload = () => {
             const canvas = document.createElement('canvas');
-            canvas.width = svgEl.getAttribute('width') * scale;
-            canvas.height = svgEl.getAttribute('height') * scale;
+            canvas.width = dims.width * scale;
+            canvas.height = dims.height * scale;
 
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
@@ -158,6 +161,7 @@ class ExportManager {
     _exportSvgEl(svgEl, format, filename) {
         const cloned = svgEl.cloneNode(true);
         this._inlineStyles(svgEl, cloned);
+        const dims = this._expandToFit(cloned);
 
         if (format === 'svg') {
             cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -179,8 +183,8 @@ class ExportManager {
             const scale = scaleEl ? parseInt(scaleEl.value) || 2 : 2;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                canvas.width = svgEl.getAttribute('width') * scale;
-                canvas.height = svgEl.getAttribute('height') * scale;
+                canvas.width = dims.width * scale;
+                canvas.height = dims.height * scale;
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -204,6 +208,34 @@ class ExportManager {
                 this._downloadBlob(blob, filename);
             }, 'image/png');
         });
+    }
+
+    _expandToFit(cloned) {
+        // Temporarily add to DOM to measure bounding box
+        cloned.style.position = 'absolute';
+        cloned.style.left = '-9999px';
+        cloned.style.visibility = 'hidden';
+        document.body.appendChild(cloned);
+
+        const bbox = cloned.getBBox();
+        document.body.removeChild(cloned);
+        cloned.style.position = '';
+        cloned.style.left = '';
+        cloned.style.visibility = '';
+
+        const origW = parseFloat(cloned.getAttribute('width')) || 0;
+        const origH = parseFloat(cloned.getAttribute('height')) || 0;
+
+        // Calculate required dimensions including overflow
+        const needW = Math.max(origW, bbox.x + bbox.width + 10);
+        const needH = Math.max(origH, bbox.y + bbox.height + 10);
+
+        if (needW > origW || needH > origH) {
+            cloned.setAttribute('width', Math.ceil(needW));
+            cloned.setAttribute('height', Math.ceil(needH));
+            cloned.setAttribute('viewBox', `0 0 ${Math.ceil(needW)} ${Math.ceil(needH)}`);
+        }
+        return { width: Math.ceil(needW), height: Math.ceil(needH) };
     }
 
     _inlineStyles(source, target) {

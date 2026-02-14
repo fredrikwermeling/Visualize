@@ -1258,7 +1258,7 @@ tr:hover .row-delete-btn {
     line-height: 20px;
 }
 
-/* Expand table button */
-.expand-btn {
-    margin-left: auto;
+/* Table controls uniform sizing */
+.table-controls .btn {
+    white-space: nowrap;
 }

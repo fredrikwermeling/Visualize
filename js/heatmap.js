@@ -219,7 +219,7 @@ class HeatmapRenderer {
             .padding(0.02);
 
         // Title
-        this._drawTitle(svg, width, this.settings.title);
+        this._drawTitle(svg, width, this.settings.title, marginLeft, cellAreaWidth);
 
         // Cell area group
         const cellGroup = svg.append('g')
@@ -386,12 +386,12 @@ class HeatmapRenderer {
             default: ['#5B8DB8', '#E8927C', '#7EBF7E', '#C490D1', '#F2CC8F', '#81D4DB', '#FF9F9F', '#A8D5A2'],
             pastel: ['#B5D6E8', '#F5C6B8', '#C8E6C8', '#DFC8E8', '#FBE6C8', '#C0EAF0', '#FFCFCF', '#D4EAD0'],
             vivid: ['#2171B5', '#E6550D', '#31A354', '#756BB1', '#D6A016', '#17BECF', '#E7298A', '#66C2A5'],
-            grayscale: ['#636363', '#969696', '#bdbdbd', '#252525', '#AAAAAA', '#777777', '#444444', '#C0C0C0'],
+            grayscale: ['#333333', '#888888', '#555555', '#AAAAAA', '#1a1a1a', '#cccccc', '#6b6b6b', '#444444'],
             colorblind: ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9', '#E69F00', '#000000'],
-            earth: ['#8B4513', '#A0522D', '#D2B48C', '#6B8E23', '#556B2F', '#BDB76B', '#CD853F', '#DEB887'],
-            ocean: ['#006994', '#0077B6', '#00B4D8', '#48CAE4', '#0096C7', '#023E8A', '#03045E', '#90E0EF'],
+            earth: ['#8B4513', '#6B8E23', '#D2B48C', '#556B2F', '#CD853F', '#BDB76B', '#A0522D', '#DEB887'],
+            ocean: ['#03045E', '#0096C7', '#48CAE4', '#023E8A', '#00B4D8', '#90E0EF', '#006994', '#0077B6'],
             neon: ['#FF00FF', '#00FFFF', '#FF6600', '#39FF14', '#FF3131', '#BF00FF', '#FFFF00', '#FF1493'],
-            forest: ['#1b5e20', '#2e7d32', '#388e3c', '#43a047', '#66bb6a', '#a5d6a7', '#4caf50', '#81c784']
+            forest: ['#1b5e20', '#a5d6a7', '#2e7d32', '#66bb6a', '#388e3c', '#81c784', '#43a047', '#4caf50']
         };
         let palette;
         const theme = this.settings.groupColorTheme;
@@ -1346,12 +1346,14 @@ class HeatmapRenderer {
         })).style('cursor', 'move');
     }
 
-    _drawTitle(svg, width, title) {
+    _drawTitle(svg, width, title, marginLeft, cellAreaWidth) {
         const ox = this._titleOffset.x;
         const oy = this._titleOffset.y;
         const tf = this.settings.titleFont;
+        // Center over cells only (not including legend)
+        const centerX = marginLeft != null ? marginLeft + cellAreaWidth / 2 : width / 2;
         const titleEl = svg.append('text')
-            .attr('x', width / 2 + ox)
+            .attr('x', centerX + ox)
             .attr('y', 18 + oy)
             .attr('text-anchor', 'middle')
             .attr('font-size', tf.size + 'px')
@@ -1373,7 +1375,7 @@ class HeatmapRenderer {
                 self._titleOffset.x += event.dx;
                 self._titleOffset.y += event.dy;
                 d3.select(this)
-                    .attr('x', width / 2 + self._titleOffset.x)
+                    .attr('x', centerX + self._titleOffset.x)
                     .attr('y', 18 + self._titleOffset.y);
             })
             .on('end', function() {

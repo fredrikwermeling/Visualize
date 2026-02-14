@@ -36,7 +36,8 @@
                     <span class="mode-label">Graph Mode</span>
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
                     <button class="mode-btn" data-mode="column">Column</button>
-                    <button class="mode-btn" data-mode="growth">Growth</button>
+                    <button class="mode-btn" data-mode="growth">Time Series</button>
+                    <button class="mode-btn" data-mode="volcano" disabled title="Coming soon">Volcano</button>
                     <button id="resetMode" class="btn btn-secondary" style="margin-left:auto;padding:2px 8px;font-size:10px" title="Reset current mode settings to defaults">Reset</button>
                 </div>
                 <h2>Data Input</h2>
@@ -65,8 +66,8 @@
                     <button id="addRow" class="btn btn-secondary">+ Row</button>
                     <button id="clearData" class="btn btn-secondary">Clear</button>
                     <button id="addTestData" class="btn btn-secondary">Test Data</button>
+                    <button id="expandTable" class="btn btn-secondary" title="Toggle expanded table view">&#8646; Expand</button>
                     <label class="paste-mode-toggle" title="When checked, pasted data is appended below existing rows instead of replacing"><input type="checkbox" id="pasteAppend"> Append paste</label>
-                    <button id="expandTable" class="btn btn-secondary expand-btn" title="Toggle expanded table view">&#8646;</button>
                 </div>
 
                 <div id="groupManager" class="group-manager" style="display:none">
@@ -290,7 +291,7 @@
 
                 <div id="growthControls" class="growth-controls" style="display:none">
                     <div class="control-section">
-                        <h3>Growth Curve Settings</h3>
+                        <h3>Time Series Settings</h3>
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Width:</label><input type="number" id="growthWidth" value="400" min="100" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="growthHeight" value="300" min="100" step="10"></div>

@@ -594,7 +594,10 @@ class App {
             this._growthTableData = null;
             this.dataTable.loadGrowthSampleData();
         } else if (this.mode === 'volcano') {
-            this.volcanoRenderer.settings = new VolcanoRenderer('graphContainer').settings;
+            const fresh = new VolcanoRenderer('graphContainer');
+            this.volcanoRenderer.settings = fresh.settings;
+            this.volcanoRenderer._nudgeOffsetKey = null;
+            this.volcanoRenderer._nudgeGeneName = null;
             document.getElementById('volcanoWidth').value = 450;
             document.getElementById('volcanoHeight').value = 400;
             document.getElementById('volcanoPThresh').value = 0.05;
@@ -1176,6 +1179,7 @@ class App {
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
                 { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
                 { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
                 { label: 'X Tick Font', fontKey: 'xTickFont' },
                 { label: 'Y Tick Font', fontKey: 'yTickFont' },
                 { label: 'Gene Labels', fontKey: 'labelFont' }

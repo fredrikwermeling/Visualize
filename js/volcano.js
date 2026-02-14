@@ -5,38 +5,46 @@ class VolcanoRenderer {
         this.container = document.getElementById(containerId);
         this.settings = {
             title: 'Volcano Plot',
-            xLabel: 'Log₂ Fold Change',
-            yLabel: '-Log₁₀ P-value',
+            xLabel: 'Log\u2082 Fold Change',
+            yLabel: '-Log\u2081\u2080 P-value',
             width: 450,
             height: 400,
-            // Thresholds
             pValueThreshold: 0.05,
-            fcThreshold: 1.0, // log2 fold change threshold
-            // Colors
+            fcThreshold: 1.0,
             upColor: '#E63946',
             downColor: '#457B9D',
             nsColor: '#BBBBBB',
-            // Point settings
             pointSize: 4,
             pointOpacity: 0.7,
-            // Fonts (matching other modes)
+            // Fonts
             titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
             xLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
             yLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
             xTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             yTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
-            // Visibility & offsets (matching pattern from graph.js / growth.js)
+            labelFont: { family: 'Arial', size: 10, bold: false, italic: false },
+            legendFont: { family: 'Arial', size: 11, bold: false, italic: false },
+            // Visibility
             showTitle: true,
             showXLabel: true,
             showYLabel: true,
+            showLegend: true,
+            // Offsets
             titleOffset: { x: 0, y: 0 },
             xLabelOffset: { x: 0, y: 0 },
             yLabelOffset: { x: 0, y: 0 },
-            // Labels
-            showTopLabels: 10, // number of top significant genes to label
-            labelFont: { family: 'Arial', size: 10, bold: false, italic: false }
+            legendOffset: { x: 0, y: 0 },
+            // Legend text
+            upLegendText: 'Up',
+            downLegendText: 'Down',
+            nsLegendText: 'NS',
+            // Gene labels
+            showTopLabels: 10,
+            highlightedGenes: [],  // manually toggled gene names
+            geneLabelOffsets: {}   // { geneName: {x, y} }
         };
-        this._titleOffset = { x: 0, y: 0 };
+        this._nudgeOffsetKey = null;
+        this._nudgeGeneName = null;
     }
 
     render(volcanoData, settings) {
@@ -54,6 +62,7 @@ class VolcanoRenderer {
         const height = s.height;
         const innerW = width - margin.left - margin.right;
         const innerH = height - margin.top - margin.bottom;
+        this._lastPlotData = null;
 
         const svg = d3.select(this.container)
             .append('svg')
@@ -66,73 +75,61 @@ class VolcanoRenderer {
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
         const points = volcanoData.points;
+        const pThreshY = -Math.log10(s.pValueThreshold);
 
-        // Calculate -log10 p-values
         const plotData = points.map(p => ({
             name: p.name,
             fc: p.fc,
             pval: p.pval,
-            logFC: p.fc, // already log2 FC
+            logFC: p.fc,
             negLogP: p.pval > 0 ? -Math.log10(p.pval) : 0
         }));
+        this._lastPlotData = plotData;
 
         // Scales
         const xExtent = d3.extent(plotData, d => d.logFC);
-        const xPad = Math.max(Math.abs(xExtent[0]), Math.abs(xExtent[1])) * 1.1;
-        const xScale = d3.scaleLinear()
-            .domain([-xPad, xPad])
-            .range([0, innerW])
-            .nice();
-
-        const yMax = d3.max(plotData, d => d.negLogP) * 1.1;
-        const yScale = d3.scaleLinear()
-            .domain([0, yMax])
-            .range([innerH, 0])
-            .nice();
+        const xPad = Math.max(Math.abs(xExtent[0] || 1), Math.abs(xExtent[1] || 1)) * 1.1;
+        const xScale = d3.scaleLinear().domain([-xPad, xPad]).range([0, innerW]).nice();
+        const yMax = d3.max(plotData, d => d.negLogP) * 1.1 || 1;
+        const yScale = d3.scaleLinear().domain([0, yMax]).range([innerH, 0]).nice();
 
         // Axes
-        const xAxisG = g.append('g')
-            .attr('transform', `translate(0,${innerH})`)
-            .call(d3.axisBottom(xScale));
+        const xAxisG = g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(xScale));
         this._styleAxisTicks(xAxisG, s.xTickFont);
-
-        const yAxisG = g.append('g')
-            .call(d3.axisLeft(yScale));
+        const yAxisG = g.append('g').call(d3.axisLeft(yScale));
         this._styleAxisTicks(yAxisG, s.yTickFont);
 
         // Threshold lines
-        const pThreshY = -Math.log10(s.pValueThreshold);
-        // Horizontal p-value threshold
-        g.append('line')
-            .attr('x1', 0).attr('x2', innerW)
+        g.append('line').attr('x1', 0).attr('x2', innerW)
             .attr('y1', yScale(pThreshY)).attr('y2', yScale(pThreshY))
-            .attr('stroke', '#999').attr('stroke-dasharray', '4,3')
-            .attr('stroke-width', 1);
-
-        // Vertical FC thresholds
+            .attr('stroke', '#999').attr('stroke-dasharray', '4,3').attr('stroke-width', 1);
         if (s.fcThreshold > 0) {
-            g.append('line')
-                .attr('x1', xScale(-s.fcThreshold)).attr('x2', xScale(-s.fcThreshold))
-                .attr('y1', 0).attr('y2', innerH)
-                .attr('stroke', '#999').attr('stroke-dasharray', '4,3')
-                .attr('stroke-width', 1);
-            g.append('line')
-                .attr('x1', xScale(s.fcThreshold)).attr('x2', xScale(s.fcThreshold))
-                .attr('y1', 0).attr('y2', innerH)
-                .attr('stroke', '#999').attr('stroke-dasharray', '4,3')
-                .attr('stroke-width', 1);
+            [s.fcThreshold, -s.fcThreshold].forEach(fc => {
+                g.append('line').attr('x1', xScale(fc)).attr('x2', xScale(fc))
+                    .attr('y1', 0).attr('y2', innerH)
+                    .attr('stroke', '#999').attr('stroke-dasharray', '4,3').attr('stroke-width', 1);
+            });
         }
 
-        // Classify points
+        // Classify
         const classify = (d) => {
             if (d.negLogP >= pThreshY && d.logFC >= s.fcThreshold) return 'up';
             if (d.negLogP >= pThreshY && d.logFC <= -s.fcThreshold) return 'down';
             return 'ns';
         };
-
         const colorMap = { up: s.upColor, down: s.downColor, ns: s.nsColor };
 
-        // Draw points
+        // Determine which genes to label
+        const autoLabeled = plotData
+            .filter(d => classify(d) !== 'ns')
+            .sort((a, b) => b.negLogP - a.negLogP)
+            .slice(0, s.showTopLabels)
+            .map(d => d.name);
+        const manual = s.highlightedGenes || [];
+        const labeledSet = new Set([...autoLabeled, ...manual]);
+
+        // Draw points — click to toggle label
+        const self = this;
         g.selectAll('circle.volcano-point')
             .data(plotData)
             .enter()
@@ -143,85 +140,77 @@ class VolcanoRenderer {
             .attr('r', s.pointSize)
             .attr('fill', d => colorMap[classify(d)])
             .attr('opacity', s.pointOpacity)
-            .attr('stroke', 'none')
+            .attr('stroke', d => labeledSet.has(d.name) ? '#333' : 'none')
+            .attr('stroke-width', d => labeledSet.has(d.name) ? 1 : 0)
+            .attr('cursor', 'pointer')
+            .on('click', function(event, d) {
+                event.stopPropagation();
+                const hl = self.settings.highlightedGenes;
+                const idx = hl.indexOf(d.name);
+                if (idx >= 0) {
+                    hl.splice(idx, 1);
+                } else {
+                    hl.push(d.name);
+                }
+                if (window.app) window.app.updateGraph();
+            })
             .append('title')
-            .text(d => `${d.name}\nLog₂FC: ${d.logFC.toFixed(2)}\nP: ${d.pval.toExponential(2)}`);
+            .text(d => `${d.name}\nLog\u2082FC: ${d.logFC.toFixed(2)}\nP: ${d.pval.toExponential(2)}\nClick to toggle label`);
 
-        // Label top significant genes
-        if (s.showTopLabels > 0) {
-            const significant = plotData
-                .filter(d => classify(d) !== 'ns')
-                .sort((a, b) => b.negLogP - a.negLogP)
-                .slice(0, s.showTopLabels);
+        // Draw gene labels (draggable)
+        const lf = s.labelFont;
+        plotData.filter(d => labeledSet.has(d.name)).forEach(d => {
+            const off = s.geneLabelOffsets[d.name] || { x: 0, y: 0 };
+            const baseX = xScale(d.logFC);
+            const baseY = yScale(d.negLogP) - s.pointSize - 3;
 
-            const lf = s.labelFont;
-            g.selectAll('text.gene-label')
-                .data(significant)
-                .enter()
-                .append('text')
+            const label = g.append('text')
                 .attr('class', 'gene-label')
-                .attr('x', d => xScale(d.logFC))
-                .attr('y', d => yScale(d.negLogP) - s.pointSize - 3)
+                .attr('x', baseX + off.x)
+                .attr('y', baseY + off.y)
                 .attr('text-anchor', 'middle')
                 .attr('font-size', lf.size + 'px')
                 .attr('font-family', lf.family)
                 .attr('font-weight', lf.bold ? 'bold' : 'normal')
                 .attr('font-style', lf.italic ? 'italic' : 'normal')
                 .attr('fill', '#333')
-                .text(d => d.name);
-        }
+                .attr('cursor', 'grab')
+                .text(d.name);
 
-        // Legend (counts)
-        const upCount = plotData.filter(d => classify(d) === 'up').length;
-        const downCount = plotData.filter(d => classify(d) === 'down').length;
-        const nsCount = plotData.filter(d => classify(d) === 'ns').length;
-
-        const legendG = g.append('g')
-            .attr('transform', `translate(${innerW - 120}, 5)`);
-
-        const legendItems = [
-            { label: `Up (${upCount})`, color: s.upColor },
-            { label: `Down (${downCount})`, color: s.downColor },
-            { label: `NS (${nsCount})`, color: s.nsColor }
-        ];
-
-        legendItems.forEach((item, i) => {
-            const ly = i * 16;
-            legendG.append('circle')
-                .attr('cx', 0).attr('cy', ly)
-                .attr('r', 4).attr('fill', item.color);
-            legendG.append('text')
-                .attr('x', 10).attr('y', ly + 4)
-                .attr('font-size', '11px')
-                .attr('font-family', 'Arial')
-                .attr('fill', '#333')
-                .text(item.label);
+            // Drag gene label
+            label.call(d3.drag()
+                .filter(ev => !ev.ctrlKey && !ev.button && ev.detail < 2)
+                .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
+                .on('drag', function(event) {
+                    if (!self.settings.geneLabelOffsets[d.name]) self.settings.geneLabelOffsets[d.name] = { x: 0, y: 0 };
+                    self.settings.geneLabelOffsets[d.name].x += event.dx;
+                    self.settings.geneLabelOffsets[d.name].y += event.dy;
+                    d3.select(this)
+                        .attr('x', parseFloat(d3.select(this).attr('x')) + event.dx)
+                        .attr('y', parseFloat(d3.select(this).attr('y')) + event.dy);
+                })
+                .on('end', function() {
+                    d3.select(this).style('cursor', 'grab');
+                    // Click without drag → select for nudge
+                    self._selectGeneForNudge(d.name);
+                })
+            );
         });
 
+        // Legend
+        this._drawLegend(g, innerW, plotData, classify, colorMap);
+
         // Title
-        this._drawTitle(svg, width, margin);
+        if (s.showTitle) this._drawInteractiveText(svg, 'title', width / 2, 22, s.title, s.titleFont, s.titleOffset);
 
         // X label
-        if (s.showXLabel) {
-            const xlf = s.xLabelFont;
-            const xOff = s.xLabelOffset;
-            svg.append('text')
-                .attr('x', margin.left + innerW / 2 + xOff.x)
-                .attr('y', height - 10 + xOff.y)
-                .attr('text-anchor', 'middle')
-                .attr('font-size', xlf.size + 'px')
-                .attr('font-family', xlf.family)
-                .attr('font-weight', xlf.bold ? 'bold' : 'normal')
-                .attr('font-style', xlf.italic ? 'italic' : 'normal')
-                .attr('fill', '#333')
-                .text(s.xLabel);
-        }
+        if (s.showXLabel) this._drawInteractiveText(svg, 'xLabel', margin.left + innerW / 2, height - 10, s.xLabel, s.xLabelFont, s.xLabelOffset);
 
         // Y label
         if (s.showYLabel) {
             const ylf = s.yLabelFont;
             const yOff = s.yLabelOffset;
-            svg.append('text')
+            const yLabelEl = svg.append('text')
                 .attr('transform', `translate(${15 + yOff.x},${margin.top + innerH / 2 + yOff.y}) rotate(-90)`)
                 .attr('text-anchor', 'middle')
                 .attr('font-size', ylf.size + 'px')
@@ -229,61 +218,163 @@ class VolcanoRenderer {
                 .attr('font-weight', ylf.bold ? 'bold' : 'normal')
                 .attr('font-style', ylf.italic ? 'italic' : 'normal')
                 .attr('fill', '#333')
+                .attr('cursor', 'grab')
                 .text(s.yLabel);
+
+            this._makeLabelDrag(yLabelEl, 'yLabelOffset');
+            yLabelEl.on('dblclick', () => this._startInlineEdit(null, 'yLabel'));
         }
     }
 
-    _drawTitle(svg, width, margin) {
-        const s = this.settings;
-        if (!s.showTitle) return;
-        const tf = s.titleFont;
-        const ox = s.titleOffset.x;
-        const oy = s.titleOffset.y;
-
-        const titleEl = svg.append('text')
-            .attr('x', width / 2 + ox)
-            .attr('y', 22 + oy)
+    // Shared interactive text: drag + dblclick + nudge
+    _drawInteractiveText(svg, labelType, baseX, baseY, text, font, offset) {
+        const el = svg.append('text')
+            .attr('x', baseX + offset.x)
+            .attr('y', baseY + offset.y)
             .attr('text-anchor', 'middle')
-            .attr('font-size', tf.size + 'px')
-            .attr('font-family', tf.family)
-            .attr('font-weight', tf.bold ? 'bold' : 'normal')
-            .attr('font-style', tf.italic ? 'italic' : 'normal')
+            .attr('font-size', font.size + 'px')
+            .attr('font-family', font.family)
+            .attr('font-weight', font.bold ? 'bold' : 'normal')
+            .attr('font-style', font.italic ? 'italic' : 'normal')
             .attr('fill', '#333')
             .attr('cursor', 'grab')
-            .text(s.title);
+            .text(text);
 
-        // Drag
+        const offsetKey = labelType + 'Offset';
+        this._makeLabelDrag(el, offsetKey);
+        el.on('dblclick', () => this._startInlineEdit(null, labelType));
+        return el;
+    }
+
+    _drawLegend(g, innerW, plotData, classify, colorMap) {
+        const s = this.settings;
+        if (!s.showLegend) return;
+
+        const upCount = plotData.filter(d => classify(d) === 'up').length;
+        const downCount = plotData.filter(d => classify(d) === 'down').length;
+        const nsCount = plotData.filter(d => classify(d) === 'ns').length;
+        const loff = s.legendOffset;
+        const lf = s.legendFont;
+
+        const legendG = g.append('g')
+            .attr('transform', `translate(${innerW - 120 + loff.x}, ${5 + loff.y})`)
+            .attr('cursor', 'grab');
+
+        const items = [
+            { key: 'up', label: `${s.upLegendText} (${upCount})`, color: s.upColor },
+            { key: 'down', label: `${s.downLegendText} (${downCount})`, color: s.downColor },
+            { key: 'ns', label: `${s.nsLegendText} (${nsCount})`, color: s.nsColor }
+        ];
+
+        items.forEach((item, i) => {
+            const ly = i * 18;
+            legendG.append('circle').attr('cx', 0).attr('cy', ly).attr('r', 4).attr('fill', item.color);
+            legendG.append('text').attr('x', 10).attr('y', ly + 4)
+                .attr('font-size', lf.size + 'px')
+                .attr('font-family', lf.family)
+                .attr('font-weight', lf.bold ? 'bold' : 'normal')
+                .attr('font-style', lf.italic ? 'italic' : 'normal')
+                .attr('fill', '#333')
+                .text(item.label);
+        });
+
+        // Drag the whole legend
         const self = this;
-        let wasDragged = false;
-        titleEl.call(d3.drag()
-            .filter(event => !event.ctrlKey && !event.button && event.detail < 2)
-            .on('start', function() { wasDragged = false; d3.select(this).style('cursor', 'grabbing'); })
+        legendG.call(d3.drag()
+            .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
             .on('drag', function(event) {
-                wasDragged = true;
-                self.settings.titleOffset.x += event.dx;
-                self.settings.titleOffset.y += event.dy;
-                d3.select(this)
-                    .attr('x', width / 2 + self.settings.titleOffset.x)
-                    .attr('y', 22 + self.settings.titleOffset.y);
+                self.settings.legendOffset.x += event.dx;
+                self.settings.legendOffset.y += event.dy;
+                d3.select(this).attr('transform',
+                    `translate(${innerW - 120 + self.settings.legendOffset.x}, ${5 + self.settings.legendOffset.y})`);
             })
-            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                self._selectLabelForNudge('legendOffset');
+            })
         );
 
-        // Dblclick to edit
-        titleEl.on('dblclick', () => {
-            this._startInlineEdit(d3.event || window.event, 'title');
-        });
+        // Dblclick legend to edit text + font
+        legendG.on('dblclick', () => this._startInlineEdit(null, 'legend'));
+    }
+
+    _makeLabelDrag(selection, offsetKey) {
+        const self = this;
+        let startX, startY, origOff, didDrag;
+        selection.call(d3.drag()
+            .filter(ev => !ev.ctrlKey && !ev.button && ev.detail < 2)
+            .on('start', function(event) {
+                event.sourceEvent.stopPropagation();
+                startX = event.x; startY = event.y;
+                origOff = { ...self.settings[offsetKey] };
+                didDrag = false;
+                d3.select(this).style('cursor', 'grabbing');
+            })
+            .on('drag', function(event) {
+                const dx = event.x - startX, dy = event.y - startY;
+                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag = true;
+                self.settings[offsetKey] = { x: origOff.x + dx, y: origOff.y + dy };
+                d3.select(this)
+                    .attr('x', parseFloat(d3.select(this).attr('x')) + (event.dx || 0))
+                    .attr('y', parseFloat(d3.select(this).attr('y')) + (event.dy || 0));
+            })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                if (didDrag) {
+                    if (window.app) window.app.updateGraph();
+                } else {
+                    self._selectLabelForNudge(offsetKey);
+                }
+            })
+        );
+    }
+
+    _selectLabelForNudge(offsetKey) {
+        this._nudgeOffsetKey = offsetKey;
+        this._nudgeGeneName = null;
+        if (this._labelNudgeHandler) document.removeEventListener('keydown', this._labelNudgeHandler);
+        this._labelNudgeHandler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+            if (!this._nudgeOffsetKey) return;
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : 2;
+            const off = this.settings[this._nudgeOffsetKey];
+            if (!off) return;
+            if (e.key === 'ArrowUp') off.y -= step;
+            else if (e.key === 'ArrowDown') off.y += step;
+            else if (e.key === 'ArrowLeft') off.x -= step;
+            else if (e.key === 'ArrowRight') off.x += step;
+            if (window.app) window.app.updateGraph();
+        };
+        document.addEventListener('keydown', this._labelNudgeHandler);
+    }
+
+    _selectGeneForNudge(geneName) {
+        this._nudgeOffsetKey = null;
+        this._nudgeGeneName = geneName;
+        if (this._labelNudgeHandler) document.removeEventListener('keydown', this._labelNudgeHandler);
+        this._labelNudgeHandler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+            if (!this._nudgeGeneName) return;
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : 2;
+            if (!this.settings.geneLabelOffsets[this._nudgeGeneName]) {
+                this.settings.geneLabelOffsets[this._nudgeGeneName] = { x: 0, y: 0 };
+            }
+            const off = this.settings.geneLabelOffsets[this._nudgeGeneName];
+            if (e.key === 'ArrowUp') off.y -= step;
+            else if (e.key === 'ArrowDown') off.y += step;
+            else if (e.key === 'ArrowLeft') off.x -= step;
+            else if (e.key === 'ArrowRight') off.x += step;
+            if (window.app) window.app.updateGraph();
+        };
+        document.addEventListener('keydown', this._labelNudgeHandler);
     }
 
     _startInlineEdit(event, labelType) {
         const s = this.settings;
-        let textKey, fontKey;
-        if (labelType === 'title') { textKey = 'title'; fontKey = 'titleFont'; }
-        else if (labelType === 'xLabel') { textKey = 'xLabel'; fontKey = 'xLabelFont'; }
-        else if (labelType === 'yLabel') { textKey = 'yLabel'; fontKey = 'yLabelFont'; }
-        else return;
-
-        // Remove existing popups
         document.querySelectorAll('.svg-edit-popup').forEach(p => p.remove());
 
         const popup = document.createElement('div');
@@ -294,31 +385,53 @@ class VolcanoRenderer {
         popup.style.left = (rect.left + rect.width / 2 - 120) + 'px';
         popup.style.top = (rect.top + 30) + 'px';
 
-        const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.value = s[textKey] || '';
-        inp.style.cssText = 'width:200px;padding:4px;border:1px solid #ccc;border-radius:3px;font-size:13px;';
-        inp.addEventListener('input', () => { s[textKey] = inp.value; if (window.app) window.app.updateGraph(); });
-        popup.appendChild(inp);
+        if (labelType === 'legend') {
+            // Legend edit: 3 text inputs + font toolbar
+            ['upLegendText', 'downLegendText', 'nsLegendText'].forEach(key => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;gap:4px;';
+                const lbl = document.createElement('span');
+                lbl.textContent = key.replace('LegendText', '') + ':';
+                lbl.style.cssText = 'font-size:11px;width:40px;';
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.value = s[key] || '';
+                inp.style.cssText = 'flex:1;padding:3px;border:1px solid #ccc;border-radius:3px;font-size:12px;';
+                inp.addEventListener('input', () => { s[key] = inp.value; if (window.app) window.app.updateGraph(); });
+                row.appendChild(lbl);
+                row.appendChild(inp);
+                popup.appendChild(row);
+            });
+            const { toolbar } = this._createFontToolbar(s.legendFont);
+            popup.appendChild(toolbar);
+        } else {
+            // Standard text edit (title, xLabel, yLabel)
+            const textKey = labelType === 'title' ? 'title' : labelType;
+            const fontKey = labelType === 'title' ? 'titleFont' : labelType + 'Font';
 
-        const { toolbar } = this._createFontToolbar(s[fontKey]);
-        popup.appendChild(toolbar);
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.value = s[textKey] || '';
+            inp.style.cssText = 'width:200px;padding:4px;border:1px solid #ccc;border-radius:3px;font-size:13px;';
+            inp.addEventListener('input', () => { s[textKey] = inp.value; if (window.app) window.app.updateGraph(); });
+            popup.appendChild(inp);
+
+            const { toolbar } = this._createFontToolbar(s[fontKey]);
+            popup.appendChild(toolbar);
+        }
 
         const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
+        closeBtn.textContent = '\u2715';
         closeBtn.style.cssText = 'position:absolute;top:2px;right:6px;background:none;border:none;cursor:pointer;font-size:14px;color:#999;';
         closeBtn.addEventListener('click', () => popup.remove());
         popup.appendChild(closeBtn);
 
         document.body.appendChild(popup);
-        inp.focus();
-        inp.select();
     }
 
     _createFontToolbar(fontObj) {
         const toolbar = document.createElement('div');
         toolbar.style.cssText = 'display:flex;align-items:center;gap:4px;flex-wrap:wrap;';
-
         const families = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
         const familySelect = document.createElement('select');
         familySelect.style.cssText = 'font-size:11px;padding:2px;max-width:100px;';
@@ -332,8 +445,7 @@ class VolcanoRenderer {
         toolbar.appendChild(familySelect);
 
         const sizeInput = document.createElement('input');
-        sizeInput.type = 'number';
-        sizeInput.min = 6; sizeInput.max = 72; sizeInput.step = 1;
+        sizeInput.type = 'number'; sizeInput.min = 6; sizeInput.max = 72; sizeInput.step = 1;
         sizeInput.value = fontObj.size;
         sizeInput.style.cssText = 'width:48px;font-size:11px;padding:2px;';
         sizeInput.addEventListener('input', () => { fontObj.size = parseInt(sizeInput.value) || 12; if (window.app) window.app.updateGraph(); });

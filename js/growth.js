@@ -24,7 +24,10 @@ class GrowthCurveRenderer {
             xTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             yTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             xTickStep: null,
-            yTickStep: null
+            yTickStep: null,
+            legendFont: { family: 'Arial', size: 11, bold: false, italic: false },
+            showLegend: true,
+            groupOverrides: {} // { groupName: { color, symbol, label } }
         };
         this._titleOffset = { x: 0, y: 0 };
         this._legendOffset = { x: 0, y: 0 };
@@ -87,8 +90,10 @@ class GrowthCurveRenderer {
         this.significanceMarkers = markers || [];
     }
 
-    _getSymbolForGroup(gi) {
+    _getSymbolForGroup(gi, groupName) {
         const s = this.settings;
+        const ov = groupName && s.groupOverrides && s.groupOverrides[groupName];
+        if (ov && ov.symbol) return ov.symbol;
         if (s.symbolShape === 'per-group' || s.colorTheme === 'black') {
             return this.symbolCycle[gi % this.symbolCycle.length];
         }
@@ -107,9 +112,16 @@ class GrowthCurveRenderer {
         return map[shape] || d3.symbolCircle;
     }
 
-    _getColor(index) {
+    _getColor(index, groupName) {
+        const ov = groupName && this.settings.groupOverrides && this.settings.groupOverrides[groupName];
+        if (ov && ov.color) return ov.color;
         const theme = this.colorThemes[this.settings.colorTheme] || this.colorThemes.default;
         return theme[index % theme.length];
+    }
+
+    _getGroupLabel(groupName) {
+        const ov = this.settings.groupOverrides && this.settings.groupOverrides[groupName];
+        return (ov && ov.label) || groupName;
     }
 
     render(growthData, settings) {
@@ -192,8 +204,8 @@ class GrowthCurveRenderer {
 
         // Draw per group
         groups.forEach((groupName, gi) => {
-            const color = this._getColor(gi);
-            const symbol = this._getSymbolForGroup(gi);
+            const color = this._getColor(gi, groupName);
+            const symbol = this._getSymbolForGroup(gi, groupName);
             const subjectIds = groupMap[groupName] || [];
             const groupStats = this._calcGroupStats(subjects, groupName, timepoints, subjectIds);
 
@@ -466,10 +478,14 @@ class GrowthCurveRenderer {
     }
 
     _drawLegend(svg, groups, width, margin) {
+        const s = this.settings;
+        if (s.showLegend === false) return;
+
         const ox = this._legendOffset.x;
         const oy = this._legendOffset.y;
         const legendX = width - margin.right - 10 + ox;
         const legendY = margin.top + 5 + oy;
+        const lf = s.legendFont || { family: 'Arial', size: 11, bold: false, italic: false };
 
         const legend = svg.append('g')
             .attr('class', 'growth-legend')
@@ -483,11 +499,17 @@ class GrowthCurveRenderer {
             .attr('stroke-width', 0.5)
             .attr('rx', 3);
 
+        const self = this;
+        const rowH = Math.max(18, lf.size + 6);
+
         groups.forEach((groupName, i) => {
-            const color = this._getColor(i);
-            const symbol = this._getSymbolForGroup(i);
+            const color = this._getColor(i, groupName);
+            const symbol = this._getSymbolForGroup(i, groupName);
+            const displayLabel = this._getGroupLabel(groupName);
             const row = legend.append('g')
-                .attr('transform', `translate(5, ${i * 18 + 5})`);
+                .attr('class', 'legend-entry')
+                .attr('transform', `translate(5, ${i * rowH + 5})`)
+                .style('cursor', 'pointer');
 
             row.append('line')
                 .attr('x1', 0).attr('y1', 6)
@@ -507,9 +529,17 @@ class GrowthCurveRenderer {
             row.append('text')
                 .attr('x', 22)
                 .attr('y', 10)
-                .style('font-size', '11px')
-                .style('font-family', 'Arial, sans-serif')
-                .text(groupName);
+                .style('font-size', lf.size + 'px')
+                .style('font-family', lf.family)
+                .style('font-weight', lf.bold ? 'bold' : 'normal')
+                .style('font-style', lf.italic ? 'italic' : 'normal')
+                .text(displayLabel);
+
+            // Dblclick to open group edit popup
+            row.on('dblclick', function(event) {
+                event.stopPropagation();
+                self._openGroupEditPopup(event, groupName, i);
+            });
         });
 
         // Size background
@@ -521,8 +551,8 @@ class GrowthCurveRenderer {
             .attr('height', bbox.height + 6);
 
         // Make legend draggable
-        const self = this;
         const drag = d3.drag()
+            .filter(ev => ev.detail < 2) // don't start drag on dblclick
             .on('drag', function(event) {
                 self._legendOffset.x += event.dx;
                 self._legendOffset.y += event.dy;
@@ -531,6 +561,116 @@ class GrowthCurveRenderer {
                 d3.select(this).attr('transform', `translate(${newX},${newY})`);
             });
         legend.call(drag).style('cursor', 'move');
+    }
+
+    _openGroupEditPopup(event, groupName, groupIndex) {
+        document.querySelectorAll('.svg-edit-popup').forEach(p => p.remove());
+
+        const s = this.settings;
+        if (!s.groupOverrides) s.groupOverrides = {};
+        const ov = s.groupOverrides[groupName] || {};
+
+        const popup = document.createElement('div');
+        popup.className = 'svg-edit-popup';
+        popup.style.cssText = `position:fixed;left:${event.clientX + 10}px;top:${event.clientY - 10}px;z-index:10000`;
+
+        // Label input
+        const labelRow = document.createElement('div');
+        labelRow.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:6px';
+        const labelInput = document.createElement('input');
+        labelInput.type = 'text';
+        labelInput.className = 'svg-inline-edit';
+        labelInput.value = ov.label || groupName;
+        labelInput.placeholder = groupName;
+        labelRow.appendChild(labelInput);
+        popup.appendChild(labelRow);
+
+        // Color + Symbol row
+        const csRow = document.createElement('div');
+        csRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px';
+
+        const colorLabel = document.createElement('span');
+        colorLabel.textContent = 'Color:';
+        colorLabel.style.cssText = 'font-size:11px;font-weight:500';
+        csRow.appendChild(colorLabel);
+
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = ov.color || this._getColor(groupIndex);
+        colorInput.style.cssText = 'width:28px;height:22px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0';
+        csRow.appendChild(colorInput);
+
+        const symLabel = document.createElement('span');
+        symLabel.textContent = 'Symbol:';
+        symLabel.style.cssText = 'font-size:11px;font-weight:500;margin-left:4px';
+        csRow.appendChild(symLabel);
+
+        const symSelect = document.createElement('select');
+        symSelect.style.cssText = 'font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px';
+        const currentSymbol = ov.symbol || this._getSymbolForGroup(groupIndex);
+        ['circle', 'square', 'triangle', 'diamond', 'cross', 'star'].forEach(sym => {
+            const opt = document.createElement('option');
+            opt.value = sym;
+            opt.textContent = sym.charAt(0).toUpperCase() + sym.slice(1);
+            if (sym === currentSymbol) opt.selected = true;
+            symSelect.appendChild(opt);
+        });
+        csRow.appendChild(symSelect);
+        popup.appendChild(csRow);
+
+        // Font toolbar
+        const lf = s.legendFont || { family: 'Arial', size: 11, bold: false, italic: false };
+        const toolbar = this._createFontToolbar(lf);
+        popup.appendChild(toolbar);
+
+        // Buttons
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:4px;margin-top:6px';
+
+        const applyBtn = document.createElement('button');
+        applyBtn.className = 'svg-edit-btn';
+        applyBtn.textContent = 'Apply';
+        applyBtn.addEventListener('click', () => {
+            if (!s.groupOverrides[groupName]) s.groupOverrides[groupName] = {};
+            const val = labelInput.value.trim();
+            if (val && val !== groupName) s.groupOverrides[groupName].label = val;
+            else delete s.groupOverrides[groupName].label;
+            s.groupOverrides[groupName].color = colorInput.value;
+            s.groupOverrides[groupName].symbol = symSelect.value;
+            popup.remove();
+            if (window.app) window.app.updateGraph();
+        });
+        btnRow.appendChild(applyBtn);
+
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'svg-edit-btn';
+        resetBtn.textContent = 'Reset';
+        resetBtn.addEventListener('click', () => {
+            delete s.groupOverrides[groupName];
+            popup.remove();
+            if (window.app) window.app.updateGraph();
+        });
+        btnRow.appendChild(resetBtn);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'svg-edit-btn';
+        closeBtn.textContent = '\u00D7';
+        closeBtn.addEventListener('click', () => popup.remove());
+        btnRow.appendChild(closeBtn);
+
+        popup.appendChild(btnRow);
+        document.body.appendChild(popup);
+
+        labelInput.focus();
+        labelInput.select();
+
+        // Close on outside click
+        setTimeout(() => {
+            const handler = (e) => {
+                if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('mousedown', handler); }
+            };
+            document.addEventListener('mousedown', handler);
+        }, 100);
     }
 
     // --- Font toolbar & inline editing (same pattern as graph.js) ---
@@ -815,7 +955,7 @@ class GrowthCurveRenderer {
                 const t = timepoints[closestIdx];
                 let html = `<b>Time: ${t}</b><br>`;
                 groups.forEach((gName, gi) => {
-                    const color = self._getColor(gi);
+                    const color = self._getColor(gi, gName);
                     const sids = groupMap[gName] || [];
                     const vals = sids.map(sid => subjects[sid]?.[closestIdx]).filter(v => v !== null && !isNaN(v));
                     if (vals.length === 0) return;

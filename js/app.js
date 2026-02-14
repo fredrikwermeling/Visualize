@@ -616,6 +616,9 @@ class App {
             this.growthRenderer.settings.yTickFont = { family: 'Arial', size: 12, bold: false, italic: false };
             this.growthRenderer.settings.xTickStep = null;
             this.growthRenderer.settings.yTickStep = null;
+            this.growthRenderer.settings.legendFont = { family: 'Arial', size: 11, bold: false, italic: false };
+            this.growthRenderer.settings.showLegend = true;
+            this.growthRenderer.settings.groupOverrides = {};
             document.getElementById('growthWidth').value = 400;
             document.getElementById('growthHeight').value = 300;
             document.getElementById('growthYMin').value = '';
@@ -1215,6 +1218,7 @@ class App {
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
                 { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
                 { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
                 { label: 'X Tick Font', fontKey: 'xTickFont', tickStep: 'xTickStep' },
                 { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yTickStep' }
             ];

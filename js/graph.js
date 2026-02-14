@@ -181,7 +181,33 @@ class GraphRenderer {
 
     // Compute point offsets: jitter (random) or beeswarm (non-overlapping)
     _pointOffsets(values, maxWidth, valueScale) {
-        if (this.settings.pointSpread === 'beeswarm') {
+        const spread = this.settings.pointSpread;
+        if (spread === 'none') {
+            return values.map(() => 0);
+        }
+        if (spread === 'column') {
+            // Evenly spaced in a single column
+            const n = values.length;
+            if (n <= 1) return values.map(() => 0);
+            const spacing = Math.min(maxWidth / (n - 1), this.settings.pointSize * 2.5);
+            const totalW = spacing * (n - 1);
+            return values.map((_, i) => -totalW / 2 + i * spacing);
+        }
+        if (spread === 'symmetric') {
+            // Alternating left-right from center
+            const sorted = values.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+            const offsets = new Array(values.length).fill(0);
+            const r = this.settings.pointSize;
+            const step = r * 2.2;
+            sorted.forEach((item, rank) => {
+                const side = rank % 2 === 0 ? 1 : -1;
+                const level = Math.ceil((rank + 1) / 2);
+                offsets[item.i] = side * level * step * 0.5;
+                if (Math.abs(offsets[item.i]) > maxWidth / 2) offsets[item.i] = side * maxWidth / 2;
+            });
+            return offsets;
+        }
+        if (spread === 'beeswarm') {
             const r = this.settings.pointSize;
             const diameter = r * 2 + 1;
             const positions = [];
@@ -203,6 +229,7 @@ class GraphRenderer {
             });
             return positions;
         }
+        // Default: jitter
         return values.map(() => (Math.random() - 0.5) * maxWidth);
     }
 

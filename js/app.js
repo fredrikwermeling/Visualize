@@ -95,16 +95,19 @@ class App {
             this.dataTable.clearData();
             this._clearStats();
         });
+        this._sampleIndex = { column: 0, heatmap: 0, growth: 0, volcano: 0 };
         document.getElementById('addTestData').addEventListener('click', () => {
+            const idx = this._sampleIndex[this.mode] || 0;
             if (this.mode === 'heatmap') {
-                this.dataTable.loadHeatmapSampleData();
+                this.dataTable.loadHeatmapSampleData(idx);
             } else if (this.mode === 'growth') {
-                this.dataTable.loadGrowthSampleData();
+                this.dataTable.loadGrowthSampleData(idx);
             } else if (this.mode === 'volcano') {
-                this.dataTable.loadVolcanoSampleData();
+                this.dataTable.loadVolcanoSampleData(idx);
             } else {
-                this.dataTable.loadSampleData();
+                this.dataTable.loadSampleData(idx);
             }
+            this._sampleIndex[this.mode] = idx + 1;
         });
 
         // Expand table toggle

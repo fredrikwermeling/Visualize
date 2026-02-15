@@ -1,4 +1,4 @@
-- make different test data sets that looks slightly different (# of samples and groups). toggle between by clicking.
+heatmap, should be possible to toggel on/off differnt legends in the text editor menu. This can be done in the other graph modules.
 
 - Make a standalone app for a computer? Does this allow for connecting graph in powerpoint to the software and back again?
 - make umap of heatmap data??

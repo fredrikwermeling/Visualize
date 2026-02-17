@@ -226,14 +226,16 @@ class ExportManager {
         const origW = parseFloat(cloned.getAttribute('width')) || 0;
         const origH = parseFloat(cloned.getAttribute('height')) || 0;
 
-        // Calculate required dimensions including overflow
-        const needW = Math.max(origW, bbox.x + bbox.width + 10);
-        const needH = Math.max(origH, bbox.y + bbox.height + 10);
+        // Account for content extending in any direction
+        const minX = Math.min(0, bbox.x);
+        const minY = Math.min(0, bbox.y);
+        const needW = Math.max(origW, bbox.x + bbox.width + 10) - minX;
+        const needH = Math.max(origH, bbox.y + bbox.height + 10) - minY;
 
-        if (needW > origW || needH > origH) {
+        if (needW > origW || needH > origH || minX < 0 || minY < 0) {
             cloned.setAttribute('width', Math.ceil(needW));
             cloned.setAttribute('height', Math.ceil(needH));
-            cloned.setAttribute('viewBox', `0 0 ${Math.ceil(needW)} ${Math.ceil(needH)}`);
+            cloned.setAttribute('viewBox', `${Math.floor(minX)} ${Math.floor(minY)} ${Math.ceil(needW)} ${Math.ceil(needH)}`);
         }
         return { width: Math.ceil(needW), height: Math.ceil(needH) };
     }

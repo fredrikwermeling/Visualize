@@ -321,7 +321,7 @@ class GraphRenderer {
 
         // Extra bottom margin for stats legend below graph
         if (this.settings.showStatsLegend && this.significanceResults.length > 0) {
-            this.margin.bottom += 30;
+            this.margin.bottom += 45;
         }
 
         // Extra right margin for group color legend
@@ -528,11 +528,6 @@ class GraphRenderer {
         // Draw stats legend
         if (this.settings.showStatsLegend && this.significanceResults.length > 0) {
             this._drawStatsLegend(g);
-        }
-
-        // Draw stats info box
-        if (this.settings.infoBox) {
-            this._drawInfoBox(g);
         }
 
         // Draw group color legend
@@ -2225,15 +2220,17 @@ class GraphRenderer {
     _drawStatsLegend(g) {
         const off = this.settings.statsLegendOffset;
         const plotCenterX = this.innerWidth / 2;
-        let legendText = '* p < 0.05    ** p < 0.01    *** p < 0.001';
-        if (this.settings.statsTestName) {
-            legendText += '    |    ' + this.settings.statsTestName;
-        }
+        const legendText = '* p < 0.05    ** p < 0.01    *** p < 0.001';
 
         const isH = this.settings.orientation === 'horizontal';
+        // Position below x-axis labels and x-label text
         let legendY = this.innerHeight + 35;
         if (!isH && this._effectiveAngle > 0) {
             legendY += this._effectiveAngle === 90 ? 50 : 30;
+        }
+        // Add extra space for x-axis label if shown
+        if (this.settings.showXLabel !== false) {
+            legendY += 18;
         }
 
         const el = g.append('text')

@@ -312,11 +312,7 @@ class App {
             document.getElementById('growthControlGroup').style.display = e.target.value === 'control' ? '' : 'none';
         });
 
-        // Info box checkbox
-        document.getElementById('showStatsInfoBox').addEventListener('change', (e) => {
-            this._statsInfoBoxVisible = e.target.checked;
-            this.updateGraph();
-        });
+        // Info box removed — stats info shown in results panel only
 
         // Initialize post-hoc visibility
         const testType = document.getElementById('testType').value;
@@ -596,9 +592,6 @@ class App {
         this._clearStats();
         this._lastAutoSizeKey = null;
         this._statsInfoText = null;
-        this._statsInfoBoxVisible = false;
-        const infoBox = document.getElementById('showStatsInfoBox');
-        if (infoBox) infoBox.checked = false;
 
         if (this.mode === 'growth') {
             this.growthRenderer.setSignificance([]);
@@ -1671,7 +1664,6 @@ class App {
             if (infoEl) infoEl.style.display = 'none';
             const growthData = this.dataTable.getGrowthData();
             const growthSettings = this._getGrowthSettings();
-            growthSettings.infoBox = this._statsInfoBoxVisible ? this._statsInfoText : null;
             this.growthRenderer.render(growthData, growthSettings);
             return;
         }
@@ -1686,7 +1678,6 @@ class App {
 
         const data = this.dataTable.getData();
         this._autoSizeDimensions(data);
-        this.graphRenderer.settings.infoBox = this._statsInfoBoxVisible ? this._statsInfoText : null;
         this.graphRenderer.render(data);
 
         // Sync X-angle dropdown to show effective angle when auto-forced
@@ -2497,7 +2488,7 @@ class App {
 
     _showStatsResult(html) {
         const container = document.getElementById('statsResults');
-        container.innerHTML = html;
+        container.innerHTML = html + '<div style="font-size:10px;color:#999;margin-top:8px;border-top:1px solid #eee;padding-top:4px">Analysis performed using jStat (JavaScript Statistical Library)</div>';
         container.classList.remove('empty');
     }
 

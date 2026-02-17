@@ -339,6 +339,7 @@
                         <div style="margin-top:6px">
                             <label style="font-size:12px"><input type="checkbox" id="growthShowIndividual"> Individual lines</label>
                             <label style="font-size:12px;margin-left:8px"><input type="checkbox" id="growthShowMean" checked> Group mean +/- error</label>
+                            <label style="font-size:12px;margin-left:8px"><input type="checkbox" id="growthShowZeroLine"> Zero line</label>
                         </div>
                     </div>
                 </div>
@@ -477,6 +478,7 @@
                                 <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showTitle" checked> Title</label>
                                 <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showXLabel" checked> X</label>
                                 <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showYLabel" checked> Y</label>
+                                <label style="font-size:12px;display:flex;align-items:center;gap:2px"><input type="checkbox" id="showZeroLine"> Zero</label>
                             </div>
                         </div>
                     </div>
@@ -558,7 +560,13 @@
                         <div style="display:flex;gap:8px;align-items:center;margin:4px 0">
                             <button id="runStats" class="btn btn-primary" style="padding:6px 14px">Run Test</button>
                             <button id="clearStats" class="btn btn-secondary" style="padding:6px 14px">Clear</button>
-                            <label style="font-size:12px;display:flex;align-items:center;gap:3px;margin-left:auto"><input type="checkbox" id="showStatsLegend"> Legend</label>
+                            <label style="font-size:12px;display:flex;align-items:center;gap:3px;margin-left:auto">Legend:
+                                <select id="statsLegendMode" style="padding:1px 3px;font-size:11px;border:1px solid #d1d5db;border-radius:3px">
+                                    <option value="none">None</option>
+                                    <option value="simple">Simple</option>
+                                    <option value="extended">Extended</option>
+                                </select>
+                            </label>
                         </div>
                         <div id="statsResults" class="stats-results"></div>
                     </div>

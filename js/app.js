@@ -226,8 +226,8 @@ class App {
             this.updateGraph();
         });
 
-        // Title / axis label visibility
-        ['showTitle', 'showXLabel', 'showYLabel'].forEach(id => {
+        // Title / axis label visibility + zero line
+        ['showTitle', 'showXLabel', 'showYLabel', 'showZeroLine'].forEach(id => {
             document.getElementById(id).addEventListener('change', (e) => {
                 this.graphRenderer.updateSettings({ [id]: e.target.checked });
                 this.updateGraph();
@@ -284,8 +284,12 @@ class App {
             this.updateGraph();
         });
 
-        document.getElementById('showStatsLegend').addEventListener('change', (e) => {
-            this.graphRenderer.updateSettings({ showStatsLegend: e.target.checked });
+        document.getElementById('statsLegendMode').addEventListener('change', (e) => {
+            const mode = e.target.value;
+            this.graphRenderer.updateSettings({
+                showStatsLegend: mode !== 'none',
+                statsLegendExtended: mode === 'extended'
+            });
             this.updateGraph();
         });
 
@@ -629,6 +633,11 @@ class App {
             document.getElementById('growthCapWidth').value = '6';
             document.getElementById('growthShowIndividual').checked = false;
             document.getElementById('growthShowMean').checked = true;
+            document.getElementById('growthShowZeroLine').checked = false;
+            this.growthRenderer.settings.showZeroLine = false;
+            this.growthRenderer.settings.zeroLineWidth = 1;
+            this.growthRenderer.settings.zeroLineDash = 'solid';
+            this.growthRenderer.settings.zeroLineColor = '#333';
             this._growthTableData = null;
             this.dataTable.loadGrowthSampleData();
         } else if (this.mode === 'volcano') {
@@ -867,7 +876,7 @@ class App {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
         });
-        ['growthShowIndividual', 'growthShowMean'].forEach(id => {
+        ['growthShowIndividual', 'growthShowMean', 'growthShowZeroLine'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
         });
@@ -980,8 +989,8 @@ class App {
             document.getElementById('postHocGroup').style.display = 'none';
             document.getElementById('postHocAdvice').style.display = 'none';
             this._updateTestDescription();
-            this.graphRenderer.updateSettings({ statsTestName: testName, showStatsLegend: false });
-            document.getElementById('showStatsLegend').checked = false;
+            this.graphRenderer.updateSettings({ statsTestName: testName, showStatsLegend: false, statsLegendExtended: false });
+            document.getElementById('statsLegendMode').value = 'none';
             this._showStatsResult(html);
             this._bindMarkerToggles(colLabels, numGroups);
             this.graphRenderer.setSignificance(pairs);
@@ -1050,8 +1059,8 @@ class App {
             document.getElementById('postHocGroup').style.display = '';
             document.getElementById('postHocMethod').value = 'tukey';
             this._updateTestDescription();
-            this.graphRenderer.updateSettings({ statsTestName: testName + ' + Tukey HSD', showStatsLegend: false });
-            document.getElementById('showStatsLegend').checked = false;
+            this.graphRenderer.updateSettings({ statsTestName: testName + ' + Tukey HSD', showStatsLegend: false, statsLegendExtended: false });
+            document.getElementById('statsLegendMode').value = 'none';
             this._showStatsResult(html);
             this._bindMarkerToggles(colLabels, numGroups);
             this.graphRenderer.setSignificance(allPairs);
@@ -1505,7 +1514,8 @@ class App {
             meanLineWidth: parseFloat(document.getElementById('growthMeanLineWidth')?.value) || 2.5,
             capWidth: parseFloat(document.getElementById('growthCapWidth')?.value) || 6,
             showIndividualLines: document.getElementById('growthShowIndividual')?.checked ?? true,
-            showGroupMeans: document.getElementById('growthShowMean')?.checked ?? true
+            showGroupMeans: document.getElementById('growthShowMean')?.checked ?? true,
+            showZeroLine: document.getElementById('growthShowZeroLine')?.checked ?? false
         };
     }
 

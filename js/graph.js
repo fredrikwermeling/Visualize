@@ -41,6 +41,7 @@ class GraphRenderer {
             significanceFontSize: 20,
             // Stats legend
             showStatsLegend: false,
+            statsLegendExtended: false,
             statsTestName: '',
             statsLegendOffset: { x: 0, y: 0 },
             // Group color legend
@@ -68,7 +69,12 @@ class GraphRenderer {
             groupOrder: [],      // array of group labels in display order; empty = use data order
             hiddenGroups: [],     // array of group labels to hide from graph
             centerLineWidth: 1.0,  // fraction of bandwidth for mean/median line (0.1–1.0)
-            pointSpread: 'jitter'  // 'jitter' or 'beeswarm'
+            pointSpread: 'jitter',  // 'jitter' or 'beeswarm'
+            // Zero line
+            showZeroLine: false,
+            zeroLineWidth: 1,
+            zeroLineDash: 'solid',  // solid, dashed, dotted, dashdot, longdash
+            zeroLineColor: '#333'
         };
 
         // Color themes
@@ -321,7 +327,7 @@ class GraphRenderer {
 
         // Extra bottom margin for stats legend below graph
         if (this.settings.showStatsLegend && this.significanceResults.length > 0) {
-            this.margin.bottom += 45;
+            this.margin.bottom += this.settings.statsLegendExtended ? 60 : 45;
         }
 
         // Extra right margin for group color legend
@@ -408,22 +414,10 @@ class GraphRenderer {
         // Draw axis break
         this._drawAxisBreak(g, valueScale, isHorizontal);
 
-        // Draw zero line if data crosses zero
-        if (dataMin < 0 && yMaxRaw > 0) {
-            const zeroPos = valueScale(0);
-            if (isHorizontal) {
-                g.append('line')
-                    .attr('x1', zeroPos).attr('x2', zeroPos)
-                    .attr('y1', 0).attr('y2', this.innerHeight)
-                    .attr('stroke', '#999').attr('stroke-width', 1)
-                    .attr('stroke-dasharray', '4,3').attr('opacity', 0.6);
-            } else {
-                g.append('line')
-                    .attr('x1', 0).attr('x2', this.innerWidth)
-                    .attr('y1', zeroPos).attr('y2', zeroPos)
-                    .attr('stroke', '#999').attr('stroke-width', 1)
-                    .attr('stroke-dasharray', '4,3').attr('opacity', 0.6);
-            }
+        // Draw zero line if enabled and data crosses zero (or forced on)
+        this._hasNegativeData = dataMin !== undefined && dataMin < 0;
+        if (this.settings.showZeroLine && valueScale.domain()[0] < 0 && valueScale.domain()[1] > 0) {
+            this._drawZeroLine(g, valueScale, isHorizontal);
         }
 
         // Draw graph based on type
@@ -2217,44 +2211,141 @@ class GraphRenderer {
         upBtn.focus();
     }
 
+    _drawZeroLine(g, valueScale, isH) {
+        const s = this.settings;
+        const dashMap = { solid: 'none', dashed: '8,4', dotted: '2,3', dashdot: '8,3,2,3', longdash: '14,4' };
+        const zeroPos = valueScale(0);
+        const self = this;
+
+        const line = isH
+            ? g.append('line')
+                .attr('x1', zeroPos).attr('x2', zeroPos)
+                .attr('y1', 0).attr('y2', this.innerHeight)
+            : g.append('line')
+                .attr('x1', 0).attr('x2', this.innerWidth)
+                .attr('y1', zeroPos).attr('y2', zeroPos);
+
+        line.attr('stroke', s.zeroLineColor)
+            .attr('stroke-width', s.zeroLineWidth)
+            .attr('stroke-dasharray', dashMap[s.zeroLineDash] || 'none')
+            .attr('opacity', 0.7)
+            .style('cursor', 'pointer');
+
+        line.on('dblclick', function(event) {
+            event.stopPropagation();
+            document.querySelectorAll('.svg-edit-popup').forEach(p => p.remove());
+
+            const popup = document.createElement('div');
+            popup.className = 'svg-edit-popup';
+            popup.style.cssText = `position:fixed;left:${event.clientX+10}px;top:${Math.max(10,event.clientY-20)}px;z-index:10000`;
+
+            const heading = document.createElement('div');
+            heading.textContent = 'Zero Line';
+            heading.style.cssText = 'font-weight:600;font-size:12px;margin-bottom:6px';
+            popup.appendChild(heading);
+
+            // Width
+            const wRow = document.createElement('div');
+            wRow.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:4px';
+            wRow.innerHTML = '<span style="font-size:11px;width:40px">Width:</span>';
+            const wInp = document.createElement('input');
+            wInp.type = 'number'; wInp.min = 0.5; wInp.max = 6; wInp.step = 0.5;
+            wInp.value = s.zeroLineWidth;
+            wInp.style.cssText = 'width:50px;font-size:11px;padding:2px 4px';
+            wInp.addEventListener('input', () => { s.zeroLineWidth = parseFloat(wInp.value) || 1; if(window.app) window.app.updateGraph(); });
+            wRow.appendChild(wInp);
+            popup.appendChild(wRow);
+
+            // Dash style
+            const dRow = document.createElement('div');
+            dRow.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:4px';
+            dRow.innerHTML = '<span style="font-size:11px;width:40px">Style:</span>';
+            const dSel = document.createElement('select');
+            dSel.style.cssText = 'font-size:11px;padding:2px';
+            [['solid','Solid'],['dashed','Dashed'],['dotted','Dotted'],['dashdot','Dash-dot'],['longdash','Long dash']].forEach(([v,t]) => {
+                const o = document.createElement('option');
+                o.value = v; o.textContent = t;
+                if (v === s.zeroLineDash) o.selected = true;
+                dSel.appendChild(o);
+            });
+            dSel.addEventListener('change', () => { s.zeroLineDash = dSel.value; if(window.app) window.app.updateGraph(); });
+            dRow.appendChild(dSel);
+            popup.appendChild(dRow);
+
+            // Color
+            const cRow = document.createElement('div');
+            cRow.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:4px';
+            cRow.innerHTML = '<span style="font-size:11px;width:40px">Color:</span>';
+            const cInp = document.createElement('input');
+            cInp.type = 'color'; cInp.value = s.zeroLineColor;
+            cInp.style.cssText = 'width:28px;height:20px;border:1px solid #ccc;cursor:pointer;padding:0';
+            cInp.addEventListener('input', () => { s.zeroLineColor = cInp.value; if(window.app) window.app.updateGraph(); });
+            cRow.appendChild(cInp);
+            popup.appendChild(cRow);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'svg-edit-btn';
+            closeBtn.textContent = 'Close';
+            closeBtn.addEventListener('click', () => popup.remove());
+            popup.appendChild(closeBtn);
+
+            document.body.appendChild(popup);
+            setTimeout(() => {
+                const handler = (e) => { if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('mousedown', handler); } };
+                document.addEventListener('mousedown', handler);
+            }, 100);
+        });
+    }
+
     _drawStatsLegend(g) {
         const off = this.settings.statsLegendOffset;
         const plotCenterX = this.innerWidth / 2;
-        const legendText = '* p < 0.05    ** p < 0.01    *** p < 0.001';
 
         const isH = this.settings.orientation === 'horizontal';
         // Position below x-axis labels and x-label text
-        let legendY = this.innerHeight + 35;
+        let legendY = this.innerHeight + 40;
         if (!isH && this._effectiveAngle > 0) {
-            legendY += this._effectiveAngle === 90 ? 50 : 30;
+            legendY += this._effectiveAngle === 90 ? 55 : 35;
         }
         // Add extra space for x-axis label if shown
         if (this.settings.showXLabel !== false) {
-            legendY += 18;
+            legendY += 22;
         }
 
-        const el = g.append('text')
+        // Build legend lines
+        const lines = ['* p < 0.05    ** p < 0.01    *** p < 0.001'];
+        if (this.settings.statsLegendExtended && this.settings.statsTestName) {
+            lines.push('Test: ' + this.settings.statsTestName);
+        }
+
+        const legendG = g.append('g')
             .attr('class', 'stats-legend')
-            .attr('x', plotCenterX + off.x)
-            .attr('y', legendY + off.y)
-            .attr('text-anchor', 'middle')
-            .style('font-family', this.settings.fontFamily)
-            .style('font-size', '10px')
-            .style('fill', '#666')
-            .style('cursor', 'grab')
-            .text(legendText);
+            .style('cursor', 'grab');
+
+        lines.forEach((text, i) => {
+            legendG.append('text')
+                .attr('x', plotCenterX + off.x)
+                .attr('y', legendY + off.y + i * 14)
+                .attr('text-anchor', 'middle')
+                .style('font-family', this.settings.fontFamily)
+                .style('font-size', '10px')
+                .style('fill', '#666')
+                .text(text);
+        });
 
         // Make draggable
         const self = this;
-        el.call(d3.drag()
+        legendG.call(d3.drag()
             .filter(function(event) { return !event.ctrlKey && !event.button && event.detail < 2; })
             .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
             .on('drag', function(event) {
                 self.settings.statsLegendOffset.x += event.dx;
                 self.settings.statsLegendOffset.y += event.dy;
-                d3.select(this)
-                    .attr('x', plotCenterX + self.settings.statsLegendOffset.x)
-                    .attr('y', legendY + self.settings.statsLegendOffset.y);
+                d3.select(this).selectAll('text')
+                    .attr('x', plotCenterX + self.settings.statsLegendOffset.x);
+                d3.select(this).selectAll('text').each(function(d, i) {
+                    d3.select(this).attr('y', legendY + self.settings.statsLegendOffset.y + i * 14);
+                });
             })
             .on('end', function() { d3.select(this).style('cursor', 'grab'); })
         );

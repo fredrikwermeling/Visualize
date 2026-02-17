@@ -27,7 +27,11 @@ class GrowthCurveRenderer {
             yTickStep: null,
             legendFont: { family: 'Arial', size: 11, bold: false, italic: false },
             showLegend: true,
-            groupOverrides: {} // { groupName: { color, symbol, label } }
+            groupOverrides: {}, // { groupName: { color, symbol, label } }
+            showZeroLine: false,
+            zeroLineWidth: 1,
+            zeroLineDash: 'solid',
+            zeroLineColor: '#333'
         };
         this._titleOffset = { x: 0, y: 0 };
         this._legendOffset = { x: 0, y: 0 };
@@ -212,6 +216,11 @@ class GrowthCurveRenderer {
             .style('font-size', s.yTickFont.size + 'px')
             .style('font-weight', s.yTickFont.bold ? 'bold' : 'normal')
             .style('font-style', s.yTickFont.italic ? 'italic' : 'normal');
+
+        // Zero line
+        if (s.showZeroLine && yScale.domain()[0] < 0 && yScale.domain()[1] > 0) {
+            this._drawZeroLine(g, yScale, innerW);
+        }
 
         // Draw per group
         groups.forEach((groupName, gi) => {
@@ -458,6 +467,75 @@ class GrowthCurveRenderer {
 
                 sigG.append('title').text(compLabel);
             });
+        });
+    }
+
+    _drawZeroLine(g, yScale, innerW) {
+        const s = this.settings;
+        const dashMap = { solid: 'none', dashed: '8,4', dotted: '2,3', dashdot: '8,3,2,3', longdash: '14,4' };
+        const zeroY = yScale(0);
+        const self = this;
+
+        const line = g.append('line')
+            .attr('x1', 0).attr('x2', innerW)
+            .attr('y1', zeroY).attr('y2', zeroY)
+            .attr('stroke', s.zeroLineColor)
+            .attr('stroke-width', s.zeroLineWidth)
+            .attr('stroke-dasharray', dashMap[s.zeroLineDash] || 'none')
+            .attr('opacity', 0.7)
+            .style('cursor', 'pointer');
+
+        line.on('dblclick', function(event) {
+            event.stopPropagation();
+            document.querySelectorAll('.svg-edit-popup').forEach(p => p.remove());
+            const popup = document.createElement('div');
+            popup.className = 'svg-edit-popup';
+            popup.style.cssText = `position:fixed;left:${event.clientX+10}px;top:${Math.max(10,event.clientY-20)}px;z-index:10000`;
+
+            popup.innerHTML = '<div style="font-weight:600;font-size:12px;margin-bottom:6px">Zero Line</div>';
+
+            // Width
+            const wRow = document.createElement('div');
+            wRow.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:4px';
+            wRow.innerHTML = '<span style="font-size:11px;width:40px">Width:</span>';
+            const wInp = document.createElement('input');
+            wInp.type = 'number'; wInp.min = 0.5; wInp.max = 6; wInp.step = 0.5; wInp.value = s.zeroLineWidth;
+            wInp.style.cssText = 'width:50px;font-size:11px;padding:2px 4px';
+            wInp.addEventListener('input', () => { s.zeroLineWidth = parseFloat(wInp.value) || 1; if(window.app) window.app.updateGraph(); });
+            wRow.appendChild(wInp); popup.appendChild(wRow);
+
+            // Style
+            const dRow = document.createElement('div');
+            dRow.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:4px';
+            dRow.innerHTML = '<span style="font-size:11px;width:40px">Style:</span>';
+            const dSel = document.createElement('select');
+            dSel.style.cssText = 'font-size:11px;padding:2px';
+            [['solid','Solid'],['dashed','Dashed'],['dotted','Dotted'],['dashdot','Dash-dot'],['longdash','Long dash']].forEach(([v,t]) => {
+                const o = document.createElement('option'); o.value = v; o.textContent = t;
+                if (v === s.zeroLineDash) o.selected = true; dSel.appendChild(o);
+            });
+            dSel.addEventListener('change', () => { s.zeroLineDash = dSel.value; if(window.app) window.app.updateGraph(); });
+            dRow.appendChild(dSel); popup.appendChild(dRow);
+
+            // Color
+            const cRow = document.createElement('div');
+            cRow.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:4px';
+            cRow.innerHTML = '<span style="font-size:11px;width:40px">Color:</span>';
+            const cInp = document.createElement('input');
+            cInp.type = 'color'; cInp.value = s.zeroLineColor;
+            cInp.style.cssText = 'width:28px;height:20px;border:1px solid #ccc;cursor:pointer;padding:0';
+            cInp.addEventListener('input', () => { s.zeroLineColor = cInp.value; if(window.app) window.app.updateGraph(); });
+            cRow.appendChild(cInp); popup.appendChild(cRow);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'svg-edit-btn'; closeBtn.textContent = 'Close';
+            closeBtn.addEventListener('click', () => popup.remove());
+            popup.appendChild(closeBtn);
+            document.body.appendChild(popup);
+            setTimeout(() => {
+                const handler = (e) => { if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('mousedown', handler); } };
+                document.addEventListener('mousedown', handler);
+            }, 100);
         });
     }
 

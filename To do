@@ -1,8 +1,132 @@
-heatmap, should be possible to toggel on/off differnt legends in the text editor menu. This can be done in the other graph modules.
-when go from heatmap to column, the statstics list loks a bit strange, with numbers to close to the incorrect gene. 
-In column, allow for entering coulmn without a number or name (to make more space in graph) . 
-in time series, allow for changin the color and symbol for individual groups. perhaps this ocould be part of the text box edit, so the differnt groups apear there and allwo for selecitng color and symbol
-
-
 - Make a standalone app for a computer? Does this allow for connecting graph in powerpoint to the software and back again?
 - make umap of heatmap data??
+
+
+Description of project:
+
+Visualize — Project Reference                                                 
+                                                                                
+  Location                                                                      
+                                                                                
+  /Users/fredrikwermeling/Documents/graph app/visualize/                        
+                                                                                
+  What It Is                                                                    
+                                                                                
+  Browser-based scientific graph/chart app for researchers. Entirely            
+  client-side, no backend. Uses D3.js v7 for SVG rendering, jStat for           
+  statistics.                                                                   
+
+  Files
+  File: index.html
+  Purpose: All UI controls, settings panels, mode-specific sections
+  ────────────────────────────────────────
+  File: js/app.js
+  Purpose: Main controller — mode switching, settings binding, stats, export,
+    text settings panel ("Aa"), group order
+  ────────────────────────────────────────
+  File: js/graph.js
+  Purpose: Column chart renderer — bar/scatter/box/violin, significance
+  brackets,
+     stats legend, zero line
+  ────────────────────────────────────────
+  File: js/growth.js
+  Purpose: Time Series renderer — group means, error bars/ribbons, individual
+    lines, significance markers
+  ────────────────────────────────────────
+  File: js/heatmap.js
+  Purpose: Heatmap renderer — clustered heatmaps, dendrograms, color scales
+  ────────────────────────────────────────
+  File: js/volcano.js
+  Purpose: Volcano plot renderer — fold-change vs p-value scatter
+  ────────────────────────────────────────
+  File: js/table.js
+  Purpose: Editable data table, sample datasets, CSV import/export
+  ────────────────────────────────────────
+  File: js/stats.js
+  Purpose: Statistics — t-tests, ANOVA, Kruskal-Wallis, post-hoc, growth RM
+  ANOVA
+  ────────────────────────────────────────
+  File: js/export.js
+  Purpose: PNG/SVG/clipboard export, inline style cloning
+  ────────────────────────────────────────
+  File: js/annotations.js
+  Purpose: Drawing tools — text, lines, arrows, brackets
+  ────────────────────────────────────────
+  File: css/styles.css
+  Purpose: All styling
+  ────────────────────────────────────────
+  File: CLAUDE.md
+  Purpose: Project instructions (auto-loaded by Claude Code)
+  Four Graph Modes
+
+  1. Column (graph.js) — bar, scatter, box, violin with significance testing
+  2. Heatmap (heatmap.js) — clustered heatmaps with dendrograms
+  3. Time Series (growth.js) — longitudinal data with group means +/- error
+  4. Volcano (volcano.js) — differential expression plots
+
+  CRITICAL: Cross-Mode Consistency
+
+  All modes must behave consistently. When adding or fixing a feature, always
+  check if the same pattern exists in other modes. Learn from the most developed
+   implementation (usually graph.js) before writing new code. Don't reinvent the
+   wheel.
+
+  Shared patterns that must stay in sync across modes:
+  - Text editing: dblclick → popup with font toolbar (family, size, bold,
+  italic). Methods: _createFontToolbar(), _startInlineEdit(),
+  _openTickFontPopup()
+  - Drag + nudge: click-drag labels, arrow keys for fine positioning. Methods:
+  _makeLabelDrag(), _selectLabelForNudge()
+  - Font settings: titleFont, xLabelFont, yLabelFont, xTickFont, yTickFont —
+  each {family, size, bold, italic}
+  - Visibility toggles: showTitle, showXLabel, showYLabel
+  - Offset objects: titleOffset, xLabelOffset, yLabelOffset — each {x, y}
+  - Text Settings panel: "Aa" button opens unified panel listing all text
+  elements for current mode
+  - Zero line: auto-enables dashed when negatives detected. Settings:
+  showZeroLine, zeroLineWidth, zeroLineDash, zeroLineColor. Dblclick to
+  customize.
+  - Stats legend: showStatsLegend, statsLegendExtended, statsTestName,
+  statsLegendOffset. Dropdown: None/Simple/Extended.
+  - Group overrides: groupOverrides: { groupName: { color, symbol, label,
+  lineDash } }
+  - Export: PNG (configurable scale), SVG, clipboard, CSV, stats .txt, Export
+  All (ZIP)
+
+  Architecture
+
+  - app.js manages mode switching in _applyMode() — shows/hides controls per
+  mode
+  - Settings flow: HTML inputs → _getXxxSettings() → renderer.render(data,
+  settings) → Object.assign(this.settings, settings)
+  - Persistent settings (fonts, offsets, overrides, stats) live on renderer
+  object, survive re-renders
+  - Transient settings (width, height, axis range) read from HTML inputs each
+  render
+  - Column stats: graphRenderer.setSignificance() /
+  graphRenderer.updateSettings()
+  - Time Series stats: growthRenderer.setSignificance() and direct
+  growthRenderer.settings.xxx = yyy
+  - Empty columns use unique zero-width space labels for spacing
+  - Sample datasets cycle via "Test Data" button (index 5 = negative values)
+  - JSZip loaded dynamically for Export All
+
+  Statistics
+
+  - Column: t-tests (paired/unpaired), Mann-Whitney, ANOVA, Kruskal-Wallis,
+  Friedman, with Tukey/Dunn/Bonferroni post-hoc
+  - Time Series: Two-way RM ANOVA (Group × Time), post-hoc uses per-timepoint
+  one-way ANOVA as gatekeeper (>2 groups), then pairwise t-tests with
+  Holm-Bonferroni/Bonferroni/Šidák correction
+  - Stats panel only visible for column and time series (hidden for
+  heatmap/volcano)
+  - All analysis uses jStat
+
+  Token Usage Rules
+
+  - Use haiku or sonnet for subagents — only opus when truly necessary
+  - Prefer direct tool calls (Read, Grep, Glob, Edit) over Task agents
+  - Use Read with offset/limit, not full file reads
+  - Keep responses short
+  - Always push after commit
+  - Re-read CLAUDE.md after context compaction

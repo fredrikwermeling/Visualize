@@ -355,7 +355,10 @@ class GraphRenderer {
             this.margin.bottom += this._effectiveAngle === 90 ? 40 : 20;
         }
 
-        // Stats legend now rendered in sidebar (not in SVG)
+        // Extra bottom margin for stats legend below graph
+        if (this.settings.showStatsLegend && this.significanceResults.length > 0) {
+            this.margin.bottom += this.settings.statsLegendExtended ? 60 : 45;
+        }
 
         // Extra right margin for group color legend
         if (this.settings.showGroupLegend) {
@@ -554,7 +557,9 @@ class GraphRenderer {
         }
 
         // Draw stats legend
-        // Stats legend now rendered in sidebar HTML
+        if (this.settings.showStatsLegend && this.significanceResults.length > 0) {
+            this._drawStatsLegend(g);
+        }
 
         // Draw group color legend
         if (this.settings.showGroupLegend) {

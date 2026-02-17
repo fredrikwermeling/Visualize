@@ -290,7 +290,10 @@ class App {
 
         document.getElementById('statsLegendMode').addEventListener('change', (e) => {
             const mode = e.target.value;
-            this._updateStatsLegendBox(mode);
+            const updates = { showStatsLegend: mode !== 'none', statsLegendExtended: mode === 'extended' };
+            this.graphRenderer.updateSettings(updates);
+            Object.assign(this.growthRenderer.settings, updates);
+            this.updateGraph();
         });
 
         // Show/hide post-hoc controls based on test type
@@ -2842,8 +2845,6 @@ class App {
         const container = document.getElementById('statsResults');
         container.innerHTML = html + '<div style="font-size:10px;color:#999;margin-top:8px;border-top:1px solid #eee;padding-top:4px">Analysis performed using jStat (JavaScript Statistical Library)</div>';
         container.classList.remove('empty');
-        const legendMode = document.getElementById('statsLegendMode')?.value || 'none';
-        this._updateStatsLegendBox(legendMode);
     }
 
     _autoSuggestTest() {
@@ -2867,25 +2868,6 @@ class App {
         testSel.dispatchEvent(new Event('change'));
     }
 
-    _updateStatsLegendBox(mode) {
-        const box = document.getElementById('statsLegendBox');
-        const nameEl = document.getElementById('statsLegendTestName');
-        if (!box) return;
-        if (mode === 'none') {
-            box.style.display = 'none';
-        } else {
-            box.style.display = '';
-            const renderer = this.mode === 'growth' ? this.growthRenderer : this.graphRenderer;
-            const testName = renderer.settings.statsTestName || '';
-            if (mode === 'extended' && testName) {
-                nameEl.textContent = 'Test: ' + testName;
-                nameEl.style.display = '';
-            } else {
-                nameEl.style.display = 'none';
-            }
-        }
-    }
-
     _clearStats() {
         const container = document.getElementById('statsResults');
         container.innerHTML = '';
@@ -2893,8 +2875,6 @@ class App {
         this.graphRenderer.setSignificance([]);
         this.growthRenderer.setSignificance([]);
         this._statsInfoText = null;
-        const box = document.getElementById('statsLegendBox');
-        if (box) box.style.display = 'none';
     }
 }
 

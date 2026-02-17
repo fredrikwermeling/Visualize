@@ -165,7 +165,9 @@ class GrowthCurveRenderer {
             legendW = 30 + maxLabel * lf.size * 0.6 + 12;
         }
         let bottomMargin = 60;
-        // Stats legend now rendered in sidebar HTML
+        if (s.showStatsLegend && this.significanceMarkers.length > 0) {
+            bottomMargin += s.statsLegendExtended ? 60 : 45;
+        }
         const margin = { top: 50, right: legendW > 0 ? legendW + 10 : 20, bottom: bottomMargin, left: 65 };
         const width = s.width;
         const height = s.height;
@@ -334,7 +336,9 @@ class GrowthCurveRenderer {
         }
 
         // Stats legend
-        // Stats legend now rendered in sidebar HTML
+        if (this.settings.showStatsLegend && this.significanceMarkers.length > 0) {
+            this._drawStatsLegend(g, innerW, innerH);
+        }
 
         // Info box
         if (s.infoBox) {

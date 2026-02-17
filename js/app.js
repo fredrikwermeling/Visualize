@@ -575,6 +575,7 @@ class App {
 
                 this.mode = btn.dataset.mode;
                 this._lastAutoSizeKey = null;
+                this._clearStats();
                 this._applyMode();
 
                 // Restore saved data or load sample

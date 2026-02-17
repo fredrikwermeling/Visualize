@@ -685,7 +685,8 @@ class DataTable {
             const clone = th.cloneNode(true);
             const btn = clone.querySelector('.th-delete-btn');
             if (btn) btn.remove();
-            headers.push(clone.textContent.trim() || 'Unnamed');
+            const txt = clone.textContent.trim();
+            headers.push(txt !== '' ? txt : ' ');
         });
 
         // Get data for each column (skip id-cells, skip disabled rows)

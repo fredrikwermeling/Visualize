@@ -1225,6 +1225,8 @@ class App {
                 { label: 'X Tick Font', fontKey: 'xTickFont', tickStep: 'xTickStep' },
                 { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yTickStep' }
             ];
+            // Add per-group rows for color/symbol
+            this._growthGroupRows = true;
         } else if (this.mode === 'volcano') {
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
@@ -1237,11 +1239,13 @@ class App {
             ];
         } else {
             elements = [
-                { label: 'Title', textKey: 'title', fontKey: 'titleFont' },
-                { label: 'Legend Title', textKey: 'legendTitle', fontKey: 'legendTitleFont' },
-                { label: 'Row Labels', fontKey: 'rowLabelFont' },
-                { label: 'Column Labels', fontKey: 'colLabelFont' },
-                { label: 'Group Labels', fontKey: 'groupLabelFont' }
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'Legend Title', textKey: 'legendTitle', fontKey: 'legendTitleFont', visKey: 'showLegendTitle' },
+                { label: 'Row Labels', fontKey: 'rowLabelFont', visKey: 'showRowLabels' },
+                { label: 'Column Labels', fontKey: 'colLabelFont', visKey: 'showColLabels' },
+                { label: 'Group Labels', fontKey: 'groupLabelFont', visKey: 'showGroupLabels' },
+                { label: 'Color Legend', visKey: 'showColorLegend' },
+                { label: 'Dendrograms', visKey: 'showDendrograms' }
             ];
         }
 
@@ -1355,6 +1359,76 @@ class App {
             row.appendChild(fc);
             body.appendChild(row);
         });
+
+        // Per-group color/symbol for growth mode
+        if (this._growthGroupRows) {
+            this._growthGroupRows = false;
+            const growthData = this.dataTable.getGrowthData();
+            if (growthData && growthData.groups && growthData.groups.length > 0) {
+                const sep = document.createElement('div');
+                sep.style.cssText = 'grid-column:1/-1;border-top:1px solid #e5e7eb;margin:6px 0 2px;font-size:11px;font-weight:600;color:#374151;padding-top:4px';
+                sep.textContent = 'Group Colors & Symbols';
+                body.appendChild(sep);
+
+                const gr = this.growthRenderer;
+                if (!gr.settings.groupOverrides) gr.settings.groupOverrides = {};
+                const symbols = ['circle','square','triangle','diamond','cross','star'];
+
+                growthData.groups.forEach((gName, gi) => {
+                    const ov = gr.settings.groupOverrides[gName] || {};
+                    const grow = document.createElement('div');
+                    grow.className = 'text-settings-row';
+                    grow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0';
+
+                    // Color picker
+                    const colorInp = document.createElement('input');
+                    colorInp.type = 'color';
+                    colorInp.value = ov.color || gr._getColor(gi);
+                    colorInp.style.cssText = 'width:24px;height:20px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0;flex:0 0 24px';
+                    colorInp.addEventListener('input', () => {
+                        if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                        gr.settings.groupOverrides[gName].color = colorInp.value;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(colorInp);
+
+                    // Symbol select
+                    const symSel = document.createElement('select');
+                    symSel.style.cssText = 'font-size:10px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;flex:0 0 auto;width:58px';
+                    const curSym = ov.symbol || gr._getSymbolForGroup(gi, gName);
+                    symbols.forEach(sym => {
+                        const opt = document.createElement('option');
+                        opt.value = sym;
+                        opt.textContent = sym.charAt(0).toUpperCase() + sym.slice(1);
+                        if (sym === curSym) opt.selected = true;
+                        symSel.appendChild(opt);
+                    });
+                    symSel.addEventListener('change', () => {
+                        if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                        gr.settings.groupOverrides[gName].symbol = symSel.value;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(symSel);
+
+                    // Label input
+                    const labelInp = document.createElement('input');
+                    labelInp.type = 'text';
+                    labelInp.value = ov.label || gName;
+                    labelInp.placeholder = gName;
+                    labelInp.style.cssText = 'flex:1;min-width:50px;padding:2px 4px;font-size:11px;border:1px solid #e5e7eb;border-radius:3px';
+                    labelInp.addEventListener('input', () => {
+                        if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                        const val = labelInp.value.trim();
+                        if (val && val !== gName) gr.settings.groupOverrides[gName].label = val;
+                        else delete gr.settings.groupOverrides[gName].label;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(labelInp);
+
+                    body.appendChild(grow);
+                });
+            }
+        }
     }
 
     _getHeatmapSettings() {

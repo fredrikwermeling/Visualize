@@ -12,6 +12,13 @@ class HeatmapRenderer {
             colorScheme: 'Viridis',
             showValues: false,
             showGroupBar: false,
+            showTitle: true,
+            showLegendTitle: true,
+            showRowLabels: true,
+            showColLabels: true,
+            showGroupLabels: true,
+            showColorLegend: true,
+            showDendrograms: true,
             legendTitle: null,  // null = auto-generate, '' = hidden, string = custom
             title: 'Heatmap',
             groupColorOverrides: {},  // { groupName: '#color' }
@@ -219,7 +226,8 @@ class HeatmapRenderer {
             .padding(0.02);
 
         // Title
-        this._drawTitle(svg, width, this.settings.title, marginLeft, cellAreaWidth);
+        if (this.settings.showTitle !== false)
+            this._drawTitle(svg, width, this.settings.title, marginLeft, cellAreaWidth);
 
         // Cell area group
         const cellGroup = svg.append('g')
@@ -239,18 +247,20 @@ class HeatmapRenderer {
         this._drawCells(cellGroup, displayMatrix, normMatrix, rowOrder, colOrder, xScale, yScale, colorScale, colLabels, filteredRowLabels, matrix, this._outliers);
 
         // Row labels (right of matrix)
-        this._drawRowLabels(cellGroup, filteredRowLabels, rowOrder, yScale, cellAreaWidth);
+        if (this.settings.showRowLabels !== false)
+            this._drawRowLabels(cellGroup, filteredRowLabels, rowOrder, yScale, cellAreaWidth);
 
         // Column labels (bottom, angled 45deg)
-        this._drawColLabels(cellGroup, colLabels, colOrder, xScale, cellAreaHeight);
+        if (this.settings.showColLabels !== false)
+            this._drawColLabels(cellGroup, colLabels, colOrder, xScale, cellAreaHeight);
 
         // Dendrograms
-        if (rowTree) {
+        if (rowTree && this.settings.showDendrograms !== false) {
             const dendroGroup = svg.append('g')
                 .attr('transform', `translate(${5}, ${marginTop})`);
             this._drawDendrogram(dendroGroup, rowTree, yScale, 'left', rowDendroWidth - 5, cellAreaHeight);
         }
-        if (colTree) {
+        if (colTree && this.settings.showDendrograms !== false) {
             const dendroGroup = svg.append('g')
                 .attr('transform', `translate(${marginLeft}, ${titleHeight + groupLegendHeight + 5})`);
             this._drawDendrogram(dendroGroup, colTree, xScale, 'top', cellAreaWidth, colDendroHeight - 5);
@@ -259,12 +269,15 @@ class HeatmapRenderer {
         // Group color bar
         if (groups && groups.uniqueGroups.length > 1) {
             this._drawGroupBar(svg, groups, rowOrder, yScale, rowDendroWidth + 2, marginTop, groupBarWidth - 2, cellAreaHeight);
-            this._drawGroupLegend(svg, groups, marginLeft, titleHeight + 2, cellAreaWidth);
+            if (this.settings.showGroupLabels !== false)
+                this._drawGroupLegend(svg, groups, marginLeft, titleHeight + 2, cellAreaWidth);
         }
 
         // Color legend
-        const isWinsorized = this.settings.winsorize !== 'none';
-        this._drawColorLegend(svg, colorScale, width - legendWidth - 5, marginTop, legendWidth - 10, cellAreaHeight, isWinsorized, legendTitle);
+        if (this.settings.showColorLegend !== false) {
+            const isWinsorized = this.settings.winsorize !== 'none';
+            this._drawColorLegend(svg, colorScale, width - legendWidth - 5, marginTop, legendWidth - 10, cellAreaHeight, isWinsorized, legendTitle);
+        }
 
         // Info box (SVG, for export)
         if (this.settings.showInfoBox) {
@@ -273,6 +286,7 @@ class HeatmapRenderer {
     }
 
     _getAutoLegendTitle() {
+        if (this.settings.showLegendTitle === false) return null;
         if (this.settings.legendTitle === '') return null; // explicitly removed
         if (this.settings.legendTitle && this.settings.legendTitle !== null) return this.settings.legendTitle;
         // Auto-generate based on normalization

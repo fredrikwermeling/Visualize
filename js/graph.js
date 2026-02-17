@@ -341,17 +341,17 @@ class GraphRenderer {
 
         const allValues = filteredData.flatMap(d => d.values);
         const dataMin = d3.min(allValues);
-        const autoMin = dataMin < 0 ? dataMin * 1.15 : 0;
+        const autoMin = (dataMin !== undefined && dataMin < 0) ? dataMin * 1.15 : 0;
         const yMaxRaw = d3.max(allValues);
         const headroom = this.significanceResults.length > 0 ? 0.25 : 0.15;
-        const autoMax = yMaxRaw * (1 + headroom);
+        const autoMax = (yMaxRaw !== undefined) ? yMaxRaw * (1 + headroom) : 1;
 
         const hasManualMin = this.settings.yAxisMin !== null;
         const hasManualMax = this.settings.yAxisMax !== null;
         let yMin = hasManualMin ? this.settings.yAxisMin : autoMin;
         let yMax = hasManualMax ? this.settings.yAxisMax : autoMax;
 
-        if (yMin >= yMax) {
+        if (isNaN(yMin) || isNaN(yMax) || yMin >= yMax) {
             yMin = autoMin;
             yMax = autoMax;
         }
@@ -1177,6 +1177,7 @@ class GraphRenderer {
     _drawScatterWithLine(g, data, groupScale, valueScale, centerType, isH) {
         const ps = this.settings.pointSize;
         data.forEach((group, i) => {
+            if (group.values.length === 0) return;
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
@@ -1223,6 +1224,7 @@ class GraphRenderer {
         const ebDir = this.settings.errorBarDirection;
 
         data.forEach((group, i) => {
+            if (group.values.length === 0) return;
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
             const meanVal = Statistics.mean(group.values);
@@ -1334,6 +1336,7 @@ class GraphRenderer {
         const ebw = this.settings.errorBarWidth;
 
         data.forEach((group, i) => {
+            if (group.values.length === 0) return;
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
             const sorted = [...group.values].sort((a, b) => a - b);
@@ -1440,6 +1443,7 @@ class GraphRenderer {
 
     _drawViolinPlot(g, data, groupScale, valueScale, isH) {
         data.forEach((group, i) => {
+            if (group.values.length === 0) return;
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 
@@ -1550,6 +1554,7 @@ class GraphRenderer {
         const ebDir = this.settings.errorBarDirection;
 
         data.forEach((group, i) => {
+            if (group.values.length === 0) return;
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
             const medianVal = Statistics.median(group.values);
@@ -1742,6 +1747,7 @@ class GraphRenderer {
         const ebw = this.settings.errorBarWidth;
 
         data.forEach((group, i) => {
+            if (group.values.length === 0) return;
             const color = this._getGroupColor(i);
             const bw = groupScale.bandwidth();
 

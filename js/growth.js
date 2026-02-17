@@ -135,7 +135,17 @@ class GrowthCurveRenderer {
 
         const { timepoints, groups, subjects, groupMap } = growthData;
         const s = this.settings;
-        const margin = { top: 50, right: 20, bottom: 60, left: 65 };
+        const lf = s.legendFont || { family: 'Arial', size: 11, bold: false, italic: false };
+        // Estimate legend width so we can reserve right margin
+        let legendW = 0;
+        if (s.showLegend !== false && groups.length > 0) {
+            const maxLabel = Math.max(...groups.map(g => {
+                const ov = s.groupOverrides && s.groupOverrides[g];
+                return ((ov && ov.label) || g).length;
+            }));
+            legendW = 30 + maxLabel * lf.size * 0.6 + 12;
+        }
+        const margin = { top: 50, right: legendW > 0 ? legendW + 10 : 20, bottom: 60, left: 65 };
         const width = s.width;
         const height = s.height;
         const innerW = width - margin.left - margin.right;
@@ -488,7 +498,8 @@ class GrowthCurveRenderer {
 
         const ox = this._legendOffset.x;
         const oy = this._legendOffset.y;
-        const legendX = width - margin.right - 10 + ox;
+        const innerW = width - margin.left - margin.right;
+        const legendX = margin.left + innerW + 8 + ox;
         const legendY = margin.top + 5 + oy;
         const lf = s.legendFont || { family: 'Arial', size: 11, bold: false, italic: false };
 
@@ -575,7 +586,7 @@ class GrowthCurveRenderer {
                 dragState.y = me.clientY;
                 self._legendOffset.x += dx;
                 self._legendOffset.y += dy;
-                const newX = width - margin.right - 10 + self._legendOffset.x;
+                const newX = margin.left + innerW + 8 + self._legendOffset.x;
                 const newY = margin.top + 5 + self._legendOffset.y;
                 legend.attr('transform', `translate(${newX},${newY})`);
             };

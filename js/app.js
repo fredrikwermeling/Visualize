@@ -11,7 +11,11 @@ class App {
         this.exportManager = new ExportManager(this.graphRenderer);
         this.columnAnnotationManager = new AnnotationManager();
         this.heatmapAnnotationManager = new AnnotationManager();
+        this.growthAnnotationManager = new AnnotationManager();
+        this.volcanoAnnotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.columnAnnotationManager;
+        this.growthRenderer.annotationManager = this.growthAnnotationManager;
+        this.volcanoRenderer.annotationManager = this.volcanoAnnotationManager;
         this._undoStack = [];
         this.mode = 'heatmap';
 
@@ -286,10 +290,7 @@ class App {
 
         document.getElementById('statsLegendMode').addEventListener('change', (e) => {
             const mode = e.target.value;
-            const updates = { showStatsLegend: mode !== 'none', statsLegendExtended: mode === 'extended' };
-            this.graphRenderer.updateSettings(updates);
-            Object.assign(this.growthRenderer.settings, updates);
-            this.updateGraph();
+            this._updateStatsLegendBox(mode);
         });
 
         // Show/hide post-hoc controls based on test type
@@ -662,7 +663,7 @@ class App {
 
         toolButtons.forEach(id => {
             document.getElementById(id).addEventListener('click', () => {
-                const mgr = this.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+                const mgr = this.annotationManager;
                 mgr.setTool(toolMap[id]);
                 this.updateGraph();
             });
@@ -673,12 +674,12 @@ class App {
         });
 
         document.getElementById('drawDeleteSelected').addEventListener('click', () => {
-            const mgr = this.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+            const mgr = this.annotationManager;
             mgr.deleteSelected();
         });
 
         document.getElementById('drawClearAll').addEventListener('click', () => {
-            const mgr = this.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+            const mgr = this.annotationManager;
             mgr.clearAll();
         });
 
@@ -750,6 +751,7 @@ class App {
             this.growthRenderer.settings.legendFont = { family: 'Arial', size: 11, bold: false, italic: false };
             this.growthRenderer.settings.showLegend = true;
             this.growthRenderer.settings.groupOverrides = {};
+            this.growthRenderer.settings.groupOrder = [];
             document.getElementById('growthWidth').value = 300;
             document.getElementById('growthHeight').value = 300;
             document.getElementById('growthXMin').value = '';
@@ -903,6 +905,10 @@ class App {
             document.getElementById('groupManager')
         ];
         columnEls.forEach(el => { if (el) el.style.display = isColumn ? '' : 'none'; });
+
+        // Growth-specific: group order manager
+        const growthGrpMgr = document.getElementById('growthGroupManager');
+        if (growthGrpMgr) growthGrpMgr.style.display = isGrowth ? '' : 'none';
 
         // Heatmap-specific: column/row order managers
         const heatmapColMgr = document.getElementById('heatmapColManager');
@@ -1830,7 +1836,10 @@ class App {
     // --- Undo ---
 
     get annotationManager() {
-        return this.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+        if (this.mode === 'heatmap') return this.heatmapAnnotationManager;
+        if (this.mode === 'growth') return this.growthAnnotationManager;
+        if (this.mode === 'volcano') return this.volcanoAnnotationManager;
+        return this.columnAnnotationManager;
     }
 
     saveUndoState() {
@@ -1848,7 +1857,7 @@ class App {
     undo() {
         if (this._undoStack.length === 0) return;
         const snapshot = this._undoStack.pop();
-        const mgr = snapshot.mode === 'heatmap' ? this.heatmapAnnotationManager : this.columnAnnotationManager;
+        const mgr = snapshot.mode === 'heatmap' ? this.heatmapAnnotationManager : snapshot.mode === 'growth' ? this.growthAnnotationManager : snapshot.mode === 'volcano' ? this.volcanoAnnotationManager : this.columnAnnotationManager;
         mgr.annotations = snapshot.annotations;
         mgr.selectedIndex = -1;
         mgr._selectedBracketIdx = -1;
@@ -1912,6 +1921,8 @@ class App {
             const growthData = this.dataTable.getGrowthData();
             const growthSettings = this._getGrowthSettings();
             this.growthRenderer.render(growthData, growthSettings);
+            this._updateGrowthGroupManager(growthData);
+            this._autoSuggestTest();
             return;
         }
         if (this.mode === 'volcano') {
@@ -1936,6 +1947,7 @@ class App {
 
         this._updateManualColorSwatches(data);
         this._updateGroupManager(data);
+        this._autoSuggestTest();
         // Sync label visibility checkboxes
         const s = this.graphRenderer.settings;
         const titleCb = document.getElementById('showTitle');
@@ -1982,6 +1994,79 @@ class App {
                 }
             });
         }
+    }
+
+    _updateGrowthGroupManager(growthData) {
+        const container = document.getElementById('growthGroupManager');
+        const listEl = document.getElementById('growthGroupList');
+        if (!container || !listEl || !growthData || !growthData.groups) return;
+
+        const groups = growthData.groups;
+        if (groups.length === 0) { container.style.display = 'none'; return; }
+        container.style.display = '';
+
+        const settings = this.growthRenderer.settings;
+        let orderedLabels;
+        if (settings.groupOrder && settings.groupOrder.length > 0) {
+            orderedLabels = settings.groupOrder.filter(g => groups.includes(g));
+            groups.forEach(g => { if (!orderedLabels.includes(g)) orderedLabels.push(g); });
+        } else {
+            orderedLabels = [...groups];
+        }
+
+        listEl.innerHTML = '';
+        orderedLabels.forEach((label, idx) => {
+            const gi = groups.indexOf(label);
+            const color = this.growthRenderer._getColor(gi);
+
+            const item = document.createElement('div');
+            item.className = 'group-item';
+            item.draggable = true;
+            item.dataset.label = label;
+            item.dataset.idx = idx;
+
+            const handle = document.createElement('span');
+            handle.className = 'drag-handle';
+            handle.textContent = '\u2261';
+
+            const dot = document.createElement('span');
+            dot.className = 'color-dot';
+            dot.style.background = color;
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'group-label';
+            const ov = settings.groupOverrides && settings.groupOverrides[label];
+            labelSpan.textContent = (ov && ov.label) || label;
+
+            item.appendChild(handle);
+            item.appendChild(dot);
+            item.appendChild(labelSpan);
+            listEl.appendChild(item);
+
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', idx.toString());
+                item.style.opacity = '0.5';
+            });
+            item.addEventListener('dragend', () => {
+                item.style.opacity = '';
+                listEl.querySelectorAll('.group-item').forEach(el => el.classList.remove('drag-over'));
+            });
+            item.addEventListener('dragover', (e) => { e.preventDefault(); item.classList.add('drag-over'); });
+            item.addEventListener('dragleave', () => { item.classList.remove('drag-over'); });
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.classList.remove('drag-over');
+                const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                const toIdx = idx;
+                if (fromIdx === toIdx) return;
+                const newOrder = [...orderedLabels];
+                const [moved] = newOrder.splice(fromIdx, 1);
+                newOrder.splice(toIdx, 0, moved);
+                settings.groupOrder = newOrder;
+                this.updateGraph();
+            });
+        });
     }
 
     _updateGroupManager(data) {
@@ -2757,6 +2842,48 @@ class App {
         const container = document.getElementById('statsResults');
         container.innerHTML = html + '<div style="font-size:10px;color:#999;margin-top:8px;border-top:1px solid #eee;padding-top:4px">Analysis performed using jStat (JavaScript Statistical Library)</div>';
         container.classList.remove('empty');
+        const legendMode = document.getElementById('statsLegendMode')?.value || 'none';
+        this._updateStatsLegendBox(legendMode);
+    }
+
+    _autoSuggestTest() {
+        const testSel = document.getElementById('testType');
+        if (!testSel) return;
+        // Don't change if user already ran a test (results visible)
+        const results = document.getElementById('statsResults');
+        if (results && results.innerHTML.trim()) return;
+
+        if (this.mode === 'growth') {
+            testSel.value = 'two-way-rm-anova';
+        } else if (this.mode === 'column') {
+            const data = this.dataTable.getData();
+            const filled = data.filter(d => d.values.length > 0);
+            if (filled.length === 2) {
+                testSel.value = 'unpaired-t';
+            } else if (filled.length > 2) {
+                testSel.value = 'one-way-anova';
+            }
+        }
+        testSel.dispatchEvent(new Event('change'));
+    }
+
+    _updateStatsLegendBox(mode) {
+        const box = document.getElementById('statsLegendBox');
+        const nameEl = document.getElementById('statsLegendTestName');
+        if (!box) return;
+        if (mode === 'none') {
+            box.style.display = 'none';
+        } else {
+            box.style.display = '';
+            const renderer = this.mode === 'growth' ? this.growthRenderer : this.graphRenderer;
+            const testName = renderer.settings.statsTestName || '';
+            if (mode === 'extended' && testName) {
+                nameEl.textContent = 'Test: ' + testName;
+                nameEl.style.display = '';
+            } else {
+                nameEl.style.display = 'none';
+            }
+        }
     }
 
     _clearStats() {
@@ -2766,6 +2893,8 @@ class App {
         this.graphRenderer.setSignificance([]);
         this.growthRenderer.setSignificance([]);
         this._statsInfoText = null;
+        const box = document.getElementById('statsLegendBox');
+        if (box) box.style.display = 'none';
     }
 }
 

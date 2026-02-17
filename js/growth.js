@@ -30,6 +30,7 @@ class GrowthCurveRenderer {
             legendFont: { family: 'Arial', size: 11, bold: false, italic: false },
             showLegend: true,
             groupOverrides: {}, // { groupName: { color, symbol, label } }
+            groupOrder: [],     // ordered group names for legend display
             showZeroLine: false,
             zeroLineWidth: 1,
             zeroLineDash: 'dashed',
@@ -144,8 +145,15 @@ class GrowthCurveRenderer {
             return;
         }
 
-        const { timepoints, groups, subjects, groupMap } = growthData;
+        const { timepoints, subjects, groupMap } = growthData;
+        // Apply group order if set
+        let groups = growthData.groups;
         const s = this.settings;
+        if (s.groupOrder && s.groupOrder.length > 0) {
+            const ordered = s.groupOrder.filter(g => groups.includes(g));
+            groups.forEach(g => { if (!ordered.includes(g)) ordered.push(g); });
+            groups = ordered;
+        }
         const lf = s.legendFont || { family: 'Arial', size: 11, bold: false, italic: false };
         // Estimate legend width so we can reserve right margin
         let legendW = 0;
@@ -157,9 +165,7 @@ class GrowthCurveRenderer {
             legendW = 30 + maxLabel * lf.size * 0.6 + 12;
         }
         let bottomMargin = 60;
-        if (s.showStatsLegend && this.significanceMarkers.length > 0) {
-            bottomMargin += s.statsLegendExtended ? 60 : 45;
-        }
+        // Stats legend now rendered in sidebar HTML
         const margin = { top: 50, right: legendW > 0 ? legendW + 10 : 20, bottom: bottomMargin, left: 65 };
         const width = s.width;
         const height = s.height;
@@ -328,9 +334,7 @@ class GrowthCurveRenderer {
         }
 
         // Stats legend
-        if (this.settings.showStatsLegend && this.significanceMarkers.length > 0) {
-            this._drawStatsLegend(g, innerW, innerH);
-        }
+        // Stats legend now rendered in sidebar HTML
 
         // Info box
         if (s.infoBox) {
@@ -339,6 +343,11 @@ class GrowthCurveRenderer {
 
         // Tooltip
         this._setupTooltip(svg, g, growthData, xScale, yScale, innerW, innerH);
+
+        // Draw annotations
+        if (this.annotationManager) {
+            this.annotationManager.drawAnnotations(svg, margin);
+        }
     }
 
     _drawSubjectLines(g, timepoints, subjectIds, subjects, color, xScale, yScale) {

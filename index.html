@@ -83,6 +83,13 @@
                     <div id="groupList" class="group-list"></div>
                 </div>
 
+                <div id="growthGroupManager" class="group-manager" style="display:none">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <h3>Group Order</h3>
+                    </div>
+                    <div id="growthGroupList" class="group-list"></div>
+                </div>
+
                 <div id="heatmapColManager" class="group-manager" style="display:none">
                     <div style="display:flex;justify-content:space-between;align-items:center">
                         <h3>Column Order</h3>
@@ -575,6 +582,10 @@
                             </label>
                         </div>
                         <div id="statsResults" class="stats-results"></div>
+                        <div id="statsLegendBox" style="display:none;font-size:11px;color:#666;margin-top:4px;padding:4px 8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px">
+                            <div>* p &lt; 0.05&ensp;** p &lt; 0.01&ensp;*** p &lt; 0.001</div>
+                            <div id="statsLegendTestName" style="margin-top:2px;font-style:italic"></div>
+                        </div>
                     </div>
 
                 </div>

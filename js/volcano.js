@@ -289,6 +289,11 @@ class VolcanoRenderer {
             this._makeLabelDrag(yLabelEl, 'yLabelOffset');
             yLabelEl.on('dblclick', () => this._startInlineEdit(null, 'yLabel'));
         }
+
+        // Draw annotations
+        if (this.annotationManager) {
+            this.annotationManager.drawAnnotations(svg, margin);
+        }
     }
 
     // Shared interactive text: drag + dblclick + nudge

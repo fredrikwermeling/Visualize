@@ -13,6 +13,8 @@ class GrowthCurveRenderer {
             individualLineOpacity: 0.3,
             meanLineWidth: 2.5,
             colorTheme: 'default',
+            xAxisMin: null,
+            xAxisMax: null,
             yAxisMin: null,
             yAxisMax: null,
             errorType: 'sem',
@@ -175,8 +177,10 @@ class GrowthCurveRenderer {
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
         // X scale (linear time)
+        const xMin = s.xAxisMin !== null && s.xAxisMin !== undefined ? s.xAxisMin : d3.min(timepoints);
+        const xMax = s.xAxisMax !== null && s.xAxisMax !== undefined ? s.xAxisMax : d3.max(timepoints);
         const xScale = d3.scaleLinear()
-            .domain([d3.min(timepoints), d3.max(timepoints)])
+            .domain([xMin, xMax])
             .range([0, innerW])
             .nice();
 

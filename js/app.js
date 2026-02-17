@@ -752,6 +752,8 @@ class App {
             this.growthRenderer.settings.groupOverrides = {};
             document.getElementById('growthWidth').value = 300;
             document.getElementById('growthHeight').value = 300;
+            document.getElementById('growthXMin').value = '';
+            document.getElementById('growthXMax').value = '';
             document.getElementById('growthYMin').value = '';
             document.getElementById('growthYMax').value = '';
             document.getElementById('growthXTickStep').value = '';
@@ -946,6 +948,10 @@ class App {
             el.style.display = isHeatmap ? 'inline-block' : 'none';
         });
 
+        // Stats export only for column/growth
+        const statsBtn = document.getElementById('exportStats');
+        if (statsBtn) statsBtn.style.display = (isColumn || isGrowth) ? '' : 'none';
+
         // Filter test type options by mode
         const testSel = document.getElementById('testType');
         if (testSel) {
@@ -1002,7 +1008,7 @@ class App {
     }
 
     _bindGrowthControls() {
-        ['growthWidth', 'growthHeight', 'growthYMin', 'growthYMax', 'growthXTickStep', 'growthYTickStep', 'growthSymbolSize', 'growthMeanLineWidth', 'growthCapWidth'].forEach(id => {
+        ['growthWidth', 'growthHeight', 'growthXMin', 'growthXMax', 'growthYMin', 'growthYMax', 'growthXTickStep', 'growthYTickStep', 'growthSymbolSize', 'growthMeanLineWidth', 'growthCapWidth'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
                 this.growthRenderer._titleOffset = { x: 0, y: 0 };
@@ -1637,17 +1643,16 @@ class App {
     }
 
     _getGrowthSettings() {
-        const yMinEl = document.getElementById('growthYMin');
-        const yMaxEl = document.getElementById('growthYMax');
-        const yMinVal = yMinEl ? yMinEl.value.trim() : '';
-        const yMaxVal = yMaxEl ? yMaxEl.value.trim() : '';
+        const parseOpt = id => { const v = document.getElementById(id)?.value?.trim(); return v ? parseFloat(v) : null; };
         return {
             width: parseInt(document.getElementById('growthWidth')?.value) || 400,
             height: parseInt(document.getElementById('growthHeight')?.value) || 300,
-            yAxisMin: yMinVal === '' ? null : parseFloat(yMinVal),
-            yAxisMax: yMaxVal === '' ? null : parseFloat(yMaxVal),
-            xTickStep: (() => { const v = document.getElementById('growthXTickStep')?.value?.trim(); return v ? parseFloat(v) : null; })(),
-            yTickStep: (() => { const v = document.getElementById('growthYTickStep')?.value?.trim(); return v ? parseFloat(v) : null; })(),
+            xAxisMin: parseOpt('growthXMin'),
+            xAxisMax: parseOpt('growthXMax'),
+            yAxisMin: parseOpt('growthYMin'),
+            yAxisMax: parseOpt('growthYMax'),
+            xTickStep: parseOpt('growthXTickStep'),
+            yTickStep: parseOpt('growthYTickStep'),
             colorTheme: document.getElementById('growthColorTheme')?.value || 'default',
             errorType: document.getElementById('growthErrorType')?.value || 'sem',
             errorStyle: document.getElementById('growthErrorStyle')?.value || 'bars',
@@ -2558,6 +2563,7 @@ class App {
 
             this._showStatsResult(html);
             this._bindGrowthPostHocToggles(postHoc);
+            this.growthRenderer.settings.statsTestName = testName + ' + per-timepoint t-tests (' + compareLabel + ', ' + corrLabel + ')';
 
             // Build info text for SVG info box
             const nPerGroup = growthData.groups.map(g => (growthData.groupMap[g] || []).length);

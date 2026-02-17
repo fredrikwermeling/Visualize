@@ -509,10 +509,11 @@ tr:hover .row-delete-btn {
     font-size: 11px;
 }
 
-/* In 4-col grids, use tighter fixed label width for uniform boxes */
+/* In 4-col grids, use auto label width so full text fits */
 .volcano-controls .control-grid-2col .control-group label,
 .growth-controls .control-grid-2col .control-group label {
-    flex: 0 0 48px;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .control-grid-2col .span-2 {

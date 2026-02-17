@@ -623,19 +623,18 @@ class App {
             this.growthRenderer.settings.legendFont = { family: 'Arial', size: 11, bold: false, italic: false };
             this.growthRenderer.settings.showLegend = true;
             this.growthRenderer.settings.groupOverrides = {};
-            document.getElementById('growthWidth').value = 400;
+            document.getElementById('growthWidth').value = 300;
             document.getElementById('growthHeight').value = 300;
             document.getElementById('growthYMin').value = '';
             document.getElementById('growthYMax').value = '';
             document.getElementById('growthColorTheme').value = 'default';
             document.getElementById('growthErrorType').value = 'sem';
-            document.getElementById('growthErrorStyle').value = 'ribbon';
+            document.getElementById('growthErrorStyle').value = 'bars';
             document.getElementById('growthErrorDir').value = 'both';
-            document.getElementById('growthSymbol').value = 'circle';
             document.getElementById('growthSymbolSize').value = '4';
             document.getElementById('growthMeanLineWidth').value = '2.5';
             document.getElementById('growthCapWidth').value = '6';
-            document.getElementById('growthShowIndividual').checked = true;
+            document.getElementById('growthShowIndividual').checked = false;
             document.getElementById('growthShowMean').checked = true;
             this._growthTableData = null;
             this.dataTable.loadGrowthSampleData();
@@ -871,7 +870,7 @@ class App {
                 this.updateGraph();
             });
         });
-        ['growthColorTheme', 'growthErrorType', 'growthErrorStyle', 'growthErrorDir', 'growthSymbol'].forEach(id => {
+        ['growthColorTheme', 'growthErrorType', 'growthErrorStyle', 'growthErrorDir'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => this.updateGraph());
         });
@@ -978,9 +977,9 @@ class App {
                         significanceLabel: sigLevel
                     });
 
-                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
+                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer;margin-top:6px" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
                 } catch (e) {
-                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
+                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer;margin-top:6px" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
                 }
             }
 
@@ -1024,7 +1023,7 @@ class App {
                     const sigLevel = Statistics.getSignificanceLevel(result.p);
                     const isSignificant = result.p < 0.05;
 
-                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> F=${result.F.toFixed(2)}, ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
+                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer;margin-top:8px" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> F=${result.F.toFixed(2)}, ${pFormatted} <span class="${isSignificant ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
 
                     if (isSignificant) {
                         const postHoc = Statistics.tukeyHSDPostHoc(groupValues, groupLabelsArr);
@@ -1042,7 +1041,7 @@ class App {
                         });
                         const sigPairs = postHoc.filter(ph => ph.significant);
                         if (sigPairs.length > 0) {
-                            html += `<div style="font-size:11px;color:#666;margin-left:12px">`;
+                            html += `<div style="font-size:11px;color:#666;margin-left:16px;margin-bottom:4px">`;
                             sigPairs.forEach(ph => {
                                 html += `${ph.group1Label} vs ${ph.group2Label}: ${Statistics.formatPValue(ph.correctedP)} ${ph.significanceLabel}<br>`;
                             });
@@ -1050,7 +1049,7 @@ class App {
                         }
                     }
                 } catch (e) {
-                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
+                    html += `<div class="result-item marker-row" data-marker="${colLabels[mi]}" style="cursor:pointer;margin-top:8px" title="Click to toggle visibility"><span class="result-value"><b>${colLabels[mi]}:</b> Error — ${e.message}</span></div>`;
                 }
             }
 
@@ -1165,6 +1164,10 @@ class App {
         if (panel) panel.style.display = 'none';
         const btn = document.getElementById('textSettingsBtn');
         if (btn) btn.classList.remove('active');
+        if (this._textSettingsOutsideHandler) {
+            document.removeEventListener('mousedown', this._textSettingsOutsideHandler);
+            this._textSettingsOutsideHandler = null;
+        }
     }
 
     _getActiveRenderer() {
@@ -1196,6 +1199,22 @@ class App {
         }
         panel.style.display = '';
         this._buildTextSettingsRows();
+
+        // Close on outside click
+        if (this._textSettingsOutsideHandler) {
+            document.removeEventListener('mousedown', this._textSettingsOutsideHandler);
+        }
+        this._textSettingsOutsideHandler = (e) => {
+            const btn = document.getElementById('textSettingsBtn');
+            if (!panel.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                this._closeTextSettingsPanel();
+                document.removeEventListener('mousedown', this._textSettingsOutsideHandler);
+                this._textSettingsOutsideHandler = null;
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('mousedown', this._textSettingsOutsideHandler);
+        }, 100);
     }
 
     _buildTextSettingsRows() {
@@ -1411,6 +1430,23 @@ class App {
                     });
                     grow.appendChild(symSel);
 
+                    // Line dash select
+                    const dashSel = document.createElement('select');
+                    dashSel.style.cssText = 'font-size:10px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;flex:0 0 auto;width:68px';
+                    const curDash = ov.lineDash || 'solid';
+                    [['solid','Solid'],['dashed','Dashed'],['dotted','Dotted'],['dashdot','Dash-dot'],['longdash','Long dash']].forEach(([val,txt]) => {
+                        const opt = document.createElement('option');
+                        opt.value = val; opt.textContent = txt;
+                        if (val === curDash) opt.selected = true;
+                        dashSel.appendChild(opt);
+                    });
+                    dashSel.addEventListener('change', () => {
+                        if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                        gr.settings.groupOverrides[gName].lineDash = dashSel.value;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(dashSel);
+
                     // Label input
                     const labelInp = document.createElement('input');
                     labelInp.type = 'text';
@@ -1470,9 +1506,8 @@ class App {
             yAxisMax: yMaxVal === '' ? null : parseFloat(yMaxVal),
             colorTheme: document.getElementById('growthColorTheme')?.value || 'default',
             errorType: document.getElementById('growthErrorType')?.value || 'sem',
-            errorStyle: document.getElementById('growthErrorStyle')?.value || 'ribbon',
+            errorStyle: document.getElementById('growthErrorStyle')?.value || 'bars',
             errorDir: document.getElementById('growthErrorDir')?.value || 'both',
-            symbolShape: document.getElementById('growthSymbol')?.value || 'circle',
             symbolSize: parseFloat(document.getElementById('growthSymbolSize')?.value) || 4,
             meanLineWidth: parseFloat(document.getElementById('growthMeanLineWidth')?.value) || 2.5,
             capWidth: parseFloat(document.getElementById('growthCapWidth')?.value) || 6,

@@ -256,8 +256,8 @@ class GraphRenderer {
         // Clear previous graph
         this.container.innerHTML = '';
 
-        // Filter out columns with no data
-        let filteredData = data.filter(d => d.values.length > 0);
+        // Keep all columns (including empty ones for spacing)
+        let filteredData = data.slice();
 
         // Build stable color index map from original data order (before reorder/hide)
         this._colorIndexMap = {};

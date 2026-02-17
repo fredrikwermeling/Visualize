@@ -7,7 +7,7 @@ class GrowthCurveRenderer {
             title: 'Growth Curve',
             xLabel: 'Time',
             yLabel: 'Value',
-            showIndividualLines: true,
+            showIndividualLines: false,
             showGroupMeans: true,
             lineWidth: 1.5,
             individualLineOpacity: 0.3,
@@ -16,7 +16,7 @@ class GrowthCurveRenderer {
             yAxisMin: null,
             yAxisMax: null,
             errorType: 'sem',
-            width: 400,
+            width: 300,
             height: 300,
             titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
             xLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
@@ -217,7 +217,7 @@ class GrowthCurveRenderer {
 
             // Group mean + error
             if (s.showGroupMeans) {
-                this._drawGroupMean(g, timepoints, groupStats.means, groupStats.errors, color, xScale, yScale, symbol);
+                this._drawGroupMean(g, timepoints, groupStats.means, groupStats.errors, color, xScale, yScale, symbol, groupName);
             }
         });
 
@@ -309,12 +309,14 @@ class GrowthCurveRenderer {
         });
     }
 
-    _drawGroupMean(g, timepoints, means, errors, color, xScale, yScale, symbol) {
+    _drawGroupMean(g, timepoints, means, errors, color, xScale, yScale, symbol, groupName) {
         const s = this.settings;
-        const errStyle = s.errorStyle || 'ribbon';
+        const errStyle = s.errorStyle || 'bars';
         const errDir = s.errorDir || 'both';
         const capW = s.capWidth !== undefined ? s.capWidth : 6;
         const symSize = s.symbolSize || 4;
+        const ov = groupName && s.groupOverrides && s.groupOverrides[groupName];
+        const lineDash = (ov && ov.lineDash) || 'solid';
 
         const validData = timepoints.map((t, i) => ({
             t, mean: means[i], err: errors[i]
@@ -348,11 +350,13 @@ class GrowthCurveRenderer {
             .x(d => xScale(d.t))
             .y(d => yScale(d.mean));
 
+        const dashMap = { solid: 'none', dashed: '8,4', dotted: '2,3', dashdot: '8,3,2,3', longdash: '14,4' };
         g.append('path')
             .datum(validData)
             .attr('fill', 'none')
             .attr('stroke', color)
             .attr('stroke-width', s.meanLineWidth || 2.5)
+            .attr('stroke-dasharray', dashMap[lineDash] || 'none')
             .attr('d', line);
 
         // Error bars (line + cap)
@@ -512,11 +516,15 @@ class GrowthCurveRenderer {
                 .attr('transform', `translate(5, ${i * rowH + 5})`)
                 .style('cursor', 'pointer');
 
+            const ov = s.groupOverrides && s.groupOverrides[groupName];
+            const ld = (ov && ov.lineDash) || 'solid';
+            const dashMap = { solid: 'none', dashed: '8,4', dotted: '2,3', dashdot: '8,3,2,3', longdash: '14,4' };
             row.append('line')
                 .attr('x1', 0).attr('y1', 6)
                 .attr('x2', 16).attr('y2', 6)
                 .attr('stroke', color)
-                .attr('stroke-width', 2);
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', dashMap[ld] || 'none');
 
             const symType = this._d3Symbol(symbol);
             const symGen = d3.symbol().type(symType).size(36);

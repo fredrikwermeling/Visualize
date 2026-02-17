@@ -295,11 +295,11 @@
                     <div class="control-section">
                         <h3>Time Series Settings</h3>
                         <div class="control-grid-2col">
-                            <div class="control-group"><label>Width:</label><input type="number" id="growthWidth" value="400" min="100" step="10"></div>
+                            <div class="control-group"><label>Width:</label><input type="number" id="growthWidth" value="300" min="100" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="growthHeight" value="300" min="100" step="10"></div>
                             <div class="control-group"><label>Y-Min:</label><input type="number" id="growthYMin" placeholder="Auto" step="any"></div>
                             <div class="control-group"><label>Y-Max:</label><input type="number" id="growthYMax" placeholder="Auto" step="any"></div>
-                            <div class="control-group span-2"><label>Colors:</label>
+                            <div class="control-group"><label>Colors:</label>
                                 <select id="growthColorTheme">
                                     <option value="default">Default</option>
                                     <option value="pastel">Pastel</option>
@@ -308,7 +308,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
-                                    <option value="black">Black (symbols only)</option>
+                                    <option value="black">Black (symbols)</option>
                                 </select>
                             </div>
                             <div class="control-group"><label>Error:</label>
@@ -317,37 +317,27 @@
                                     <option value="sd">SD</option>
                                 </select>
                             </div>
-                            <div class="control-group"><label>Err style:</label>
+                            <div class="control-group"><label>Error Style:</label>
                                 <select id="growthErrorStyle">
+                                    <option value="bars" selected>Error bars</option>
                                     <option value="ribbon">Ribbon</option>
-                                    <option value="bars">Error bars</option>
                                     <option value="both">Both</option>
+                                    <option value="none">None</option>
                                 </select>
                             </div>
-                            <div class="control-group"><label>Err dir:</label>
+                            <div class="control-group"><label>Error Dir:</label>
                                 <select id="growthErrorDir">
                                     <option value="both">Both</option>
                                     <option value="above">Above</option>
                                     <option value="below">Below</option>
                                 </select>
                             </div>
-                            <div class="control-group"><label>Symbol:</label>
-                                <select id="growthSymbol">
-                                    <option value="circle">Circle</option>
-                                    <option value="square">Square</option>
-                                    <option value="triangle">Triangle</option>
-                                    <option value="diamond">Diamond</option>
-                                    <option value="cross">Cross (+)</option>
-                                    <option value="star">Star</option>
-                                    <option value="per-group">Per group</option>
-                                </select>
-                            </div>
-                            <div class="control-group"><label>Sym sz:</label><input type="number" id="growthSymbolSize" value="4" min="1" max="20" step="0.5"></div>
-                            <div class="control-group"><label>Line W:</label><input type="number" id="growthMeanLineWidth" value="2.5" min="0.5" max="8" step="0.5"></div>
-                            <div class="control-group"><label>Cap W:</label><input type="number" id="growthCapWidth" value="6" min="0" max="20" step="1"></div>
+                            <div class="control-group"><label>Symbol Size:</label><input type="number" id="growthSymbolSize" value="4" min="1" max="20" step="0.5"></div>
+                            <div class="control-group"><label>Line Width:</label><input type="number" id="growthMeanLineWidth" value="2.5" min="0.5" max="8" step="0.5"></div>
+                            <div class="control-group"><label>Cap Width:</label><input type="number" id="growthCapWidth" value="6" min="0" max="20" step="1"></div>
                         </div>
                         <div style="margin-top:6px">
-                            <label style="font-size:12px"><input type="checkbox" id="growthShowIndividual" checked> Individual lines</label>
+                            <label style="font-size:12px"><input type="checkbox" id="growthShowIndividual"> Individual lines</label>
                             <label style="font-size:12px;margin-left:8px"><input type="checkbox" id="growthShowMean" checked> Group mean +/- error</label>
                         </div>
                     </div>
@@ -359,13 +349,13 @@
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Width:</label><input type="number" id="volcanoWidth" value="450" min="200" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="volcanoHeight" value="400" min="200" step="10"></div>
-                            <div class="control-group"><label>P thr:</label><input type="number" id="volcanoPThresh" value="0.05" min="0" max="1" step="0.01"></div>
-                            <div class="control-group"><label>FC thr:</label><input type="number" id="volcanoFCThresh" value="1.0" min="0" step="0.1"></div>
-                            <div class="control-group"><label>Pt size:</label><input type="number" id="volcanoPointSize" value="4" min="1" max="20" step="0.5"></div>
+                            <div class="control-group"><label>P Threshold:</label><input type="number" id="volcanoPThresh" value="0.05" min="0" max="1" step="0.01"></div>
+                            <div class="control-group"><label>FC Threshold:</label><input type="number" id="volcanoFCThresh" value="1.0" min="0" step="0.1"></div>
+                            <div class="control-group"><label>Point Size:</label><input type="number" id="volcanoPointSize" value="4" min="1" max="20" step="0.5"></div>
                             <div class="control-group"><label>Labels:</label><input type="number" id="volcanoTopLabels" value="10" min="0" max="50" step="1"></div>
-                            <div class="control-group"><label>Nm size:</label><input type="number" id="volcanoLabelSize" value="10" min="6" max="24" step="1"></div>
-                            <div class="control-group"><label>Up col:</label><input type="color" id="volcanoUpColor" value="#E63946"></div>
-                            <div class="control-group"><label>Dn col:</label><input type="color" id="volcanoDownColor" value="#457B9D"></div>
+                            <div class="control-group"><label>Name Size:</label><input type="number" id="volcanoLabelSize" value="10" min="6" max="24" step="1"></div>
+                            <div class="control-group"><label>Up Color:</label><input type="color" id="volcanoUpColor" value="#E63946"></div>
+                            <div class="control-group"><label>Down Color:</label><input type="color" id="volcanoDownColor" value="#457B9D"></div>
                         </div>
                     </div>
                 </div>
@@ -403,11 +393,11 @@
                                 </select>
                             </div>
                             <div class="control-group column-only">
-                                <label>Err cap:</label>
+                                <label>Error Cap:</label>
                                 <input type="number" id="errorBarWidth" value="1.5" step="0.5">
                             </div>
                             <div class="control-group column-only">
-                                <label>Err dir:</label>
+                                <label>Error Dir:</label>
                                 <select id="errorBarDirection">
                                     <option value="both">Both</option>
                                     <option value="above">Above only</option>
@@ -428,7 +418,7 @@
                                 <div id="manualColorSwatches" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center"></div>
                             </div>
                             <div class="control-group column-only">
-                                <label>Orient:</label>
+                                <label>Orientation:</label>
                                 <select id="orientation">
                                     <option value="vertical">Vertical</option>
                                     <option value="horizontal">Horizontal</option>
@@ -443,11 +433,11 @@
                                 </select>
                             </div>
                             <div class="control-group column-only">
-                                <label>Pt size:</label>
+                                <label>Point Size:</label>
                                 <input type="number" id="pointSize" value="6" min="0.5" step="0.5">
                             </div>
                             <div class="control-group column-only">
-                                <label>Pt shape:</label>
+                                <label>Point Shape:</label>
                                 <select id="pointShape">
                                     <option value="circle">Circle</option>
                                     <option value="square">Square</option>

@@ -671,21 +671,38 @@ class Statistics {
         const correction = options.correction || 'holm';
         const compareMode = options.compareMode || 'all';  // 'all' or 'control'
         const controlGroup = options.controlGroup || groups[0];
+        const nGroups = groups.length;
+
+        // Per-timepoint ANOVA results (stored for display)
+        const anovaPerTimepoint = [];
 
         // Build raw p-values for all relevant comparisons
         const raw = [];
         timepoints.forEach((t, ti) => {
+            // Gather group values at this timepoint
+            const groupVals = groups.map(g =>
+                (groupMap[g] || []).map(sid => subjects[sid]?.[ti]).filter(v => v !== null && !isNaN(v))
+            );
+
+            // For >2 groups, first run one-way ANOVA as gatekeeper
+            if (nGroups > 2) {
+                const validGroups = groupVals.filter(v => v.length >= 2);
+                if (validGroups.length < 2) return;
+                const anova = this.oneWayAnova(validGroups);
+                anovaPerTimepoint.push({ timepoint: t, F: anova.F, p: anova.p, significant: anova.p < 0.05 });
+                // Skip pairwise if ANOVA not significant at this timepoint
+                if (anova.p >= 0.05) return;
+            }
+
             const pairs = [];
             if (compareMode === 'control') {
-                // Only compare each group vs control
                 groups.forEach(g => {
                     if (g === controlGroup) return;
                     pairs.push([controlGroup, g]);
                 });
             } else {
-                // All pairwise
-                for (let g1 = 0; g1 < groups.length; g1++) {
-                    for (let g2 = g1 + 1; g2 < groups.length; g2++) {
+                for (let g1 = 0; g1 < nGroups; g1++) {
+                    for (let g2 = g1 + 1; g2 < nGroups; g2++) {
                         pairs.push([groups[g1], groups[g2]]);
                     }
                 }
@@ -700,6 +717,9 @@ class Statistics {
                 raw.push({ timepoint: t, group1: gn1, group2: gn2, p: result.p });
             });
         });
+
+        // Store ANOVA results on the return for display
+        this._lastGrowthAnovaPerTimepoint = anovaPerTimepoint;
 
         // Apply correction
         const m = raw.length;

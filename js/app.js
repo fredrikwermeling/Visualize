@@ -2546,12 +2546,27 @@ class App {
                 html += `<div class="result-item"><span class="result-label">${f.label}:</span> <span class="result-value">F(${f.data.df1},${f.data.df2}) = ${f.data.F.toFixed(3)}, ${pFormatted} <span class="${isSig ? 'significant' : 'not-significant'}">${sigLevel}</span></span></div>`;
             });
 
-            // Post-hoc comparisons as clickable rows
+            // Post-hoc comparisons
             html += `<hr style="margin:6px 0;border-color:#eee">`;
-            html += `<div class="result-item" style="font-weight:600">Post-hoc: unpaired t-tests per timepoint (${compareLabel}, ${corrLabel}) — click to show</div>`;
+            const nGroups = growthData.groups.length;
+            const postHocMethod = nGroups > 2
+                ? `one-way ANOVA per timepoint, then pairwise t-tests (${compareLabel}, ${corrLabel})`
+                : `unpaired t-tests per timepoint (${corrLabel})`;
+            html += `<div class="result-item" style="font-weight:600">Post-hoc: ${postHocMethod} — click to show</div>`;
             html += `<div style="margin:4px 0"><button class="btn btn-secondary growth-sig-all" style="padding:1px 6px;font-size:10px">Show sig.</button> <button class="btn btn-secondary growth-sig-none" style="padding:1px 6px;font-size:10px">Clear all</button></div>`;
 
             const postHoc = Statistics.growthPostHoc(growthData, { correction, compareMode, controlGroup });
+
+            // Show per-timepoint ANOVA results if >2 groups
+            if (nGroups > 2 && Statistics._lastGrowthAnovaPerTimepoint) {
+                html += `<div style="margin:4px 0;font-size:11px;color:#555"><em>Per-timepoint ANOVA (gatekeeper):</em></div>`;
+                Statistics._lastGrowthAnovaPerTimepoint.forEach(a => {
+                    const cls = a.significant ? 'significant' : 'not-significant';
+                    html += `<div class="result-item" style="font-size:11px;color:#666;padding:1px 8px">t=${a.timepoint}: F=${a.F.toFixed(2)}, ${Statistics.formatPValue(a.p)} <span class="${cls}">${a.significant ? '→ pairwise' : 'n.s.'}</span></div>`;
+                });
+                html += `<hr style="margin:4px 0;border-color:#eee">`;
+            }
+
             postHoc.forEach((r, idx) => {
                 const pFormatted = Statistics.formatPValue(r.correctedP);
                 const isSig = r.significant;
@@ -2563,7 +2578,10 @@ class App {
 
             this._showStatsResult(html);
             this._bindGrowthPostHocToggles(postHoc);
-            this.growthRenderer.settings.statsTestName = 'RM ANOVA, post-hoc: t-tests (' + corrLabel + ')';
+            const legendTestName = nGroups > 2
+                ? 'RM ANOVA + ANOVA/t-tests (' + corrLabel + ')'
+                : 'RM ANOVA + t-tests (' + corrLabel + ')';
+            this.growthRenderer.settings.statsTestName = legendTestName;
 
             // Build info text for SVG info box
             const nPerGroup = growthData.groups.map(g => (growthData.groupMap[g] || []).length);

@@ -1382,8 +1382,11 @@ class App {
                 { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
                 { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
                 { label: 'X Tick Font (group names)', fontKey: 'xTickFont' },
-                { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yAxisTickStep' }
+                { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yAxisTickStep' },
+                { label: 'Group Legend', fontKey: 'groupLegendFont', visKey: 'showGroupLegend' },
+                { label: 'Zero Line', visKey: 'showZeroLine' }
             ];
+            this._columnGroupRows = true;
         } else if (this.mode === 'growth') {
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
@@ -1527,6 +1530,75 @@ class App {
             row.appendChild(fc);
             body.appendChild(row);
         });
+
+        // Per-group color/symbol for column mode
+        if (this._columnGroupRows) {
+            this._columnGroupRows = false;
+            const data = this.dataTable.getData();
+            const filled = data.filter(d => d.values.length > 0);
+            if (filled.length > 0) {
+                const sep = document.createElement('div');
+                sep.style.cssText = 'grid-column:1/-1;border-top:1px solid #e5e7eb;margin:6px 0 2px;font-size:11px;font-weight:600;color:#374151;padding-top:4px';
+                sep.textContent = 'Group Colors & Symbols';
+                body.appendChild(sep);
+
+                const gr = this.graphRenderer;
+                const symbols = ['circle','square','triangle','diamond','cross'];
+
+                filled.forEach((group, gi) => {
+                    const origIdx = data.indexOf(group);
+                    const grow = document.createElement('div');
+                    grow.className = 'text-settings-row';
+                    grow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0';
+
+                    // Color picker
+                    const colorInp = document.createElement('input');
+                    colorInp.type = 'color';
+                    colorInp.value = gr._getColor(origIdx);
+                    colorInp.style.cssText = 'width:24px;height:20px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0;flex:0 0 24px';
+                    colorInp.addEventListener('input', () => {
+                        gr.settings.colorOverrides[origIdx] = colorInp.value;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(colorInp);
+
+                    // Symbol select (per-group override)
+                    const symSel = document.createElement('select');
+                    symSel.style.cssText = 'font-size:10px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;flex:0 0 auto;width:58px';
+                    if (!gr.settings.symbolOverrides) gr.settings.symbolOverrides = {};
+                    const curSym = gr.settings.symbolOverrides[origIdx] || gr.settings.pointShape || 'circle';
+                    symbols.forEach(sym => {
+                        const opt = document.createElement('option');
+                        opt.value = sym;
+                        opt.textContent = sym.charAt(0).toUpperCase() + sym.slice(1);
+                        if (sym === curSym) opt.selected = true;
+                        symSel.appendChild(opt);
+                    });
+                    symSel.addEventListener('change', () => {
+                        if (!gr.settings.symbolOverrides) gr.settings.symbolOverrides = {};
+                        gr.settings.symbolOverrides[origIdx] = symSel.value;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(symSel);
+
+                    // Label input
+                    const labelInp = document.createElement('input');
+                    labelInp.type = 'text';
+                    labelInp.value = gr.settings.groupLegendLabels[origIdx] || group.label;
+                    labelInp.placeholder = group.label;
+                    labelInp.style.cssText = 'flex:1;min-width:50px;padding:2px 4px;font-size:11px;border:1px solid #e5e7eb;border-radius:3px';
+                    labelInp.addEventListener('input', () => {
+                        const val = labelInp.value.trim();
+                        if (val && val !== group.label) gr.settings.groupLegendLabels[origIdx] = val;
+                        else delete gr.settings.groupLegendLabels[origIdx];
+                        this.updateGraph();
+                    });
+                    grow.appendChild(labelInp);
+
+                    body.appendChild(grow);
+                });
+            }
+        }
 
         // Per-group color/symbol for growth mode
         if (this._growthGroupRows) {

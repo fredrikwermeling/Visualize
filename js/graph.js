@@ -65,6 +65,7 @@ class GraphRenderer {
             // Point appearance
             pointSize: 6,
             pointShape: 'circle',
+            symbolOverrides: {},
             // Group ordering & visibility
             groupOrder: [],      // array of group labels in display order; empty = use data order
             hiddenGroups: [],     // array of group labels to hide from graph
@@ -139,8 +140,8 @@ class GraphRenderer {
         return palette[index % palette.length];
     }
 
-    // Returns the D3 symbol type for the current pointShape setting
-    _getSymbolType() {
+    // Returns the D3 symbol type for a shape name (defaults to pointShape setting)
+    _getSymbolType(shapeName) {
         const map = {
             circle: d3.symbolCircle,
             square: d3.symbolSquare,
@@ -148,14 +149,19 @@ class GraphRenderer {
             diamond: d3.symbolDiamond,
             cross: d3.symbolCross
         };
-        return map[this.settings.pointShape] || d3.symbolCircle;
+        return map[shapeName || this.settings.pointShape] || d3.symbolCircle;
     }
 
     // Draws data points on g for a values array using current pointShape/pointSize settings
     // xFn(d) and yFn(d) return pixel coordinates for each value d
     _drawDataPoints(g, values, xFn, yFn, color, opts = {}) {
         const r = opts.r || this.settings.pointSize;
-        const shape = this.settings.pointShape;
+        // Resolve per-group symbol: extract display index from cssClass 'point-N'
+        let shape = this.settings.pointShape;
+        if (opts.cssClass && opts.cssClass.startsWith('point-')) {
+            const di = parseInt(opts.cssClass.split('-')[1]);
+            if (!isNaN(di)) shape = this._getGroupSymbol(di);
+        }
         const opacity = opts.opacity !== undefined ? opts.opacity : 0.8;
         const stroke = opts.stroke || '#333';
         const strokeWidth = opts.strokeWidth !== undefined ? opts.strokeWidth : 0.5;
@@ -173,7 +179,7 @@ class GraphRenderer {
             return sel;
         } else {
             const area = Math.PI * r * r;
-            const symbolPath = d3.symbol().type(this._getSymbolType()).size(area * 2)();
+            const symbolPath = d3.symbol().type(this._getSymbolType(shape)).size(area * 2)();
             const sel = g.selectAll(cssClass ? `.${cssClass}` : null)
                 .data(values).enter().append('path');
             if (cssClass) sel.attr('class', cssClass);
@@ -243,6 +249,15 @@ class GraphRenderer {
     _getGroupColor(i) {
         const origIdx = this._filteredColorIndices ? this._filteredColorIndices[i] : i;
         return this._getColor(origIdx);
+    }
+
+    // Returns point shape for a group at display position i
+    _getGroupSymbol(i) {
+        const origIdx = this._filteredColorIndices ? this._filteredColorIndices[i] : i;
+        if (this.settings.symbolOverrides && this.settings.symbolOverrides[origIdx]) {
+            return this.settings.symbolOverrides[origIdx];
+        }
+        return this.settings.pointShape;
     }
 
     updateSettings(settings) {
@@ -2451,12 +2466,22 @@ class GraphRenderer {
                 itemG.style('cursor', 'grab').call(this._makeLegendDrag('item', i));
             }
 
-            // Color swatch
-            itemG.append('rect')
-                .attr('x', 0).attr('y', 0)
-                .attr('width', swatchSize).attr('height', swatchSize)
-                .attr('fill', color).attr('stroke', '#333')
-                .attr('stroke-width', 0.5).attr('rx', 2);
+            // Color swatch — use symbol shape if per-group override exists
+            const groupSym = this._getGroupSymbol(i);
+            if (groupSym !== 'circle' && groupSym !== this.settings.pointShape || (this.settings.symbolOverrides && Object.keys(this.settings.symbolOverrides).length > 0)) {
+                const area = swatchSize * swatchSize * 1.5;
+                const symPath = d3.symbol().type(this._getSymbolType(groupSym)).size(area)();
+                itemG.append('path')
+                    .attr('d', symPath)
+                    .attr('transform', `translate(${swatchSize/2},${swatchSize/2})`)
+                    .attr('fill', color).attr('stroke', '#333').attr('stroke-width', 0.5);
+            } else {
+                itemG.append('rect')
+                    .attr('x', 0).attr('y', 0)
+                    .attr('width', swatchSize).attr('height', swatchSize)
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 0.5).attr('rx', 2);
+            }
 
             // Label text
             const textEl = itemG.append('text')

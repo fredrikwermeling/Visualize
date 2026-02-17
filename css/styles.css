@@ -424,6 +424,7 @@ tr:hover .row-delete-btn {
     border-radius: var(--radius-md);
     font-size: 12px;
     font-family: 'Open Sans', sans-serif;
+    text-align: center;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 

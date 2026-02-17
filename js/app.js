@@ -1334,25 +1334,22 @@ class App {
         const body = document.getElementById('textSettingsBody');
         if (!panel || !body) return;
 
-        // Position near the toolbar, clamped to viewport
-        if (!this._textSettingsPlaced || panel.style.display === 'none') {
-            const toolbar = document.getElementById('drawingToolbar');
-            if (toolbar) {
-                const rect = toolbar.getBoundingClientRect();
-                let top = rect.bottom + 4;
-                let left = rect.left;
-                // Clamp so panel fits in viewport
-                const maxTop = window.innerHeight - Math.min(500, window.innerHeight * 0.8);
-                if (top > maxTop) top = Math.max(10, maxTop);
-                if (left + 360 > window.innerWidth) left = window.innerWidth - 370;
-                panel.style.left = left + 'px';
-                panel.style.top = top + 'px';
-                panel.style.right = 'auto';
-                this._textSettingsPlaced = true;
-            }
-        }
         panel.style.display = '';
         this._buildTextSettingsRows();
+
+        // Position near toolbar, clamped to viewport (after content built so height is known)
+        const toolbar = document.getElementById('drawingToolbar');
+        if (toolbar) {
+            const rect = toolbar.getBoundingClientRect();
+            let top = rect.bottom + 4;
+            let left = rect.left;
+            const panelRect = panel.getBoundingClientRect();
+            if (top + panelRect.height > window.innerHeight - 10) top = Math.max(10, window.innerHeight - panelRect.height - 10);
+            if (left + 360 > window.innerWidth) left = Math.max(10, window.innerWidth - 370);
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+            panel.style.right = 'auto';
+        }
 
         // Close on outside click
         if (this._textSettingsOutsideHandler) {

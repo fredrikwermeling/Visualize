@@ -2469,7 +2469,8 @@ class GraphRenderer {
 
         data.forEach((group, i) => {
             const color = this._getGroupColor(i);
-            const label = this.settings.groupLegendLabels[i] || group.label;
+            const origIdx = this._filteredColorIndices ? this._filteredColorIndices[i] : i;
+            const label = this.settings.groupLegendLabels[origIdx] || group.label;
             const itemOff = this.settings.groupLegendItemOffsets[i] || { x: 0, y: 0 };
             const y = i * lineHeight + itemOff.y;
             const x = itemOff.x;

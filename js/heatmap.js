@@ -35,8 +35,8 @@ class HeatmapRenderer {
             colLabelAngle: 45,
             colLabelOverrides: {},
             rowLabelOverrides: {},
-            rowLabelFont: { family: 'Arial', size: null, bold: false, italic: false },
-            colLabelFont: { family: 'Arial', size: null, bold: false, italic: false },
+            rowLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
+            colLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
             legendBarWidth: null,  // null = auto (50px)
             excludedCells: new Set()
         };

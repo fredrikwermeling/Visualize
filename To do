@@ -1,6 +1,7 @@
 heatmap, should be possible to toggel on/off differnt legends in the text editor menu. This can be done in the other graph modules.
 when go from heatmap to column, the statstics list loks a bit strange, with numbers to close to the incorrect gene. 
 In column, allow for entering coulmn without a number or name (to make more space in graph) . 
+in time series, allow for changin the color and symbol for individual groups. perhaps this ocould be part of the text box edit, so the differnt groups apear there and allwo for selecitng color and symbol
 
 
 - Make a standalone app for a computer? Does this allow for connecting graph in powerpoint to the software and back again?

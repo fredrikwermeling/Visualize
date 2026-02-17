@@ -755,6 +755,7 @@ class App {
             this.growthRenderer.settings.showLegend = true;
             this.growthRenderer.settings.groupOverrides = {};
             this.growthRenderer.settings.groupOrder = [];
+            this.growthRenderer.settings.hiddenGroups = [];
             document.getElementById('growthWidth').value = 300;
             document.getElementById('growthHeight').value = 300;
             document.getElementById('growthXMin').value = '';
@@ -2009,6 +2010,9 @@ class App {
         container.style.display = '';
 
         const settings = this.growthRenderer.settings;
+        if (!settings.hiddenGroups) settings.hiddenGroups = [];
+        const hiddenGroups = settings.hiddenGroups;
+
         let orderedLabels;
         if (settings.groupOrder && settings.groupOrder.length > 0) {
             orderedLabels = settings.groupOrder.filter(g => groups.includes(g));
@@ -2021,9 +2025,10 @@ class App {
         orderedLabels.forEach((label, idx) => {
             const gi = groups.indexOf(label);
             const color = this.growthRenderer._getColor(gi);
+            const isHidden = hiddenGroups.includes(label);
 
             const item = document.createElement('div');
-            item.className = 'group-item';
+            item.className = 'group-item' + (isHidden ? ' hidden' : '');
             item.draggable = true;
             item.dataset.label = label;
             item.dataset.idx = idx;
@@ -2041,9 +2046,24 @@ class App {
             const ov = settings.groupOverrides && settings.groupOverrides[label];
             labelSpan.textContent = (ov && ov.label) || label;
 
+            const eyeBtn = document.createElement('button');
+            eyeBtn.className = 'visibility-btn';
+            eyeBtn.textContent = isHidden ? '\u{1F6AB}' : '\u{1F441}';
+            eyeBtn.title = isHidden ? 'Show group' : 'Hide group';
+            eyeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isHidden) {
+                    settings.hiddenGroups = hiddenGroups.filter(l => l !== label);
+                } else {
+                    settings.hiddenGroups = [...hiddenGroups, label];
+                }
+                this.updateGraph();
+            });
+
             item.appendChild(handle);
             item.appendChild(dot);
             item.appendChild(labelSpan);
+            item.appendChild(eyeBtn);
             listEl.appendChild(item);
 
             item.addEventListener('dragstart', (e) => {

@@ -31,6 +31,7 @@ class GrowthCurveRenderer {
             showLegend: true,
             groupOverrides: {}, // { groupName: { color, symbol, label } }
             groupOrder: [],     // ordered group names for legend display
+            hiddenGroups: [],   // group names to hide from graph
             showZeroLine: false,
             zeroLineWidth: 1,
             zeroLineDash: 'dashed',
@@ -145,20 +146,15 @@ class GrowthCurveRenderer {
             return;
         }
 
-        const { timepoints, subjects, groupMap } = growthData;
-        // Apply group order if set
-        let groups = growthData.groups;
+        const { timepoints, groups, subjects, groupMap } = growthData;
         const s = this.settings;
-        if (s.groupOrder && s.groupOrder.length > 0) {
-            const ordered = s.groupOrder.filter(g => groups.includes(g));
-            groups.forEach(g => { if (!ordered.includes(g)) ordered.push(g); });
-            groups = ordered;
-        }
+        const hiddenGroups = s.hiddenGroups || [];
         const lf = s.legendFont || { family: 'Arial', size: 11, bold: false, italic: false };
         // Estimate legend width so we can reserve right margin
         let legendW = 0;
-        if (s.showLegend !== false && groups.length > 0) {
-            const maxLabel = Math.max(...groups.map(g => {
+        const visibleGroups = groups.filter(g => !hiddenGroups.includes(g));
+        if (s.showLegend !== false && visibleGroups.length > 0) {
+            const maxLabel = Math.max(...visibleGroups.map(g => {
                 const ov = s.groupOverrides && s.groupOverrides[g];
                 return ((ov && ov.label) || g).length;
             }));
@@ -260,8 +256,9 @@ class GrowthCurveRenderer {
             this._drawZeroLine(g, yScale, innerW);
         }
 
-        // Draw per group
+        // Draw per group (skip hidden)
         groups.forEach((groupName, gi) => {
+            if (hiddenGroups.includes(groupName)) return;
             const color = this._getColor(gi, groupName);
             const symbol = this._getSymbolForGroup(gi, groupName);
             const subjectIds = groupMap[groupName] || [];
@@ -684,14 +681,26 @@ class GrowthCurveRenderer {
 
         const self = this;
         const rowH = Math.max(18, lf.size + 6);
+        const hiddenGroups = s.hiddenGroups || [];
 
-        groups.forEach((groupName, i) => {
-            const color = this._getColor(i, groupName);
-            const symbol = this._getSymbolForGroup(i, groupName);
+        // Legend order: use groupOrder if set, otherwise data order; skip hidden
+        let legendGroups;
+        if (s.groupOrder && s.groupOrder.length > 0) {
+            legendGroups = s.groupOrder.filter(g => groups.includes(g));
+            groups.forEach(g => { if (!legendGroups.includes(g)) legendGroups.push(g); });
+        } else {
+            legendGroups = [...groups];
+        }
+        legendGroups = legendGroups.filter(g => !hiddenGroups.includes(g));
+
+        legendGroups.forEach((groupName, rowIdx) => {
+            const gi = groups.indexOf(groupName); // original index for color
+            const color = this._getColor(gi, groupName);
+            const symbol = this._getSymbolForGroup(gi, groupName);
             const displayLabel = this._getGroupLabel(groupName);
             const row = legend.append('g')
                 .attr('class', 'legend-entry')
-                .attr('transform', `translate(5, ${i * rowH + 5})`)
+                .attr('transform', `translate(5, ${rowIdx * rowH + 5})`)
                 .style('cursor', 'pointer');
 
             const ov = s.groupOverrides && s.groupOverrides[groupName];

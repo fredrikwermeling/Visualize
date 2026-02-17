@@ -4,7 +4,7 @@ class GrowthCurveRenderer {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.settings = {
-            title: 'Growth Curve',
+            title: 'Time Series',
             xLabel: 'Time',
             yLabel: 'Value',
             showIndividualLines: false,
@@ -30,8 +30,13 @@ class GrowthCurveRenderer {
             groupOverrides: {}, // { groupName: { color, symbol, label } }
             showZeroLine: false,
             zeroLineWidth: 1,
-            zeroLineDash: 'solid',
-            zeroLineColor: '#333'
+            zeroLineDash: 'dashed',
+            zeroLineColor: '#333',
+            // Stats legend
+            showStatsLegend: false,
+            statsLegendExtended: false,
+            statsTestName: '',
+            statsLegendOffset: { x: 0, y: 0 }
         };
         this._titleOffset = { x: 0, y: 0 };
         this._legendOffset = { x: 0, y: 0 };
@@ -149,7 +154,11 @@ class GrowthCurveRenderer {
             }));
             legendW = 30 + maxLabel * lf.size * 0.6 + 12;
         }
-        const margin = { top: 50, right: legendW > 0 ? legendW + 10 : 20, bottom: 60, left: 65 };
+        let bottomMargin = 60;
+        if (s.showStatsLegend && this.significanceMarkers.length > 0) {
+            bottomMargin += s.statsLegendExtended ? 60 : 45;
+        }
+        const margin = { top: 50, right: legendW > 0 ? legendW + 10 : 20, bottom: bottomMargin, left: 65 };
         const width = s.width;
         const height = s.height;
         const innerW = width - margin.left - margin.right;
@@ -176,28 +185,45 @@ class GrowthCurveRenderer {
         Object.values(subjects).forEach(vals => {
             vals.forEach(v => { if (v !== null && !isNaN(v)) allVals.push(v); });
         });
-        let yMin = s.yAxisMin !== null && s.yAxisMin !== undefined ? s.yAxisMin : d3.min(allVals);
-        let yMax = s.yAxisMax !== null && s.yAxisMax !== undefined ? s.yAxisMax : d3.max(allVals);
+        const dataMin = d3.min(allVals);
+        const dataMax = d3.max(allVals);
+        const hasNeg = dataMin !== undefined && dataMin < 0;
+        const autoMin = hasNeg ? dataMin * 1.15 : 0;
+        let yMin = s.yAxisMin !== null && s.yAxisMin !== undefined ? s.yAxisMin : autoMin;
+        let yMax = s.yAxisMax !== null && s.yAxisMax !== undefined ? s.yAxisMax : dataMax;
         // Add padding — extra top space if significance markers are present
         const topPad = this.significanceMarkers.length > 0 ? 0.15 : 0.05;
-        if (s.yAxisMin === null || s.yAxisMin === undefined) yMin = yMin - (yMax - yMin) * 0.05;
         if (s.yAxisMax === null || s.yAxisMax === undefined) yMax = yMax + (yMax - yMin) * topPad;
+        // Auto-enable zero line when negative values detected
+        if (hasNeg && !this._zeroLineAutoSet) {
+            this.settings.showZeroLine = true;
+            this.settings.zeroLineDash = 'dashed';
+            this._zeroLineAutoSet = true;
+            const cb = document.getElementById('growthShowZeroLine');
+            if (cb) cb.checked = true;
+        }
 
         const yScale = d3.scaleLinear()
             .domain([yMin, yMax])
             .range([innerH, 0])
             .nice();
 
-        // Axes
+        // Axes — auto-limit tick count to prevent overlap
         const xAxis = d3.axisBottom(xScale);
         if (s.xTickStep) {
             xAxis.tickValues(d3.range(xScale.domain()[0], xScale.domain()[1] + s.xTickStep * 0.5, s.xTickStep));
         } else {
-            xAxis.ticks(Math.min(timepoints.length, 10));
+            const xTickFontSize = s.xTickFont ? s.xTickFont.size : 12;
+            const maxXTicks = Math.max(2, Math.floor(innerW / (xTickFontSize * 3)));
+            xAxis.ticks(Math.min(timepoints.length, maxXTicks));
         }
         const yAxis = d3.axisLeft(yScale);
         if (s.yTickStep) {
             yAxis.tickValues(d3.range(yScale.domain()[0], yScale.domain()[1] + s.yTickStep * 0.5, s.yTickStep));
+        } else {
+            const yTickFontSize = s.yTickFont ? s.yTickFont.size : 12;
+            const maxYTicks = Math.max(2, Math.floor(innerH / (yTickFontSize * 2)));
+            yAxis.ticks(maxYTicks);
         }
 
         g.append('g')
@@ -295,6 +321,11 @@ class GrowthCurveRenderer {
         // Significance markers
         if (this.significanceMarkers.length > 0) {
             this._drawSignificanceMarkers(g, this.significanceMarkers, growthData, xScale, yScale, innerH);
+        }
+
+        // Stats legend
+        if (this.settings.showStatsLegend && this.significanceMarkers.length > 0) {
+            this._drawStatsLegend(g, innerW, innerH);
         }
 
         // Info box
@@ -537,6 +568,47 @@ class GrowthCurveRenderer {
                 document.addEventListener('mousedown', handler);
             }, 100);
         });
+    }
+
+    _drawStatsLegend(g, innerW, innerH) {
+        const s = this.settings;
+        const off = s.statsLegendOffset;
+        const centerX = innerW / 2;
+        let legendY = innerH + 40;
+        if (s.showXLabel !== false) legendY += 22;
+
+        const lines = ['* p < 0.05    ** p < 0.01    *** p < 0.001'];
+        if (s.statsLegendExtended && s.statsTestName) {
+            lines.push('Test: ' + s.statsTestName);
+        }
+
+        const legendG = g.append('g').attr('class', 'stats-legend').style('cursor', 'grab');
+        lines.forEach((text, i) => {
+            legendG.append('text')
+                .attr('x', centerX + off.x)
+                .attr('y', legendY + off.y + i * 14)
+                .attr('text-anchor', 'middle')
+                .style('font-family', 'Arial, sans-serif')
+                .style('font-size', '10px')
+                .style('fill', '#666')
+                .text(text);
+        });
+
+        const self = this;
+        legendG.call(d3.drag()
+            .filter(event => !event.ctrlKey && !event.button && event.detail < 2)
+            .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
+            .on('drag', function(event) {
+                self.settings.statsLegendOffset.x += event.dx;
+                self.settings.statsLegendOffset.y += event.dy;
+                d3.select(this).selectAll('text')
+                    .attr('x', centerX + self.settings.statsLegendOffset.x);
+                d3.select(this).selectAll('text').each(function(d, i) {
+                    d3.select(this).attr('y', legendY + self.settings.statsLegendOffset.y + i * 14);
+                });
+            })
+            .on('end', function() { d3.select(this).style('cursor', 'grab'); })
+        );
     }
 
     _calcGroupStats(subjects, groupName, timepoints, subjectIds) {

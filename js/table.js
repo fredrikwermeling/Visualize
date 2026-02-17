@@ -780,6 +780,26 @@ class DataTable {
         return { colLabels, rowLabels, matrix, groupAssignments };
     }
 
+    getRawCSVText() {
+        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.row-toggle-col)');
+        const headers = [];
+        headerCells.forEach(th => {
+            const clone = th.cloneNode(true);
+            const btn = clone.querySelector('.th-delete-btn');
+            if (btn) btn.remove();
+            headers.push(clone.textContent.trim());
+        });
+        const lines = [headers.join(',')];
+        const rows = this.tbody.querySelectorAll('tr');
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)');
+            const vals = [];
+            cells.forEach(td => vals.push(td.textContent.trim()));
+            if (vals.some(v => v !== '')) lines.push(vals.join(','));
+        });
+        return lines.join('\n');
+    }
+
     exportRawCSV() {
         const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.row-toggle-col)');
         const headers = [];

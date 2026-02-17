@@ -286,10 +286,9 @@ class App {
 
         document.getElementById('statsLegendMode').addEventListener('change', (e) => {
             const mode = e.target.value;
-            this.graphRenderer.updateSettings({
-                showStatsLegend: mode !== 'none',
-                statsLegendExtended: mode === 'extended'
-            });
+            const updates = { showStatsLegend: mode !== 'none', statsLegendExtended: mode === 'extended' };
+            this.graphRenderer.updateSettings(updates);
+            Object.assign(this.growthRenderer.settings, updates);
             this.updateGraph();
         });
 
@@ -480,6 +479,14 @@ class App {
         if (rawCsvBtn) rawCsvBtn.addEventListener('click', () => {
             this.dataTable.exportRawCSV();
         });
+
+        document.getElementById('exportStats').addEventListener('click', () => {
+            this._exportStats();
+        });
+
+        document.getElementById('exportAll').addEventListener('click', () => {
+            this._exportAll();
+        });
     }
 
     _exportWithInfo(format, filename) {
@@ -524,6 +531,129 @@ class App {
         if (showInfo) {
             setTimeout(() => this.updateGraph(), 500);
         }
+    }
+
+    _exportStats() {
+        const resultsEl = document.getElementById('statsResults');
+        if (!resultsEl || !resultsEl.textContent.trim()) {
+            alert('No statistics results to export. Run a test first.');
+            return;
+        }
+        const text = resultsEl.innerText || resultsEl.textContent;
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `stats_${this.mode}_${this._exportDateStr()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    _exportDateStr() {
+        const d = new Date();
+        return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    async _exportAll() {
+        if (typeof JSZip === 'undefined') {
+            // Load JSZip dynamically
+            await this._loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+        }
+        const zip = new JSZip();
+        const title = this._getActiveRenderer().settings.title || this.mode;
+        const safeName = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const dateStr = this._exportDateStr();
+        const id = Math.random().toString(36).slice(2, 6);
+        const folderName = `${safeName}_${dateStr}_${id}`;
+        const folder = zip.folder(folderName);
+
+        // PNG
+        const pngBlob = await this._renderToBlob('png');
+        if (pngBlob) folder.file(`${safeName}.png`, pngBlob);
+
+        // SVG
+        const svgBlob = await this._renderToBlob('svg');
+        if (svgBlob) folder.file(`${safeName}.svg`, svgBlob);
+
+        // Raw CSV
+        const csvText = this.dataTable.getRawCSVText();
+        if (csvText) folder.file(`${safeName}_data.csv`, csvText);
+
+        // Stats
+        const resultsEl = document.getElementById('statsResults');
+        if (resultsEl && resultsEl.textContent.trim()) {
+            folder.file(`${safeName}_stats.txt`, resultsEl.innerText || resultsEl.textContent);
+        }
+
+        const content = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${folderName}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    _loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
+    _renderToBlob(format) {
+        return new Promise(resolve => {
+            const svgEl = document.getElementById('graphContainer').querySelector('svg');
+            if (!svgEl) { resolve(null); return; }
+            const cloned = svgEl.cloneNode(true);
+            this.exportManager._inlineStyles(svgEl, cloned);
+            const dims = this.exportManager._expandToFit(cloned);
+
+            if (format === 'svg') {
+                cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                bg.setAttribute('width', '100%');
+                bg.setAttribute('height', '100%');
+                bg.setAttribute('fill', 'white');
+                cloned.insertBefore(bg, cloned.firstChild);
+                const data = new XMLSerializer().serializeToString(cloned);
+                resolve(new Blob([data], { type: 'image/svg+xml;charset=utf-8' }));
+            } else {
+                cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                bg.setAttribute('width', '100%');
+                bg.setAttribute('height', '100%');
+                bg.setAttribute('fill', 'white');
+                cloned.insertBefore(bg, cloned.firstChild);
+                const data = new XMLSerializer().serializeToString(cloned);
+                const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                const scaleEl = document.getElementById('pngScale');
+                const scale = scaleEl ? parseInt(scaleEl.value) || 2 : 2;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = dims.width * scale;
+                    canvas.height = dims.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.scale(scale, scale);
+                    ctx.drawImage(img, 0, 0);
+                    URL.revokeObjectURL(url);
+                    canvas.toBlob(b => resolve(b), 'image/png');
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+                img.src = url;
+            }
+        });
     }
 
     _bindDrawingTools() {
@@ -601,7 +731,7 @@ class App {
             this.growthRenderer.setSignificance([]);
             this.growthRenderer._titleOffset = { x: 0, y: 0 };
             this.growthRenderer._legendOffset = { x: 0, y: 0 };
-            this.growthRenderer.settings.title = 'Growth Curve';
+            this.growthRenderer.settings.title = 'Time Series';
             this.growthRenderer.settings.xLabel = 'Time';
             this.growthRenderer.settings.yLabel = 'Value';
             this.growthRenderer.settings.showTitle = true;
@@ -624,6 +754,8 @@ class App {
             document.getElementById('growthHeight').value = 300;
             document.getElementById('growthYMin').value = '';
             document.getElementById('growthYMax').value = '';
+            document.getElementById('growthXTickStep').value = '';
+            document.getElementById('growthYTickStep').value = '';
             document.getElementById('growthColorTheme').value = 'default';
             document.getElementById('growthErrorType').value = 'sem';
             document.getElementById('growthErrorStyle').value = 'bars';
@@ -636,8 +768,13 @@ class App {
             document.getElementById('growthShowZeroLine').checked = false;
             this.growthRenderer.settings.showZeroLine = false;
             this.growthRenderer.settings.zeroLineWidth = 1;
-            this.growthRenderer.settings.zeroLineDash = 'solid';
+            this.growthRenderer.settings.zeroLineDash = 'dashed';
             this.growthRenderer.settings.zeroLineColor = '#333';
+            this.growthRenderer._zeroLineAutoSet = false;
+            this.growthRenderer.settings.showStatsLegend = false;
+            this.growthRenderer.settings.statsLegendExtended = false;
+            this.growthRenderer.settings.statsTestName = '';
+            this.growthRenderer.settings.statsLegendOffset = { x: 0, y: 0 };
             this._growthTableData = null;
             this.dataTable.loadGrowthSampleData();
         } else if (this.mode === 'volcano') {
@@ -659,6 +796,7 @@ class App {
         } else if (this.mode === 'column') {
             this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
             this.graphRenderer._titleOffset = { x: 0, y: 0 };
+            this.graphRenderer._zeroLineAutoSet = false;
             document.getElementById('graphWidth').value = 150;
             document.getElementById('graphHeight').value = 200;
             document.getElementById('yAxisMin').value = '';
@@ -864,7 +1002,7 @@ class App {
     }
 
     _bindGrowthControls() {
-        ['growthWidth', 'growthHeight', 'growthYMin', 'growthYMax', 'growthSymbolSize', 'growthMeanLineWidth', 'growthCapWidth'].forEach(id => {
+        ['growthWidth', 'growthHeight', 'growthYMin', 'growthYMax', 'growthXTickStep', 'growthYTickStep', 'growthSymbolSize', 'growthMeanLineWidth', 'growthCapWidth'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
                 this.growthRenderer._titleOffset = { x: 0, y: 0 };
@@ -990,6 +1128,7 @@ class App {
             document.getElementById('postHocAdvice').style.display = 'none';
             this._updateTestDescription();
             this.graphRenderer.updateSettings({ statsTestName: testName, showStatsLegend: false, statsLegendExtended: false });
+            Object.assign(this.growthRenderer.settings, { statsTestName: testName, showStatsLegend: false, statsLegendExtended: false });
             document.getElementById('statsLegendMode').value = 'none';
             this._showStatsResult(html);
             this._bindMarkerToggles(colLabels, numGroups);
@@ -1060,6 +1199,7 @@ class App {
             document.getElementById('postHocMethod').value = 'tukey';
             this._updateTestDescription();
             this.graphRenderer.updateSettings({ statsTestName: testName + ' + Tukey HSD', showStatsLegend: false, statsLegendExtended: false });
+            this.growthRenderer.settings.statsTestName = testName + ' + Tukey HSD';
             document.getElementById('statsLegendMode').value = 'none';
             this._showStatsResult(html);
             this._bindMarkerToggles(colLabels, numGroups);
@@ -1506,6 +1646,8 @@ class App {
             height: parseInt(document.getElementById('growthHeight')?.value) || 300,
             yAxisMin: yMinVal === '' ? null : parseFloat(yMinVal),
             yAxisMax: yMaxVal === '' ? null : parseFloat(yMaxVal),
+            xTickStep: (() => { const v = document.getElementById('growthXTickStep')?.value?.trim(); return v ? parseFloat(v) : null; })(),
+            yTickStep: (() => { const v = document.getElementById('growthYTickStep')?.value?.trim(); return v ? parseFloat(v) : null; })(),
             colorTheme: document.getElementById('growthColorTheme')?.value || 'default',
             errorType: document.getElementById('growthErrorType')?.value || 'sem',
             errorStyle: document.getElementById('growthErrorStyle')?.value || 'bars',
@@ -2107,7 +2249,7 @@ class App {
         this._showStatsResult(html);
 
         // Set test name for legend
-        this.graphRenderer.updateSettings({ statsTestName: testName });
+        this.graphRenderer.updateSettings({ statsTestName: testName }); this.growthRenderer.settings.statsTestName = testName;
 
         // Info box text
         this._statsInfoText = {
@@ -2174,7 +2316,7 @@ class App {
             });
 
             this._showStatsResult(html);
-            this.graphRenderer.updateSettings({ statsTestName: testName });
+            this.graphRenderer.updateSettings({ statsTestName: testName }); this.growthRenderer.settings.statsTestName = testName;
 
             const g1Idx = data.indexOf(group1);
             const g2Idx = data.indexOf(group2);
@@ -2212,7 +2354,7 @@ class App {
             });
 
             this._showStatsResult(html);
-            this.graphRenderer.updateSettings({ statsTestName: testName });
+            this.graphRenderer.updateSettings({ statsTestName: testName }); this.growthRenderer.settings.statsTestName = testName;
 
             const g1Idx = data.indexOf(group1);
             const g2Idx = data.indexOf(group2);
@@ -2333,9 +2475,10 @@ class App {
             });
 
             this.graphRenderer.updateSettings({ statsTestName: testName + ' + ' + postHocName });
+            this.growthRenderer.settings.statsTestName = testName + ' + ' + postHocName;
         } else {
             html += `<div class="result-item" style="color:#888;font-size:12px"><em>No significant differences — post-hoc not needed</em></div>`;
-            this.graphRenderer.updateSettings({ statsTestName: testName });
+            this.graphRenderer.updateSettings({ statsTestName: testName }); this.growthRenderer.settings.statsTestName = testName;
         }
 
         this._showStatsResult(html);

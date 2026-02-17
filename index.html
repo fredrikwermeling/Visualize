@@ -299,6 +299,8 @@
                             <div class="control-group"><label>Height:</label><input type="number" id="growthHeight" value="300" min="100" step="10"></div>
                             <div class="control-group"><label>Y-Min:</label><input type="number" id="growthYMin" placeholder="Auto" step="any"></div>
                             <div class="control-group"><label>Y-Max:</label><input type="number" id="growthYMax" placeholder="Auto" step="any"></div>
+                            <div class="control-group"><label>X-Step:</label><input type="number" id="growthXTickStep" placeholder="Auto" min="0.1" step="any"></div>
+                            <div class="control-group"><label>Y-Step:</label><input type="number" id="growthYTickStep" placeholder="Auto" min="0.1" step="any"></div>
                             <div class="control-group"><label>Colors:</label>
                                 <select id="growthColorTheme">
                                     <option value="default">Default</option>
@@ -593,6 +595,8 @@
                         <button id="exportRawCSV" class="btn btn-primary">Raw CSV</button>
                         <button id="exportGroupedCSV" class="btn btn-primary heatmap-only">Grouped CSV</button>
                         <button id="viewAsColumn" class="btn btn-primary heatmap-only">Column Graph</button>
+                        <button id="exportStats" class="btn btn-primary">Stats</button>
+                        <button id="exportAll" class="btn btn-primary">Export All</button>
                     </div>
                 </div>
             </div>

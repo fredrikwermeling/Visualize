@@ -10,7 +10,7 @@ class GraphRenderer {
 
         // Default settings
         this.settings = {
-            title: 'Graph Title',
+            title: 'Column',
             xLabel: 'Groups',
             yLabel: 'Values',
             fontFamily: 'Arial',
@@ -73,7 +73,7 @@ class GraphRenderer {
             // Zero line
             showZeroLine: false,
             zeroLineWidth: 1,
-            zeroLineDash: 'solid',  // solid, dashed, dotted, dashdot, longdash
+            zeroLineDash: 'dashed',  // solid, dashed, dotted, dashdot, longdash
             zeroLineColor: '#333'
         };
 
@@ -414,8 +414,15 @@ class GraphRenderer {
         // Draw axis break
         this._drawAxisBreak(g, valueScale, isHorizontal);
 
-        // Draw zero line if enabled and data crosses zero (or forced on)
+        // Auto-enable zero line when negative values detected
         this._hasNegativeData = dataMin !== undefined && dataMin < 0;
+        if (this._hasNegativeData && !this._zeroLineAutoSet) {
+            this.settings.showZeroLine = true;
+            this.settings.zeroLineDash = 'dashed';
+            this._zeroLineAutoSet = true;
+            const cb = document.getElementById('showZeroLine');
+            if (cb) cb.checked = true;
+        }
         if (this.settings.showZeroLine && valueScale.domain()[0] < 0 && valueScale.domain()[1] > 0) {
             this._drawZeroLine(g, valueScale, isHorizontal);
         }

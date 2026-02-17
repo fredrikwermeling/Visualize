@@ -681,12 +681,19 @@ class DataTable {
 
         // Get headers (data columns only, skip id-col)
         const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+        let emptyCount = 0;
         headerCells.forEach(th => {
             const clone = th.cloneNode(true);
             const btn = clone.querySelector('.th-delete-btn');
             if (btn) btn.remove();
             const txt = clone.textContent.trim();
-            headers.push(txt !== '' ? txt : ' ');
+            if (txt !== '') {
+                headers.push(txt);
+            } else {
+                // Unique invisible label: space + zero-width spaces so each empty column is distinct
+                headers.push(' ' + '\u200B'.repeat(emptyCount));
+                emptyCount++;
+            }
         });
 
         // Get data for each column (skip id-cells, skip disabled rows)

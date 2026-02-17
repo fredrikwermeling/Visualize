@@ -1751,8 +1751,8 @@ class App {
         const listEl = document.getElementById('groupList');
         if (!container || !listEl) return;
 
-        const filled = data.filter(d => d.values.length > 0);
-        if (filled.length === 0) {
+        const allGroups = data;
+        if (allGroups.length === 0) {
             container.style.display = 'none';
             return;
         }
@@ -1764,19 +1764,18 @@ class App {
         // Determine display order: use groupOrder if set, otherwise data order
         let orderedLabels;
         if (settings.groupOrder.length > 0) {
-            // Start with stored order, add any new groups at end
             const knownSet = new Set(settings.groupOrder);
-            orderedLabels = [...settings.groupOrder.filter(l => filled.some(d => d.label === l))];
-            filled.forEach(d => {
+            orderedLabels = [...settings.groupOrder.filter(l => allGroups.some(d => d.label === l))];
+            allGroups.forEach(d => {
                 if (!knownSet.has(d.label)) orderedLabels.push(d.label);
             });
         } else {
-            orderedLabels = filled.map(d => d.label);
+            orderedLabels = allGroups.map(d => d.label);
         }
 
         // Build color index map (same as graph.js)
         const colorIndexMap = {};
-        filled.forEach((d, i) => { colorIndexMap[d.label] = i; });
+        allGroups.forEach((d, i) => { colorIndexMap[d.label] = i; });
 
         listEl.innerHTML = '';
         orderedLabels.forEach((label, idx) => {

@@ -2548,7 +2548,7 @@ class App {
 
             // Post-hoc comparisons as clickable rows
             html += `<hr style="margin:6px 0;border-color:#eee">`;
-            html += `<div class="result-item" style="font-weight:600">Post-hoc: ${compareLabel}, ${corrLabel} — click to show on graph</div>`;
+            html += `<div class="result-item" style="font-weight:600">Post-hoc: unpaired t-tests per timepoint (${compareLabel}, ${corrLabel}) — click to show</div>`;
             html += `<div style="margin:4px 0"><button class="btn btn-secondary growth-sig-all" style="padding:1px 6px;font-size:10px">Show sig.</button> <button class="btn btn-secondary growth-sig-none" style="padding:1px 6px;font-size:10px">Clear all</button></div>`;
 
             const postHoc = Statistics.growthPostHoc(growthData, { correction, compareMode, controlGroup });
@@ -2563,7 +2563,7 @@ class App {
 
             this._showStatsResult(html);
             this._bindGrowthPostHocToggles(postHoc);
-            this.growthRenderer.settings.statsTestName = testName + ' + per-timepoint t-tests (' + compareLabel + ', ' + corrLabel + ')';
+            this.growthRenderer.settings.statsTestName = 'RM ANOVA, post-hoc: t-tests (' + corrLabel + ')';
 
             // Build info text for SVG info box
             const nPerGroup = growthData.groups.map(g => (growthData.groupMap[g] || []).length);

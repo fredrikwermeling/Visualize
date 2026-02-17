@@ -346,6 +346,7 @@ tr:hover .row-delete-btn {
     font-size: 13px;
     min-width: 250px;
     font-family: 'Open Sans', sans-serif;
+    text-align: center;
 }
 
 .graph-type-selector select:focus {
@@ -439,6 +440,13 @@ tr:hover .row-delete-btn {
 .control-group input[type="checkbox"] {
     margin-right: 5px;
     accent-color: var(--green-600);
+}
+
+/* Global text-align center for all sidebar inputs/selects */
+.graph-panel select,
+.graph-panel input[type="text"],
+.graph-panel input[type="number"] {
+    text-align: center;
 }
 
 /* Buttons */
@@ -1120,6 +1128,7 @@ tr:hover .row-delete-btn {
     font-size: 11px;
     min-width: 0;
     font-family: 'Open Sans', sans-serif;
+    text-align: center;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -1302,7 +1311,8 @@ tr:hover .row-delete-btn {
     box-shadow: var(--shadow-lg);
     width: 360px;
     max-height: 80vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .text-settings-header {
@@ -1332,6 +1342,9 @@ tr:hover .row-delete-btn {
 
 .text-settings-body {
     padding: 8px 10px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 .text-settings-row {
@@ -1367,6 +1380,7 @@ tr:hover .row-delete-btn {
     border-radius: var(--radius-sm);
     font-size: 12px;
     font-family: 'Open Sans', sans-serif;
+    text-align: center;
 }
 
 .text-settings-row input[type="text"]:focus {
@@ -1392,7 +1406,7 @@ tr:hover .row-delete-btn {
     font-family: 'Open Sans', sans-serif;
 }
 
-.ts-font-controls select { width: 100px; }
+.ts-font-controls select { width: 100px; text-align: center; }
 .ts-font-controls input[type="number"] { width: 42px; text-align: center; }
 
 .ts-font-controls .svg-edit-btn {

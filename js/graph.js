@@ -66,6 +66,7 @@ class GraphRenderer {
             pointSize: 6,
             pointShape: 'circle',
             symbolOverrides: {},
+            sizeOverrides: {},
             // Group ordering & visibility
             groupOrder: [],      // array of group labels in display order; empty = use data order
             hiddenGroups: [],     // array of group labels to hide from graph
@@ -155,12 +156,18 @@ class GraphRenderer {
     // Draws data points on g for a values array using current pointShape/pointSize settings
     // xFn(d) and yFn(d) return pixel coordinates for each value d
     _drawDataPoints(g, values, xFn, yFn, color, opts = {}) {
-        const r = opts.r || this.settings.pointSize;
-        // Resolve per-group symbol: extract display index from cssClass 'point-N'
+        let r = opts.r || this.settings.pointSize;
+        // Resolve per-group symbol and size from cssClass pattern 'XXX-N'
         let shape = this.settings.pointShape;
-        if (opts.cssClass && opts.cssClass.startsWith('point-')) {
-            const di = parseInt(opts.cssClass.split('-')[1]);
-            if (!isNaN(di)) shape = this._getGroupSymbol(di);
+        if (opts.cssClass) {
+            const m = opts.cssClass.match(/(\d+)$/);
+            if (m) {
+                const di = parseInt(m[1]);
+                if (!isNaN(di)) {
+                    shape = this._getGroupSymbol(di);
+                    r = this._getGroupSize(di);
+                }
+            }
         }
         const opacity = opts.opacity !== undefined ? opts.opacity : 0.8;
         const stroke = opts.stroke || '#333';
@@ -258,6 +265,14 @@ class GraphRenderer {
             return this.settings.symbolOverrides[origIdx];
         }
         return this.settings.pointShape;
+    }
+
+    _getGroupSize(i) {
+        const origIdx = this._filteredColorIndices ? this._filteredColorIndices[i] : i;
+        if (this.settings.sizeOverrides && this.settings.sizeOverrides[origIdx]) {
+            return this.settings.sizeOverrides[origIdx];
+        }
+        return this.settings.pointSize;
     }
 
     updateSettings(settings) {

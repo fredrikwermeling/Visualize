@@ -1334,13 +1334,19 @@ class App {
         const body = document.getElementById('textSettingsBody');
         if (!panel || !body) return;
 
-        // Position near the toolbar if not already placed
+        // Position near the toolbar, clamped to viewport
         if (!this._textSettingsPlaced || panel.style.display === 'none') {
             const toolbar = document.getElementById('drawingToolbar');
             if (toolbar) {
                 const rect = toolbar.getBoundingClientRect();
-                panel.style.left = rect.left + 'px';
-                panel.style.top = (rect.bottom + 4) + 'px';
+                let top = rect.bottom + 4;
+                let left = rect.left;
+                // Clamp so panel fits in viewport
+                const maxTop = window.innerHeight - Math.min(500, window.innerHeight * 0.8);
+                if (top > maxTop) top = Math.max(10, maxTop);
+                if (left + 360 > window.innerWidth) left = window.innerWidth - 370;
+                panel.style.left = left + 'px';
+                panel.style.top = top + 'px';
                 panel.style.right = 'auto';
                 this._textSettingsPlaced = true;
             }
@@ -1580,6 +1586,21 @@ class App {
                         this.updateGraph();
                     });
                     grow.appendChild(symSel);
+
+                    // Size input (per-group point size override)
+                    const sizeInp = document.createElement('input');
+                    sizeInp.type = 'number';
+                    if (!gr.settings.sizeOverrides) gr.settings.sizeOverrides = {};
+                    sizeInp.value = gr.settings.sizeOverrides[origIdx] || gr.settings.pointSize || 6;
+                    sizeInp.min = 1; sizeInp.max = 30; sizeInp.step = 1;
+                    sizeInp.style.cssText = 'width:38px;font-size:10px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;text-align:center;flex:0 0 38px';
+                    sizeInp.title = 'Point size';
+                    sizeInp.addEventListener('input', () => {
+                        if (!gr.settings.sizeOverrides) gr.settings.sizeOverrides = {};
+                        gr.settings.sizeOverrides[origIdx] = parseFloat(sizeInp.value) || gr.settings.pointSize;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(sizeInp);
 
                     // Label input
                     const labelInp = document.createElement('input');

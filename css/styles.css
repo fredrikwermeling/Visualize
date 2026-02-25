@@ -1608,10 +1608,21 @@ tr:hover .row-delete-btn {
     font-family: 'Open Sans', sans-serif;
 }
 
-#graphSettingsBody .gs-row input:focus {
+#graphSettingsBody .gs-row input:focus,
+#graphSettingsBody .gs-row select:focus {
     outline: none;
     border-color: var(--green-500);
     box-shadow: 0 0 0 2px rgba(94, 140, 49, 0.2);
+}
+
+#graphSettingsBody .gs-row select {
+    width: 70px;
+    flex: 0 0 auto;
+    padding: 3px 4px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-family: 'Open Sans', sans-serif;
 }
 
 /* Table controls uniform sizing */

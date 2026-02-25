@@ -1137,6 +1137,9 @@ class App {
         const graphControlsEl = document.querySelector('.graph-controls');
         if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier || isPCA || isVenn || isOncoprint) ? 'none' : '';
 
+        // Hide appearance controls that are now in the gear popout
+        this._hideMovedControls();
+
         // Hide dimensions section for modes with own controls
         const dimSection = document.getElementById('dimensionsSection');
         if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn || isOncoprint) ? 'none' : '';
@@ -1524,6 +1527,30 @@ class App {
         }
     }
 
+    _hideMovedControls() {
+        // Hide controls from bottom panels that are now in the gear popout
+        const hideMap = {
+            column: ['graphWidth','graphHeight','pointSize','centerLineWidth','errorBarWidth',
+                'colorTheme','orientation','pointSpread','xTickAngle','errorBarDirection',
+                'yAxisMin','yAxisMax','yAxisTickStep','yAxisScaleType'],
+            growth: ['growthWidth','growthHeight','growthSymbolSize','growthMeanLineWidth','growthCapWidth',
+                'growthColorTheme','growthXMin','growthXMax','growthYMin','growthYMax','growthXTickStep','growthYTickStep'],
+            volcano: ['volcanoWidth','volcanoHeight','volcanoPointSize','volcanoLabelSize'],
+            correlation: ['corrWidth','corrHeight','corrPointSize','corrCapWidth','corrColorTheme',
+                'corrXMin','corrXMax','corrYMin','corrYMax','corrXTickStep','corrYTickStep'],
+            heatmap: ['heatmapWidth','heatmapHeight','heatmapColorScheme','heatmapGroupColorTheme','heatmapLegendWidth'],
+            venn: ['vennWidth','vennHeight','vennColorTheme','vennOpacity'],
+            oncoprint: ['oncoprintWidth','oncoprintCellWidth','oncoprintCellHeight','oncoprintCellGap','oncoprintColorTheme']
+        };
+        const ids = hideMap[this.mode] || [];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const cg = el.closest('.control-group, .hm-ctrl');
+            if (cg) cg.style.display = 'none';
+        });
+    }
+
     // ===== Graph Settings Panel (gear button) =====
     _bindGraphSettingsPanel() {
         const btn = document.getElementById('graphSettingsBtn');
@@ -1629,7 +1656,18 @@ class App {
             rows = [
                 { label: 'Width', inputId: 'graphWidth', type: 'number', min: 50, step: 10 },
                 { label: 'Height', inputId: 'graphHeight', type: 'number', min: 50, step: 10 },
-                { label: 'Pt Size', inputId: 'pointSize', type: 'number', min: 1, max: 30, step: 1 }
+                { label: 'Pt Size', inputId: 'pointSize', type: 'number', min: 1, max: 30, step: 1 },
+                { label: 'Bar W', inputId: 'centerLineWidth', type: 'number', min: 0.1, step: 0.1 },
+                { label: 'Err Cap', inputId: 'errorBarWidth', type: 'number', min: 0, step: 0.5 },
+                { label: 'Colors', inputId: 'colorTheme' },
+                { label: 'Orient', inputId: 'orientation' },
+                { label: 'Spread', inputId: 'pointSpread' },
+                { label: 'X-angle', inputId: 'xTickAngle' },
+                { label: 'Err Dir', inputId: 'errorBarDirection' },
+                { label: 'Y Min', inputId: 'yAxisMin', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'Y Max', inputId: 'yAxisMax', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'Y Step', inputId: 'yAxisTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' },
+                { label: 'Y Scale', inputId: 'yAxisScaleType' }
             ];
         } else if (this.mode === 'growth') {
             rows = [
@@ -1637,6 +1675,8 @@ class App {
                 { label: 'Height', inputId: 'growthHeight', type: 'number', min: 100, step: 10 },
                 { label: 'Sym Size', inputId: 'growthSymbolSize', type: 'number', min: 1, max: 20, step: 0.5 },
                 { label: 'Line W', inputId: 'growthMeanLineWidth', type: 'number', min: 0.5, max: 10, step: 0.5 },
+                { label: 'Cap W', inputId: 'growthCapWidth', type: 'number', min: 0, max: 20, step: 1 },
+                { label: 'Colors', inputId: 'growthColorTheme' },
                 { label: 'X Min', inputId: 'growthXMin', type: 'number', step: 'any', placeholder: 'Auto' },
                 { label: 'X Max', inputId: 'growthXMax', type: 'number', step: 'any', placeholder: 'Auto' },
                 { label: 'Y Min', inputId: 'growthYMin', type: 'number', step: 'any', placeholder: 'Auto' },
@@ -1648,13 +1688,18 @@ class App {
             rows = [
                 { label: 'Width', inputId: 'volcanoWidth', type: 'number', min: 100, step: 10 },
                 { label: 'Height', inputId: 'volcanoHeight', type: 'number', min: 100, step: 10 },
-                { label: 'Pt Size', inputId: 'volcanoPointSize', type: 'number', min: 1, max: 20, step: 0.5 }
+                { label: 'Pt Size', inputId: 'volcanoPointSize', type: 'number', min: 1, max: 20, step: 0.5 },
+                { label: 'Lbl Size', inputId: 'volcanoLabelSize', type: 'number', min: 6, max: 24, step: 1 },
+                { label: 'Up', inputId: 'volcanoUpColor', type: 'color' },
+                { label: 'Down', inputId: 'volcanoDownColor', type: 'color' }
             ];
         } else if (this.mode === 'correlation') {
             rows = [
                 { label: 'Width', inputId: 'corrWidth', type: 'number', min: 100, step: 10 },
                 { label: 'Height', inputId: 'corrHeight', type: 'number', min: 100, step: 10 },
                 { label: 'Pt Size', inputId: 'corrPointSize', type: 'number', min: 1, max: 20, step: 0.5 },
+                { label: 'Cap W', inputId: 'corrCapWidth', type: 'number', min: 0, max: 20, step: 1 },
+                { label: 'Colors', inputId: 'corrColorTheme' },
                 { label: '', inputId: null },
                 { label: 'X Min', inputId: 'corrXMin', type: 'number', step: 'any', placeholder: 'Auto' },
                 { label: 'X Max', inputId: 'corrXMax', type: 'number', step: 'any', placeholder: 'Auto' },
@@ -1668,7 +1713,7 @@ class App {
                 { label: 'Width', inputId: 'pcaWidth', type: 'number', min: 200, step: 10 },
                 { label: 'Height', inputId: 'pcaHeight', type: 'number', min: 200, step: 10 },
                 { label: 'Pt Size', inputId: 'pcaPointSize', type: 'number', min: 1, max: 20, step: 0.5 },
-                { label: '', inputId: null },
+                { label: 'Colors', inputId: 'pcaColorTheme' },
                 { label: 'X Min', inputId: 'pcaXMin', type: 'number', step: 'any', placeholder: 'Auto' },
                 { label: 'X Max', inputId: 'pcaXMax', type: 'number', step: 'any', placeholder: 'Auto' },
                 { label: 'Y Min', inputId: 'pcaYMin', type: 'number', step: 'any', placeholder: 'Auto' },
@@ -1679,19 +1724,25 @@ class App {
         } else if (this.mode === 'heatmap') {
             rows = [
                 { label: 'Width', inputId: 'heatmapWidth', type: 'number', min: 50, step: 10 },
-                { label: 'Height', inputId: 'heatmapHeight', type: 'number', min: 50, step: 10 }
+                { label: 'Height', inputId: 'heatmapHeight', type: 'number', min: 50, step: 10 },
+                { label: 'Colors', inputId: 'heatmapColorScheme' },
+                { label: 'Grp Col', inputId: 'heatmapGroupColorTheme' },
+                { label: 'Lgnd W', inputId: 'heatmapLegendWidth', type: 'number', min: 20, max: 150, step: 5, placeholder: 'Auto' }
             ];
         } else if (this.mode === 'venn') {
             rows = [
                 { label: 'Width', inputId: 'vennWidth', type: 'number', min: 100, step: 10 },
-                { label: 'Height', inputId: 'vennHeight', type: 'number', min: 100, step: 10 }
+                { label: 'Height', inputId: 'vennHeight', type: 'number', min: 100, step: 10 },
+                { label: 'Colors', inputId: 'vennColorTheme' },
+                { label: 'Opacity', inputId: 'vennOpacity', type: 'number', min: 0, max: 1, step: 0.05 }
             ];
         } else if (this.mode === 'oncoprint') {
             rows = [
                 { label: 'Width', inputId: 'oncoprintWidth', type: 'number', min: 100, step: 10 },
                 { label: 'Cell W', inputId: 'oncoprintCellWidth', type: 'number', min: 4, max: 40, step: 1 },
                 { label: 'Cell H', inputId: 'oncoprintCellHeight', type: 'number', min: 8, max: 60, step: 1 },
-                { label: 'Gap', inputId: 'oncoprintCellGap', type: 'number', min: 0, max: 5, step: 0.5 }
+                { label: 'Gap', inputId: 'oncoprintCellGap', type: 'number', min: 0, max: 5, step: 0.5 },
+                { label: 'Colors', inputId: 'oncoprintColorTheme' }
             ];
         }
 
@@ -1705,9 +1756,7 @@ class App {
 
         rows.forEach(row => {
             if (!row.inputId) {
-                // spacer cell
-                const spacer = document.createElement('div');
-                grid.appendChild(spacer);
+                grid.appendChild(document.createElement('div'));
                 return;
             }
             const sourceInput = document.getElementById(row.inputId);
@@ -1720,21 +1769,50 @@ class App {
             lbl.textContent = row.label;
             rowDiv.appendChild(lbl);
 
-            const input = document.createElement('input');
-            input.type = row.type || 'number';
-            input.value = sourceInput.value;
-            if (row.min !== undefined) input.min = row.min;
-            if (row.max !== undefined) input.max = row.max;
-            if (row.step !== undefined) input.step = row.step;
-            if (row.placeholder) input.placeholder = row.placeholder;
+            if (sourceInput.tagName === 'SELECT') {
+                // Mirror select element
+                const select = document.createElement('select');
+                Array.from(sourceInput.options).forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt.value; o.textContent = opt.textContent;
+                    if (opt.value === sourceInput.value) o.selected = true;
+                    select.appendChild(o);
+                });
+                select.addEventListener('change', () => {
+                    sourceInput.value = select.value;
+                    sourceInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    sourceInput.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                rowDiv.appendChild(select);
+            } else if (row.type === 'color') {
+                const colorInp = document.createElement('input');
+                colorInp.type = 'color';
+                colorInp.value = sourceInput.value;
+                colorInp.style.cssText = 'width:40px;height:24px;padding:0;border:1px solid #ccc;border-radius:3px;cursor:pointer';
+                colorInp.addEventListener('input', () => {
+                    sourceInput.value = colorInp.value;
+                    sourceInput.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+                rowDiv.appendChild(colorInp);
+            } else {
+                const input = document.createElement('input');
+                input.type = row.type || 'number';
+                input.value = sourceInput.value;
+                if (row.min !== undefined) input.min = row.min;
+                if (row.max !== undefined) input.max = row.max;
+                if (row.step !== undefined) input.step = row.step;
+                if (row.placeholder) input.placeholder = row.placeholder;
+                input.addEventListener('input', () => {
+                    sourceInput.value = input.value;
+                    sourceInput.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+                rowDiv.appendChild(input);
+            }
 
-            // Sync popout → hidden input → re-render
-            input.addEventListener('input', () => {
-                sourceInput.value = input.value;
-                sourceInput.dispatchEvent(new Event('input', { bubbles: true }));
-            });
+            // Hide the source control from bottom panel
+            const cg = sourceInput.closest('.control-group, .hm-ctrl');
+            if (cg && sourceInput.type !== 'hidden') cg.style.display = 'none';
 
-            rowDiv.appendChild(input);
             grid.appendChild(rowDiv);
         });
 

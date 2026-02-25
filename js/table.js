@@ -1383,6 +1383,119 @@ class DataTable {
         return { groups, allPoints };
     }
 
+    getVennData() {
+        // Auto-detect binary matrix vs group-based sets
+        const headers = [];
+        this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)').forEach(th => {
+            const clone = th.cloneNode(true);
+            const btn = clone.querySelector('.th-delete-btn');
+            if (btn) btn.remove();
+            headers.push(clone.textContent.trim());
+        });
+
+        const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
+        const rowData = [];
+        const ids = [];
+
+        rows.forEach(row => {
+            const idCells = row.querySelectorAll('td.id-cell');
+            const group = idCells[0] ? idCells[0].textContent.trim() : '';
+            const sample = idCells[1] ? idCells[1].textContent.trim() : '';
+            const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
+            const vals = [];
+            dataCells.forEach(td => vals.push(td.textContent.trim()));
+            if (vals.some(v => v !== '')) {
+                rowData.push(vals);
+                ids.push({ group, sample });
+            }
+        });
+
+        if (rowData.length === 0) return null;
+
+        // Check if binary matrix (all non-empty values are 0 or 1)
+        let isBinary = headers.length > 0;
+        for (const row of rowData) {
+            for (const v of row) {
+                if (v !== '' && v !== '0' && v !== '1') { isBinary = false; break; }
+            }
+            if (!isBinary) break;
+        }
+
+        const sets = {};
+
+        if (isBinary && headers.length > 0) {
+            // Binary matrix: columns = sets, rows = items, 1 = member
+            headers.forEach((h, ci) => {
+                const members = [];
+                rowData.forEach((row, ri) => {
+                    if (row[ci] === '1') {
+                        members.push(ids[ri].sample || ids[ri].group || ('Item ' + (ri + 1)));
+                    }
+                });
+                if (members.length > 0) sets[h] = members;
+            });
+            return { format: 'binary', sets };
+        } else {
+            // Group-based: Group column = set name, items = Sample/row IDs
+            ids.forEach((id, ri) => {
+                const setName = id.group || 'Set 1';
+                const itemId = id.sample || ('Item ' + (ri + 1));
+                if (!sets[setName]) sets[setName] = [];
+                sets[setName].push(itemId);
+            });
+            return { format: 'group', sets };
+        }
+    }
+
+    loadVennSampleData(index = 0) {
+        const datasets = [
+            { // Binary matrix: 3 pathways (Venn)
+                headers: ['Pathway A', 'Pathway B', 'Pathway C'],
+                ids: [['','Gene1'],['','Gene2'],['','Gene3'],['','Gene4'],['','Gene5'],
+                      ['','Gene6'],['','Gene7'],['','Gene8'],['','Gene9'],['','Gene10'],
+                      ['','Gene11'],['','Gene12'],['','Gene13'],['','Gene14'],['','Gene15'],
+                      ['','Gene16'],['','Gene17'],['','Gene18'],['','Gene19'],['','Gene20']],
+                rows: [[1,1,0],[1,0,0],[0,1,1],[1,1,1],[0,0,1],
+                       [1,0,0],[0,1,0],[1,1,0],[0,0,1],[1,0,1],
+                       [0,1,0],[1,0,0],[0,1,1],[0,0,1],[1,1,0],
+                       [1,0,0],[0,1,0],[0,0,1],[1,1,1],[0,1,0]]
+            },
+            { // Group-based: cell types in tissues (3 sets, Venn)
+                headers: ['Present'],
+                ids: [['Blood','T-cell'],['Blood','B-cell'],['Blood','NK-cell'],['Blood','Monocyte'],['Blood','Neutrophil'],
+                      ['Spleen','T-cell'],['Spleen','B-cell'],['Spleen','Macrophage'],['Spleen','DC'],
+                      ['Lymph Node','T-cell'],['Lymph Node','B-cell'],['Lymph Node','DC'],['Lymph Node','FDC'],
+                      ['Blood','Platelet'],['Spleen','NK-cell'],['Lymph Node','NK-cell']],
+                rows: [[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1]]
+            },
+            { // Binary matrix: 5 sets (UpSet)
+                headers: ['Set A', 'Set B', 'Set C', 'Set D', 'Set E'],
+                ids: [['','I1'],['','I2'],['','I3'],['','I4'],['','I5'],
+                      ['','I6'],['','I7'],['','I8'],['','I9'],['','I10'],
+                      ['','I11'],['','I12'],['','I13'],['','I14'],['','I15'],
+                      ['','I16'],['','I17'],['','I18'],['','I19'],['','I20'],
+                      ['','I21'],['','I22'],['','I23'],['','I24'],['','I25']],
+                rows: [[1,1,0,0,0],[1,0,1,0,0],[0,1,1,0,0],[1,1,1,0,0],[0,0,0,1,1],
+                       [1,0,0,1,0],[0,1,0,0,1],[1,0,0,0,1],[0,0,1,1,0],[1,1,0,1,0],
+                       [0,0,0,0,1],[1,0,0,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],
+                       [1,1,0,0,1],[0,0,1,1,1],[1,0,1,0,1],[0,1,0,1,0],[1,0,0,1,1],
+                       [0,0,1,0,1],[1,1,1,1,0],[0,1,1,1,1],[1,0,0,0,0],[0,0,1,0,0]]
+            },
+            { // Binary matrix: 2 sets (simple Venn)
+                headers: ['Upregulated', 'Downregulated'],
+                ids: [['','Gene1'],['','Gene2'],['','Gene3'],['','Gene4'],['','Gene5'],
+                      ['','Gene6'],['','Gene7'],['','Gene8'],['','Gene9'],['','Gene10'],
+                      ['','Gene11'],['','Gene12'],['','Gene13'],['','Gene14'],['','Gene15']],
+                rows: [[1,0],[1,0],[1,0],[1,1],[1,1],
+                       [0,1],[0,1],[0,1],[1,0],[1,1],
+                       [0,1],[1,0],[0,0],[1,0],[0,1]]
+            }
+        ];
+        const d = datasets[index % datasets.length];
+        this.setupTable(d.headers, Math.max(d.rows.length + 2, 10), d.rows, d.ids);
+        if (window.app) window.app.updateGraph();
+    }
+
     loadCorrelationSampleData(index = 0) {
         const datasets = [
             { // 0: Protein vs mRNA — 2 groups, 3X + 3Y replicates, moderate correlation with scatter

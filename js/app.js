@@ -10,6 +10,7 @@ class App {
         this.volcanoRenderer = new VolcanoRenderer('graphContainer');
         this.correlationRenderer = new CorrelationRenderer('graphContainer');
         this.pcaRenderer = new PCARenderer('graphContainer');
+        this.vennRenderer = new VennRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
         this.columnAnnotationManager = new AnnotationManager();
         this.heatmapAnnotationManager = new AnnotationManager();
@@ -17,11 +18,13 @@ class App {
         this.volcanoAnnotationManager = new AnnotationManager();
         this.correlationAnnotationManager = new AnnotationManager();
         this.pcaAnnotationManager = new AnnotationManager();
+        this.vennAnnotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.columnAnnotationManager;
         this.growthRenderer.annotationManager = this.growthAnnotationManager;
         this.volcanoRenderer.annotationManager = this.volcanoAnnotationManager;
         this.correlationRenderer.annotationManager = this.correlationAnnotationManager;
         this.pcaRenderer.annotationManager = this.pcaAnnotationManager;
+        this.vennRenderer.annotationManager = this.vennAnnotationManager;
         this._undoStack = [];
         this.mode = 'heatmap';
 
@@ -32,6 +35,7 @@ class App {
         this._volcanoTableData = null;
         this._correlationTableData = null;
         this._pcaTableData = null;
+        this._vennTableData = null;
         this._kaplanMeierTableData = null;
 
         // Bind event listeners
@@ -48,6 +52,7 @@ class App {
         this._bindVolcanoControls();
         this._bindCorrelationControls();
         this._bindPCAControls();
+        this._bindVennControls();
 
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
@@ -121,6 +126,10 @@ class App {
                 this.dataTable.loadVolcanoSampleData(idx);
             } else if (this.mode === 'correlation') {
                 this.dataTable.loadCorrelationSampleData(idx);
+            } else if (this.mode === 'pca') {
+                this.dataTable.loadHeatmapSampleData(idx);
+            } else if (this.mode === 'venn') {
+                this.dataTable.loadVennSampleData(idx);
             } else {
                 this.dataTable.loadSampleData(idx);
             }
@@ -875,6 +884,20 @@ class App {
             document.querySelectorAll('.umap-only').forEach(el => el.style.display = 'none');
             this._pcaTableData = null;
             this.dataTable.loadHeatmapSampleData(2);
+        } else if (this.mode === 'venn') {
+            const fresh = new VennRenderer('graphContainer');
+            this.vennRenderer.settings = fresh.settings;
+            this.vennRenderer._nudgeOffsetKey = null;
+            document.getElementById('vennPlotType').value = 'auto';
+            document.getElementById('vennWidth').value = 450;
+            document.getElementById('vennHeight').value = 400;
+            document.getElementById('vennColorTheme').value = 'default';
+            document.getElementById('vennOpacity').value = 0.35;
+            document.getElementById('vennShowCounts').checked = true;
+            document.getElementById('vennShowPercentages').checked = false;
+            document.getElementById('vennShowLabels').checked = true;
+            this._vennTableData = null;
+            this.dataTable.loadVennSampleData();
         } else if (this.mode === 'column') {
             this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
             this.graphRenderer._titleOffset = { x: 0, y: 0 };
@@ -930,7 +953,7 @@ class App {
             ]);
             disabledRows.push(tr.classList.contains('row-disabled'));
         });
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'venn' ? '_vennTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
         const saved = { headers, rows, idData, disabledRows, numRows: rows.length };
         if (mode === 'correlation' && this.dataTable._axisAssignments) {
             saved.axisAssignments = { ...this.dataTable._axisAssignments };
@@ -939,7 +962,7 @@ class App {
     }
 
     _restoreTableData(mode) {
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'venn' ? '_vennTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
         const saved = this[key];
         if (saved) {
             this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows, saved.idData);
@@ -972,6 +995,8 @@ class App {
                 this.dataTable.loadVolcanoSampleData();
             } else if (mode === 'correlation') {
                 this.dataTable.loadCorrelationSampleData();
+            } else if (mode === 'venn') {
+                this.dataTable.loadVennSampleData();
             } else {
                 this.dataTable.loadSampleData();
             }
@@ -985,13 +1010,14 @@ class App {
         const isVolcano = this.mode === 'volcano';
         const isCorrelation = this.mode === 'correlation';
         const isPCA = this.mode === 'pca';
+        const isVenn = this.mode === 'venn';
         const isKaplanMeier = this.mode === 'kaplan-meier';
 
         // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
         if (table) {
-            table.classList.toggle('hide-id-cols', !(isHeatmap || isCorrelation || isPCA));
-            table.classList.toggle('hide-row-toggles', !(isHeatmap || isCorrelation || isPCA));
+            table.classList.toggle('hide-id-cols', !(isHeatmap || isCorrelation || isPCA || isVenn));
+            table.classList.toggle('hide-row-toggles', !(isHeatmap || isCorrelation || isPCA || isVenn));
         }
 
         // Axis assignment row
@@ -1063,13 +1089,17 @@ class App {
         const pcaGrpMgr = document.getElementById('pcaGroupManager');
         if (pcaGrpMgr) pcaGrpMgr.style.display = isPCA ? '' : 'none';
 
+        // Venn controls
+        const vennControls = document.getElementById('vennControls');
+        if (vennControls) vennControls.style.display = isVenn ? '' : 'none';
+
         // Hide graph-controls wrapper for modes that don't use it
         const graphControlsEl = document.querySelector('.graph-controls');
-        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier || isPCA) ? 'none' : '';
+        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier || isPCA || isVenn) ? 'none' : '';
 
         // Hide dimensions section for modes with own controls
         const dimSection = document.getElementById('dimensionsSection');
-        if (dimSection) dimSection.style.display = (isCorrelation || isPCA) ? 'none' : '';
+        if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn) ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
@@ -1460,6 +1490,7 @@ class App {
         if (this.mode === 'volcano') return this.volcanoRenderer;
         if (this.mode === 'correlation') return this.correlationRenderer;
         if (this.mode === 'pca') return this.pcaRenderer;
+        if (this.mode === 'venn') return this.vennRenderer;
         return this.heatmapRenderer;
     }
 
@@ -1568,6 +1599,12 @@ class App {
                 { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
                 { label: 'X Tick Font', fontKey: 'xTickFont' },
                 { label: 'Y Tick Font', fontKey: 'yTickFont' }
+            ];
+        } else if (this.mode === 'venn') {
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'Set Labels', fontKey: 'labelFont' },
+                { label: 'Counts', fontKey: 'countFont' }
             ];
         } else {
             elements = [
@@ -2085,6 +2122,28 @@ class App {
         }
     }
 
+    _getVennSettings() {
+        return {
+            plotType: document.getElementById('vennPlotType')?.value || 'auto',
+            width: parseInt(document.getElementById('vennWidth')?.value) || 450,
+            height: parseInt(document.getElementById('vennHeight')?.value) || 400,
+            colorTheme: document.getElementById('vennColorTheme')?.value || 'default',
+            opacity: parseFloat(document.getElementById('vennOpacity')?.value) || 0.35,
+            showCounts: document.getElementById('vennShowCounts')?.checked ?? true,
+            showPercentages: document.getElementById('vennShowPercentages')?.checked ?? false,
+            showLabels: document.getElementById('vennShowLabels')?.checked ?? true
+        };
+    }
+
+    _bindVennControls() {
+        const ids = ['vennPlotType', 'vennWidth', 'vennHeight', 'vennColorTheme', 'vennOpacity',
+            'vennShowCounts', 'vennShowPercentages', 'vennShowLabels'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => this.updateGraph());
+        });
+    }
+
     _updatePCAGroupManager(matrixData) {
         const container = document.getElementById('pcaGroupManager');
         const listEl = document.getElementById('pcaGroupList');
@@ -2405,6 +2464,13 @@ class App {
             const pcaSettings = this._getPCASettings();
             this.pcaRenderer.render(matrixData, pcaSettings);
             this._updatePCAGroupManager(matrixData);
+            return;
+        }
+        if (this.mode === 'venn') {
+            if (infoEl) infoEl.style.display = 'none';
+            const vennData = this.dataTable.getVennData();
+            const vennSettings = this._getVennSettings();
+            this.vennRenderer.render(vennData, vennSettings);
             return;
         }
         if (infoEl) infoEl.style.display = 'none';

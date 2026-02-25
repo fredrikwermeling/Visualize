@@ -228,7 +228,7 @@ class DataTable {
                     : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.row-toggle-col)'));
             }
             return row.tagName === 'TR'
-                ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)'))
+                ? Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)'))
                 : Array.from(row.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)'));
         };
 

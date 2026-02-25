@@ -572,7 +572,7 @@ class VennRenderer {
     _createFontToolbar(fontObj) {
         const toolbar = document.createElement('div');
         toolbar.style.cssText = 'display:flex;align-items:center;gap:4px;flex-wrap:wrap;';
-        const families = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
+        const families = ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
         const familySelect = document.createElement('select');
         familySelect.style.cssText = 'font-size:11px;padding:2px;max-width:100px;';
         families.forEach(f => {

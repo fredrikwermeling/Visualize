@@ -133,6 +133,7 @@ header {
 .graph-panel .growth-controls,
 .graph-panel .volcano-controls,
 .graph-panel .correlation-controls,
+.graph-panel .pca-controls,
 .graph-panel > input[type="hidden"] {
     margin-left: 14px;
     margin-right: 14px;
@@ -146,7 +147,8 @@ header {
 .graph-panel .heatmap-controls,
 .graph-panel .growth-controls,
 .graph-panel .volcano-controls,
-.graph-panel .correlation-controls {
+.graph-panel .correlation-controls,
+.graph-panel .pca-controls {
     margin-bottom: 14px;
 }
 
@@ -243,6 +245,12 @@ header {
 }
 
 .data-table tr.row-disabled td:not(.row-toggle-cell):not(.row-delete-cell) {
+    opacity: 0.35;
+    text-decoration: line-through;
+}
+
+.data-table th.col-disabled,
+.data-table td.col-disabled {
     opacity: 0.35;
     text-decoration: line-through;
 }
@@ -539,7 +547,8 @@ tr:hover .row-delete-btn {
 /* Full-width sections (not inside graph-controls 2-col grid) get 4 columns */
 .volcano-controls .control-grid-2col,
 .growth-controls .control-grid-2col,
-.correlation-controls .control-grid-2col {
+.correlation-controls .control-grid-2col,
+.pca-controls .control-grid-2col {
     grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
@@ -556,7 +565,8 @@ tr:hover .row-delete-btn {
 /* In 4-col grids, use fixed label width so all boxes are uniform */
 .volcano-controls .control-grid-2col .control-group label,
 .growth-controls .control-grid-2col .control-group label,
-.correlation-controls .control-grid-2col .control-group label {
+.correlation-controls .control-grid-2col .control-group label,
+.pca-controls .control-grid-2col .control-group label {
     flex: 0 0 70px;
     white-space: nowrap;
     font-size: 10px;
@@ -1083,16 +1093,19 @@ tr:hover .row-delete-btn {
 }
 
 .mode-reset-btn {
-    grid-row: 1 / 3;
+    grid-row: 1 / 4;
     grid-column: 4;
     padding: 4px 8px;
     border: none;
     background: var(--gray-100);
-    color: var(--gray-500);
-    font-size: 16px;
+    color: var(--gray-600);
+    font-size: 22px;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
-    border-left: 1px solid var(--gray-200);
+    border-left: 2px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .mode-reset-btn:hover {
@@ -1528,6 +1541,49 @@ tr:hover .row-delete-btn {
     height: 22px;
     font-size: 11px;
     line-height: 20px;
+}
+
+/* Graph Settings Panel — narrower than Aa panel */
+#graphSettingsPanel {
+    width: 280px;
+}
+
+#graphSettingsBody .gs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 8px;
+}
+
+#graphSettingsBody .gs-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+}
+
+#graphSettingsBody .gs-row label {
+    flex: 0 0 50px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+#graphSettingsBody .gs-row input {
+    width: 70px;
+    flex: 0 0 auto;
+    padding: 4px 6px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    text-align: center;
+    font-family: 'Open Sans', sans-serif;
+}
+
+#graphSettingsBody .gs-row input:focus {
+    outline: none;
+    border-color: var(--green-500);
+    box-shadow: 0 0 0 2px rgba(94, 140, 49, 0.2);
 }
 
 /* Table controls uniform sizing */

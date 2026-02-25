@@ -960,7 +960,7 @@ class GraphRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f;
             opt.textContent = f;
@@ -2611,7 +2611,7 @@ class GraphRenderer {
 
         const familySelect = document.createElement('select');
         familySelect.className = 'svg-edit-font-family';
-        ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
+        ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'].forEach(f => {
             const opt = document.createElement('option');
             opt.value = f; opt.textContent = f;
             if (f === lf.family) opt.selected = true;

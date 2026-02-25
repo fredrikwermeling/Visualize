@@ -886,6 +886,12 @@ class App {
             document.getElementById('pcaNNeighbors').value = 15;
             document.getElementById('pcaMinDist').value = 0.1;
             document.getElementById('pcaShowLoadings').checked = false;
+            document.getElementById('pcaXMin').value = '';
+            document.getElementById('pcaXMax').value = '';
+            document.getElementById('pcaYMin').value = '';
+            document.getElementById('pcaYMax').value = '';
+            document.getElementById('pcaXTickStep').value = '';
+            document.getElementById('pcaYTickStep').value = '';
             // Show PCA-specific, hide others
             document.querySelectorAll('.pca-only').forEach(el => el.style.display = '');
             document.querySelectorAll('.tsne-only').forEach(el => el.style.display = 'none');
@@ -1037,6 +1043,11 @@ class App {
         const isVenn = this.mode === 'venn';
         const isOncoprint = this.mode === 'oncoprint';
         const isKaplanMeier = this.mode === 'kaplan-meier';
+
+        // Clean up PCA column toggles when leaving PCA mode
+        if (!isPCA) {
+            this._cleanupPCAColumnToggles();
+        }
 
         // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
@@ -1583,7 +1594,8 @@ class App {
             let left = rect.left;
             const panelRect = panel.getBoundingClientRect();
             if (top + panelRect.height > window.innerHeight - 10) top = Math.max(10, window.innerHeight - panelRect.height - 10);
-            if (left + 360 > window.innerWidth) left = Math.max(10, window.innerWidth - 370);
+            const pw = panelRect.width || 280;
+            if (left + pw > window.innerWidth) left = Math.max(10, window.innerWidth - pw - 10);
             panel.style.left = left + 'px';
             panel.style.top = top + 'px';
             panel.style.right = 'auto';
@@ -1617,7 +1629,14 @@ class App {
             rows = [
                 { label: 'Width', inputId: 'pcaWidth', type: 'number', min: 200, step: 10 },
                 { label: 'Height', inputId: 'pcaHeight', type: 'number', min: 200, step: 10 },
-                { label: 'Point Size', inputId: 'pcaPointSize', type: 'number', min: 1, max: 20, step: 0.5 }
+                { label: 'Pt Size', inputId: 'pcaPointSize', type: 'number', min: 1, max: 20, step: 0.5 },
+                { label: '', inputId: null }, // spacer
+                { label: 'X Min', inputId: 'pcaXMin', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'X Max', inputId: 'pcaXMax', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'Y Min', inputId: 'pcaYMin', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'Y Max', inputId: 'pcaYMax', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'X Step', inputId: 'pcaXTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' },
+                { label: 'Y Step', inputId: 'pcaYTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' }
             ];
         }
         // Future: add rows for other modes here
@@ -1627,15 +1646,23 @@ class App {
             return;
         }
 
+        const grid = document.createElement('div');
+        grid.className = 'gs-grid';
+
         rows.forEach(row => {
+            if (!row.inputId) {
+                // spacer cell
+                const spacer = document.createElement('div');
+                grid.appendChild(spacer);
+                return;
+            }
             const sourceInput = document.getElementById(row.inputId);
             if (!sourceInput) return;
 
             const rowDiv = document.createElement('div');
-            rowDiv.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #e5e7eb;';
+            rowDiv.className = 'gs-row';
 
             const lbl = document.createElement('label');
-            lbl.style.cssText = 'flex:0 0 70px;font-size:12px;font-weight:500;color:#4b5563;';
             lbl.textContent = row.label;
             rowDiv.appendChild(lbl);
 
@@ -1645,7 +1672,7 @@ class App {
             if (row.min !== undefined) input.min = row.min;
             if (row.max !== undefined) input.max = row.max;
             if (row.step !== undefined) input.step = row.step;
-            input.style.cssText = 'flex:1;padding:4px 6px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;text-align:center;font-family:Open Sans,sans-serif;';
+            if (row.placeholder) input.placeholder = row.placeholder;
 
             // Sync popout → hidden input → re-render
             input.addEventListener('input', () => {
@@ -1654,8 +1681,10 @@ class App {
             });
 
             rowDiv.appendChild(input);
-            body.appendChild(rowDiv);
+            grid.appendChild(rowDiv);
         });
+
+        body.appendChild(grid);
     }
 
     _getActiveRenderer() {
@@ -1719,7 +1748,7 @@ class App {
 
         const renderer = this._getTextSettingsRenderer();
         const s = renderer.settings;
-        const families = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
+        const families = ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
 
         // Define elements per mode
         let elements;
@@ -1773,7 +1802,8 @@ class App {
                 { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
                 { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
                 { label: 'X Tick Font', fontKey: 'xTickFont' },
-                { label: 'Y Tick Font', fontKey: 'yTickFont' }
+                { label: 'Y Tick Font', fontKey: 'yTickFont' },
+                { label: 'Loadings', fontKey: 'loadingsFont' }
             ];
         } else if (this.mode === 'venn') {
             elements = [
@@ -2257,6 +2287,7 @@ class App {
     }
 
     _getPCASettings() {
+        const pf = (id) => { const v = document.getElementById(id)?.value; return v === '' || v == null ? null : parseFloat(v); };
         return {
             method: document.getElementById('pcaMethod')?.value || 'pca',
             width: parseInt(document.getElementById('pcaWidth')?.value) || 400,
@@ -2268,13 +2299,17 @@ class App {
             perplexity: parseInt(document.getElementById('pcaPerplexity')?.value) || 30,
             nNeighbors: parseInt(document.getElementById('pcaNNeighbors')?.value) || 15,
             minDist: parseFloat(document.getElementById('pcaMinDist')?.value) || 0.1,
-            showLoadings: document.getElementById('pcaShowLoadings')?.checked ?? false
+            showLoadings: document.getElementById('pcaShowLoadings')?.checked ?? false,
+            xMin: pf('pcaXMin'), xMax: pf('pcaXMax'),
+            yMin: pf('pcaYMin'), yMax: pf('pcaYMax'),
+            xTickStep: pf('pcaXTickStep'), yTickStep: pf('pcaYTickStep')
         };
     }
 
     _bindPCAControls() {
         const ids = ['pcaMethod', 'pcaWidth', 'pcaHeight', 'pcaColorTheme', 'pcaPointSize',
-            'pcaPCX', 'pcaPCY', 'pcaPerplexity', 'pcaNNeighbors', 'pcaMinDist', 'pcaShowLoadings'];
+            'pcaPCX', 'pcaPCY', 'pcaPerplexity', 'pcaNNeighbors', 'pcaMinDist', 'pcaShowLoadings',
+            'pcaXMin', 'pcaXMax', 'pcaYMin', 'pcaYMax', 'pcaXTickStep', 'pcaYTickStep'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => {
@@ -2435,6 +2470,91 @@ class App {
                 settings.groupOrder = newOrder;
                 this.updateGraph();
             });
+        });
+    }
+
+    _setupPCAColumnToggles(matrixData) {
+        if (!matrixData || !matrixData.colLabels) return;
+        const headerRow = this.dataTable.headerRow;
+        if (!headerRow) return;
+
+        const settings = this.pcaRenderer.settings;
+        if (!settings.hiddenColumns) settings.hiddenColumns = [];
+
+        // Find data column headers (skip id-col and utility columns)
+        const dataTHs = Array.from(headerRow.querySelectorAll('th:not(.id-col):not(.delete-col-header):not(.row-toggle-col)'));
+
+        dataTHs.forEach(th => {
+            // Remove old handler if present
+            if (th._pcaColToggle) {
+                th.removeEventListener('click', th._pcaColToggle);
+            }
+
+            const colName = th.textContent.trim();
+
+            const handler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const idx = settings.hiddenColumns.indexOf(colName);
+                if (idx >= 0) {
+                    settings.hiddenColumns.splice(idx, 1);
+                } else {
+                    settings.hiddenColumns.push(colName);
+                }
+                // Clear cached embedding so it recalculates
+                this.pcaRenderer._cachedEmbedding = null;
+                this._applyPCAColumnStyles();
+                this.updateGraph();
+            };
+
+            th._pcaColToggle = handler;
+            th.addEventListener('click', handler);
+            th.style.cursor = 'pointer';
+        });
+
+        this._applyPCAColumnStyles();
+    }
+
+    _applyPCAColumnStyles() {
+        const settings = this.pcaRenderer.settings;
+        const hiddenColumns = settings.hiddenColumns || [];
+        const headerRow = this.dataTable.headerRow;
+        if (!headerRow) return;
+
+        const dataTHs = Array.from(headerRow.querySelectorAll('th:not(.id-col):not(.delete-col-header):not(.row-toggle-col)'));
+
+        dataTHs.forEach((th, colIdx) => {
+            const colName = th.textContent.trim();
+            const isHidden = hiddenColumns.includes(colName);
+            th.classList.toggle('col-disabled', isHidden);
+
+            // Also style matching td cells in body rows
+            const rows = this.dataTable.tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const dataTDs = Array.from(row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell):not(.id-cell)'));
+                if (dataTDs[colIdx]) {
+                    dataTDs[colIdx].classList.toggle('col-disabled', isHidden);
+                }
+            });
+        });
+    }
+
+    _cleanupPCAColumnToggles() {
+        const headerRow = this.dataTable.headerRow;
+        if (!headerRow) return;
+        const dataTHs = Array.from(headerRow.querySelectorAll('th:not(.id-col):not(.delete-col-header):not(.row-toggle-col)'));
+        dataTHs.forEach(th => {
+            if (th._pcaColToggle) {
+                th.removeEventListener('click', th._pcaColToggle);
+                delete th._pcaColToggle;
+                th.style.cursor = '';
+            }
+            th.classList.remove('col-disabled');
+        });
+        // Clean td cells too
+        const rows = this.dataTable.tbody.querySelectorAll('tr');
+        rows.forEach(row => {
+            row.querySelectorAll('td.col-disabled').forEach(td => td.classList.remove('col-disabled'));
         });
     }
 
@@ -2700,6 +2820,7 @@ class App {
             const pcaSettings = this._getPCASettings();
             this.pcaRenderer.render(matrixData, pcaSettings);
             this._updatePCAGroupManager(matrixData);
+            this._setupPCAColumnToggles(matrixData);
             return;
         }
         if (this.mode === 'venn') {

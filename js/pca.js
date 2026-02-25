@@ -37,6 +37,10 @@ class PCARenderer {
             xTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             yTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             legendFont: { family: 'Arial', size: 11, bold: false, italic: false },
+            loadingsFont: { family: 'Arial', size: 11, bold: false, italic: false },
+            // Axis overrides (null = auto)
+            xMin: null, xMax: null, yMin: null, yMax: null,
+            xTickStep: null, yTickStep: null,
             // Offsets
             titleOffset: { x: 0, y: 0 },
             xLabelOffset: { x: 0, y: 0 },
@@ -45,7 +49,8 @@ class PCARenderer {
             // Group
             groupOverrides: {},
             hiddenGroups: [],
-            groupOrder: []
+            groupOrder: [],
+            hiddenColumns: []
         };
         this._nudgeOffsetKey = null;
         this._cachedEmbedding = null; // cache for t-SNE/UMAP (expensive)
@@ -468,7 +473,19 @@ class PCARenderer {
         }
 
         const s = this.settings;
-        const { matrix, rowLabels, groupAssignments, colLabels } = matrixData;
+        let { matrix, rowLabels, groupAssignments, colLabels } = matrixData;
+
+        // Filter columns by hiddenColumns BEFORE embedding
+        const hiddenColumns = s.hiddenColumns || [];
+        if (hiddenColumns.length > 0) {
+            const visibleColIndices = colLabels.map((_, i) => i).filter(i => !hiddenColumns.includes(colLabels[i]));
+            if (visibleColIndices.length < 2) {
+                this.container.innerHTML = '<div class="empty-state"><h3>Need at least 2 visible columns</h3><p>Click column headers to re-enable columns</p></div>';
+                return;
+            }
+            matrix = matrix.map(row => visibleColIndices.map(i => row[i]));
+            colLabels = visibleColIndices.map(i => colLabels[i]);
+        }
 
         // Keep full group list for legend display
         const allGroupNames = [...new Set(groupAssignments)];
@@ -491,7 +508,7 @@ class PCARenderer {
         }
 
         // Compute embedding (only on visible data)
-        const dataHash = JSON.stringify(visibleMatrix).length + '_' + visibleMatrix.length + '_' + visibleMatrix[0].length + '_' + [...hiddenGroups].sort().join(',');
+        const dataHash = JSON.stringify(visibleMatrix).length + '_' + visibleMatrix.length + '_' + visibleMatrix[0].length + '_' + [...hiddenGroups].sort().join(',') + '_' + [...hiddenColumns].sort().join(',');
         let embedding;
 
         if (this._cachedEmbedding && this._cachedMethod === s.method && this._cachedDataHash === dataHash
@@ -537,18 +554,20 @@ class PCARenderer {
             label: visibleRowLabels[i] || `Sample ${i + 1}`
         }));
 
-        // Layout — increase right margin for legend
+        // Layout — width/height = inner plot area (square); total SVG adds margins
         const legendWidth = (s.showLegend && allGroupNames.length > 1) ? this._estimateLegendWidth(allGroupNames) + 16 : 30;
-        const margin = { top: 50, right: legendWidth, bottom: 65, left: 65 };
-        const width = s.width;
-        const height = s.height;
-        const innerW = width - margin.left - margin.right;
-        const innerH = height - margin.top - margin.bottom;
+        const loadingsBoxWidth = (s.method === 'pca' && s.showLoadings) ? 140 : 0;
+        const rightMargin = Math.max(legendWidth, loadingsBoxWidth, 30);
+        const margin = { top: 50, right: rightMargin, bottom: 65, left: 65 };
+        const innerW = s.width;
+        const innerH = s.height;
+        const totalW = innerW + margin.left + margin.right;
+        const totalH = innerH + margin.top + margin.bottom;
 
         const svg = d3.select(this.container)
             .append('svg')
-            .attr('width', width)
-            .attr('height', height)
+            .attr('width', totalW)
+            .attr('height', totalH)
             .style('font-family', 'Arial, sans-serif')
             .style('overflow', 'visible');
 
@@ -556,7 +575,7 @@ class PCARenderer {
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
         if (visiblePoints.length === 0) {
-            svg.append('text').attr('x', width / 2).attr('y', height / 2)
+            svg.append('text').attr('x', totalW / 2).attr('y', totalH / 2)
                 .attr('text-anchor', 'middle').attr('fill', '#999').text('All groups hidden');
             return;
         }
@@ -570,14 +589,23 @@ class PCARenderer {
         const yPad = (yMax - yMin) * 0.1 || 1;
         xMin -= xPad; xMax += xPad;
         yMin -= yPad; yMax += yPad;
+        // Apply manual axis overrides
+        if (s.xMin != null) xMin = s.xMin;
+        if (s.xMax != null) xMax = s.xMax;
+        if (s.yMin != null) yMin = s.yMin;
+        if (s.yMax != null) yMax = s.yMax;
 
         const xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, innerW]).nice();
         const yScale = d3.scaleLinear().domain([yMin, yMax]).range([innerH, 0]).nice();
 
         // Axes
-        const xAxisG = g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(xScale));
+        const xAxisGen = d3.axisBottom(xScale);
+        const yAxisGen = d3.axisLeft(yScale);
+        if (s.xTickStep) xAxisGen.tickValues(d3.range(xScale.domain()[0], xScale.domain()[1] + s.xTickStep * 0.5, s.xTickStep));
+        if (s.yTickStep) yAxisGen.tickValues(d3.range(yScale.domain()[0], yScale.domain()[1] + s.yTickStep * 0.5, s.yTickStep));
+        const xAxisG = g.append('g').attr('transform', `translate(0,${innerH})`).call(xAxisGen);
         this._styleAxisTicks(xAxisG, s.xTickFont);
-        const yAxisG = g.append('g').call(d3.axisLeft(yScale));
+        const yAxisG = g.append('g').call(yAxisGen);
         this._styleAxisTicks(yAxisG, s.yTickFont);
 
         // Draw points
@@ -586,80 +614,49 @@ class PCARenderer {
             const color = this._getColor(gi >= 0 ? gi : 0);
             const symbolGen = this._d3Symbol(this._getSymbolForGroup(gi >= 0 ? gi : 0));
 
-            g.append('path')
+            const pointEl = g.append('path')
                 .attr('d', symbolGen.size(s.pointSize * s.pointSize * Math.PI)())
                 .attr('transform', `translate(${xScale(pt.x)},${yScale(pt.y)})`)
                 .attr('fill', color)
                 .attr('fill-opacity', s.pointOpacity)
                 .attr('stroke', d3.color(color).darker(0.5))
                 .attr('stroke-width', 1)
-                .attr('cursor', 'pointer')
-                .append('title')
+                .attr('cursor', 'pointer');
+            pointEl.append('title')
                 .text(`${pt.label} (${pt.group})`);
-        });
 
-        // Loading arrows (PCA only)
-        if (s.method === 'pca' && s.showLoadings && embedding.eigenvectors && colLabels) {
-            const loadX = embedding.eigenvectors[xIdx];
-            const loadY = embedding.eigenvectors[yIdx];
-            if (loadX && loadY) {
-                // Scale loadings to fit in plot
-                const maxLoad = Math.max(
-                    ...loadX.map(Math.abs),
-                    ...loadY.map(Math.abs)
-                ) || 1;
-                const xRange = xScale.domain()[1] - xScale.domain()[0];
-                const yRange = yScale.domain()[1] - yScale.domain()[0];
-                const scale = Math.min(xRange, yRange) * 0.35 / maxLoad;
-
-                const clipId = 'load-clip-' + Math.random().toString(36).slice(2, 8);
-                g.append('defs').append('clipPath').attr('id', clipId)
-                    .append('rect').attr('x', 0).attr('y', 0).attr('width', innerW).attr('height', innerH);
-
-                for (let j = 0; j < colLabels.length; j++) {
-                    const lx = loadX[j] * scale;
-                    const ly = loadY[j] * scale;
-                    if (Math.abs(lx) < 0.001 && Math.abs(ly) < 0.001) continue;
-
-                    const cx = xScale(0), cy = yScale(0);
-                    const ex = xScale(lx), ey = yScale(ly);
-
-                    g.append('line')
-                        .attr('clip-path', `url(#${clipId})`)
-                        .attr('x1', cx).attr('y1', cy)
-                        .attr('x2', ex).attr('y2', ey)
-                        .attr('stroke', '#c0392b')
-                        .attr('stroke-width', 1)
-                        .attr('stroke-opacity', 0.7)
-                        .attr('marker-end', 'url(#arrowhead)');
-
-                    g.append('text')
-                        .attr('clip-path', `url(#${clipId})`)
-                        .attr('x', ex + (lx >= 0 ? 3 : -3))
-                        .attr('y', ey - 3)
-                        .attr('text-anchor', lx >= 0 ? 'start' : 'end')
-                        .attr('font-size', '11px')
-                        .attr('fill', '#c0392b')
-                        .style('paint-order', 'stroke')
-                        .attr('stroke', 'white')
-                        .attr('stroke-width', 3)
-                        .attr('stroke-linejoin', 'round')
-                        .text(colLabels[j]);
+            pointEl.on('dblclick', () => {
+                if (!window.app || !window.app.dataTable) return;
+                const tbody = window.app.dataTable.tbody;
+                const rows = tbody.querySelectorAll('tr');
+                for (const row of rows) {
+                    const idCells = row.querySelectorAll('td.id-cell');
+                    const groupVal = idCells[0] ? idCells[0].textContent.trim() : '';
+                    const sampleVal = idCells[1] ? idCells[1].textContent.trim() : '';
+                    let label;
+                    if (groupVal && sampleVal) label = groupVal + '_' + sampleVal;
+                    else if (groupVal) label = groupVal;
+                    else if (sampleVal) label = sampleVal;
+                    else continue;
+                    if (label === pt.label) {
+                        const cb = row.querySelector('.row-toggle-cell input[type="checkbox"]');
+                        if (cb) {
+                            cb.checked = !cb.checked;
+                            cb.dispatchEvent(new Event('change'));
+                        }
+                        break;
+                    }
                 }
-
-                // Arrowhead marker
-                svg.select('defs').append('marker')
-                    .attr('id', 'arrowhead')
-                    .attr('viewBox', '0 0 10 10')
-                    .attr('refX', 10).attr('refY', 5)
-                    .attr('markerWidth', 6).attr('markerHeight', 6)
-                    .attr('orient', 'auto')
-                    .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', '#c0392b');
-            }
-        }
+            });
+        });
 
         // Legend
         this._drawLegend(g, innerW, allGroupNames);
+
+        // Loading arrows in external box (PCA only) — positioned below legend
+        if (s.method === 'pca' && s.showLoadings && embedding.eigenvectors && colLabels) {
+            this._drawLoadingsBox(g, svg, innerW, allGroupNames, embedding, xIdx, yIdx, colLabels);
+        }
 
         // Variance explained info (PCA only)
         if (s.method === 'pca' && embedding.varExplained) {
@@ -681,7 +678,7 @@ class PCARenderer {
         if (s.showTitle) this._drawInteractiveText(svg, 'title', margin.left + innerW / 2, 22, s.title, s.titleFont, s.titleOffset);
 
         // X label
-        if (s.showXLabel) this._drawInteractiveText(svg, 'xLabel', margin.left + innerW / 2, height - 10, s.xLabel, s.xLabelFont, s.xLabelOffset);
+        if (s.showXLabel) this._drawInteractiveText(svg, 'xLabel', margin.left + innerW / 2, totalH - 10, s.xLabel, s.xLabelFont, s.xLabelOffset);
 
         // Y label
         if (s.showYLabel) {
@@ -704,6 +701,83 @@ class PCARenderer {
         // Annotations
         if (this.annotationManager) {
             this.annotationManager.drawAnnotations(svg, margin);
+        }
+    }
+
+    _drawLoadingsBox(g, svg, innerW, allGroupNames, embedding, xIdx, yIdx, colLabels) {
+        const s = this.settings;
+        const loadX = embedding.eigenvectors[xIdx];
+        const loadY = embedding.eigenvectors[yIdx];
+        if (!loadX || !loadY) return;
+
+        const lf = s.loadingsFont;
+
+        // Compute legend bottom Y for positioning
+        const orderedNames = (s.groupOrder && s.groupOrder.length > 0)
+            ? s.groupOrder.filter(gn => allGroupNames.includes(gn)).concat(allGroupNames.filter(gn => !(s.groupOrder || []).includes(gn)))
+            : [...allGroupNames];
+        const legendH = (s.showLegend && allGroupNames.length > 1) ? orderedNames.length * 20 + 8 : 0;
+        const loff = s.legendOffset;
+
+        const boxSize = 120;
+        const boxX = innerW + 12 + (loff.x || 0);
+        const boxY = (loff.y || 0) + legendH + 12;
+
+        const loadG = g.append('g').attr('transform', `translate(${boxX}, ${boxY})`);
+
+        // Background
+        loadG.append('rect')
+            .attr('x', -4).attr('y', -4)
+            .attr('width', boxSize + 8).attr('height', boxSize + 8)
+            .attr('fill', 'white').attr('stroke', '#ddd').attr('stroke-width', 1).attr('rx', 3);
+
+        // Axis cross
+        const cx = boxSize / 2, cy = boxSize / 2;
+        loadG.append('line').attr('x1', 0).attr('y1', cy).attr('x2', boxSize).attr('y2', cy)
+            .attr('stroke', '#ccc').attr('stroke-width', 0.5);
+        loadG.append('line').attr('x1', cx).attr('y1', 0).attr('x2', cx).attr('y2', boxSize)
+            .attr('stroke', '#ccc').attr('stroke-width', 0.5);
+
+        // Scale loadings to fit in box
+        const maxLoad = Math.max(...loadX.map(Math.abs), ...loadY.map(Math.abs)) || 1;
+        const arrowScale = (boxSize * 0.4) / maxLoad;
+
+        // Arrowhead marker
+        const markerId = 'loadarrow-' + Math.random().toString(36).slice(2, 8);
+        const defs = svg.select('defs').empty() ? svg.append('defs') : svg.select('defs');
+        defs.append('marker')
+            .attr('id', markerId)
+            .attr('viewBox', '0 0 10 10')
+            .attr('refX', 10).attr('refY', 5)
+            .attr('markerWidth', 5).attr('markerHeight', 5)
+            .attr('orient', 'auto')
+            .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', '#c0392b');
+
+        for (let j = 0; j < colLabels.length; j++) {
+            const lx = loadX[j] * arrowScale;
+            const ly = -loadY[j] * arrowScale; // invert Y for screen coords
+            if (Math.abs(lx) < 0.5 && Math.abs(ly) < 0.5) continue;
+
+            loadG.append('line')
+                .attr('x1', cx).attr('y1', cy)
+                .attr('x2', cx + lx).attr('y2', cy + ly)
+                .attr('stroke', '#c0392b').attr('stroke-width', 1)
+                .attr('stroke-opacity', 0.7)
+                .attr('marker-end', `url(#${markerId})`);
+
+            loadG.append('text')
+                .attr('x', cx + lx + (lx >= 0 ? 3 : -3))
+                .attr('y', cy + ly - 3)
+                .attr('text-anchor', lx >= 0 ? 'start' : 'end')
+                .attr('font-size', (lf.size || 11) + 'px')
+                .attr('font-family', lf.family || 'Arial')
+                .attr('font-weight', lf.bold ? 'bold' : 'normal')
+                .attr('font-style', lf.italic ? 'italic' : 'normal')
+                .attr('fill', '#c0392b')
+                .style('paint-order', 'stroke')
+                .attr('stroke', 'white').attr('stroke-width', 3)
+                .attr('stroke-linejoin', 'round')
+                .text(colLabels[j]);
         }
     }
 
@@ -950,7 +1024,7 @@ class PCARenderer {
     _createFontToolbar(fontObj) {
         const toolbar = document.createElement('div');
         toolbar.style.cssText = 'display:flex;align-items:center;gap:4px;flex-wrap:wrap;';
-        const families = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
+        const families = ['Aptos Display', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New'];
         const familySelect = document.createElement('select');
         familySelect.style.cssText = 'font-size:11px;padding:2px;max-width:100px;';
         families.forEach(f => {

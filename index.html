@@ -35,12 +35,12 @@
             <!-- Left Panel: Data Input -->
             <div class="panel data-panel">
                 <div class="mode-selector">
-                    <span class="mode-label">Graph Mode</span>
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
                     <button class="mode-btn" data-mode="column">Column</button>
                     <button class="mode-btn" data-mode="growth">Time Series</button>
                     <button class="mode-btn" data-mode="volcano">Volcano</button>
                     <button class="mode-btn" data-mode="correlation">Correlation</button>
+                    <button class="mode-btn" data-mode="kaplan-meier">Kaplan-Meier</button>
                     <button id="resetMode" class="mode-reset-btn" title="Reset current mode settings to defaults">&#8635;</button>
                 </div>
                 <h2>Data Input</h2>
@@ -89,6 +89,13 @@
                         <h3>Group Order</h3>
                     </div>
                     <div id="growthGroupList" class="group-list"></div>
+                </div>
+
+                <div id="correlationGroupManager" class="group-manager" style="display:none">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <h3>Group Order</h3>
+                    </div>
+                    <div id="correlationGroupList" class="group-list"></div>
                 </div>
 
                 <div id="heatmapColManager" class="group-manager" style="display:none">
@@ -425,15 +432,8 @@
                     </div>
                 </div>
 
-                <div id="correlationGroupManager" class="group-manager" style="display:none">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-left:14px;margin-right:14px">
-                        <h3>Group Order</h3>
-                    </div>
-                    <div id="correlationGroupList" class="group-list" style="margin-left:14px;margin-right:14px"></div>
-                </div>
-
                 <div class="graph-controls">
-                    <div class="control-section">
+                    <div class="control-section" id="dimensionsSection">
                         <h3>Dimensions & Style</h3>
                         <div class="control-grid-2col">
                             <div class="control-group column-only">
@@ -568,6 +568,11 @@
                                     </optgroup>
                                     <optgroup label="Growth Curves">
                                         <option value="two-way-rm-anova">Two-way RM ANOVA</option>
+                                    </optgroup>
+                                    <optgroup label="Correlation">
+                                        <option value="pearson">Pearson Correlation</option>
+                                        <option value="spearman">Spearman Correlation</option>
+                                        <option value="linear-regression">Linear Regression</option>
                                     </optgroup>
                                     <optgroup label="Two-group">
                                         <option value="t-test-unpaired">T-test (Unpaired)</option>

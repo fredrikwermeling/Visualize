@@ -28,6 +28,7 @@ class App {
         this._growthTableData = null;
         this._volcanoTableData = null;
         this._correlationTableData = null;
+        this._kaplanMeierTableData = null;
 
         // Bind event listeners
         this._bindTableControls();
@@ -887,7 +888,7 @@ class App {
             ]);
             disabledRows.push(tr.classList.contains('row-disabled'));
         });
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
         const saved = { headers, rows, idData, disabledRows, numRows: rows.length };
         if (mode === 'correlation' && this.dataTable._axisAssignments) {
             saved.axisAssignments = { ...this.dataTable._axisAssignments };
@@ -896,7 +897,7 @@ class App {
     }
 
     _restoreTableData(mode) {
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
         const saved = this[key];
         if (saved) {
             this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows, saved.idData);
@@ -939,6 +940,7 @@ class App {
         const isColumn = this.mode === 'column';
         const isVolcano = this.mode === 'volcano';
         const isCorrelation = this.mode === 'correlation';
+        const isKaplanMeier = this.mode === 'kaplan-meier';
 
         // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
@@ -1010,16 +1012,20 @@ class App {
 
         // Hide graph-controls wrapper for modes that don't use it
         const graphControlsEl = document.querySelector('.graph-controls');
-        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isCorrelation) ? 'none' : '';
+        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier) ? 'none' : '';
+
+        // Hide dimensions section for correlation (it has its own controls), show stats
+        const dimSection = document.getElementById('dimensionsSection');
+        if (dimSection) dimSection.style.display = isCorrelation ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
             el.style.display = isHeatmap ? 'inline-block' : 'none';
         });
 
-        // Stats export only for column/growth (not correlation — stats are built-in)
+        // Stats export only for column/growth/correlation
         const statsBtn = document.getElementById('exportStats');
-        if (statsBtn) statsBtn.style.display = (isColumn || isGrowth) ? '' : 'none';
+        if (statsBtn) statsBtn.style.display = (isColumn || isGrowth || isCorrelation) ? '' : 'none';
 
         // Filter test type options by mode
         const testSel = document.getElementById('testType');
@@ -1028,15 +1034,23 @@ class App {
                 const label = og.getAttribute('label') || '';
                 if (label === 'Growth Curves') {
                     og.style.display = isGrowth ? '' : 'none';
+                } else if (label === 'Correlation') {
+                    og.style.display = isCorrelation ? '' : 'none';
                 } else {
                     og.style.display = (isGrowth || isVolcano || isCorrelation) ? 'none' : '';
                 }
             });
             // Reset to appropriate default when switching modes
-            if (isGrowth && testSel.value !== 'two-way-rm-anova' && testSel.value !== 'none') {
+            if (isCorrelation && !['pearson','spearman','linear-regression','none'].includes(testSel.value)) {
+                testSel.value = 'pearson';
+                testSel.dispatchEvent(new Event('change'));
+            } else if (isGrowth && testSel.value !== 'two-way-rm-anova' && testSel.value !== 'none') {
                 testSel.value = 'two-way-rm-anova';
                 testSel.dispatchEvent(new Event('change'));
             } else if (!isGrowth && testSel.value === 'two-way-rm-anova') {
+                testSel.value = 'one-way-anova';
+                testSel.dispatchEvent(new Event('change'));
+            } else if (!isCorrelation && ['pearson','spearman','linear-regression'].includes(testSel.value)) {
                 testSel.value = 'one-way-anova';
                 testSel.dispatchEvent(new Event('change'));
             }
@@ -2172,6 +2186,11 @@ class App {
     }
 
     updateGraph() {
+        if (this.mode === 'kaplan-meier') {
+            const container = document.getElementById('graphContainer');
+            container.innerHTML = '<div class="empty-state"><h3>Kaplan-Meier</h3><p>Coming soon — survival analysis curves</p></div>';
+            return;
+        }
         const infoEl = document.getElementById('heatmapInfo');
         if (this.mode === 'heatmap') {
             const matrixData = this.dataTable.getMatrixData();
@@ -2636,6 +2655,12 @@ class App {
             return;
         }
 
+        // Correlation tests
+        if (['pearson', 'spearman', 'linear-regression'].includes(testType)) {
+            this._runCorrelationTest(testType);
+            return;
+        }
+
         const data = this.dataTable.getData();
         const filledGroups = data.filter(d => d.values.length > 0);
 
@@ -2976,6 +3001,66 @@ class App {
 
         this.graphRenderer.setSignificance(significantPairs);
         this.updateGraph();
+    }
+
+    _runCorrelationTest(testType) {
+        const corrData = this.dataTable.getCorrelationData();
+        if (!corrData || !corrData.allPoints || corrData.allPoints.length < 3) {
+            this._showStatsResult('Need at least 3 data points to run a correlation test.');
+            return;
+        }
+
+        const x = corrData.allPoints.map(p => p.xMean);
+        const y = corrData.allPoints.map(p => p.yMean);
+        const n = x.length;
+
+        let html = '';
+        const fmt = (v, d = 4) => v != null && !isNaN(v) ? v.toFixed(d) : 'N/A';
+        const fmtP = p => {
+            if (p == null || isNaN(p)) return 'N/A';
+            if (p < 0.001) return p.toExponential(2);
+            return p.toFixed(4);
+        };
+        const sig = p => p < 0.001 ? '***' : p < 0.01 ? '**' : p < 0.05 ? '*' : 'ns';
+
+        if (testType === 'pearson' || testType === 'spearman' || testType === 'linear-regression') {
+            // Always compute all three for a comprehensive report
+            const pearson = Statistics.pearsonCorrelation(x, y);
+            const spearman = Statistics.spearmanCorrelation(x, y);
+            const reg = Statistics.linearRegression(x, y);
+
+            html += `<div style="font-weight:600;margin-bottom:6px">Correlation Analysis (n = ${n})</div>`;
+
+            html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px">';
+            html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:3px 6px">Test</th><th style="padding:3px 6px">Statistic</th><th style="padding:3px 6px">p-value</th><th style="padding:3px 6px">Sig.</th></tr>';
+            html += `<tr style="background:${testType === 'pearson' ? '#f0f8e8' : '#fff'}"><td style="padding:3px 6px">Pearson r</td><td style="text-align:center;padding:3px 6px">${fmt(pearson.r)}</td><td style="text-align:center;padding:3px 6px">${fmtP(pearson.p)}</td><td style="text-align:center;padding:3px 6px">${sig(pearson.p)}</td></tr>`;
+            html += `<tr style="background:${testType === 'spearman' ? '#f0f8e8' : '#fff'}"><td style="padding:3px 6px">Spearman \u03C1</td><td style="text-align:center;padding:3px 6px">${fmt(spearman.rho)}</td><td style="text-align:center;padding:3px 6px">${fmtP(spearman.p)}</td><td style="text-align:center;padding:3px 6px">${sig(spearman.p)}</td></tr>`;
+            html += '</table>';
+
+            html += `<div style="font-weight:600;margin-bottom:4px">Linear Regression</div>`;
+            html += `<div style="font-size:12px;margin-bottom:2px">y = ${fmt(reg.slope)} \u00D7 x + ${fmt(reg.intercept)}</div>`;
+            html += `<div style="font-size:12px;margin-bottom:2px">R\u00B2 = ${fmt(reg.rSquared)} &nbsp;|&nbsp; Residual SE = ${fmt(reg.residualSE)}</div>`;
+            html += `<div style="font-size:12px;margin-bottom:2px">Slope SE = ${fmt(reg.slopeStdErr)} &nbsp;|&nbsp; Intercept SE = ${fmt(reg.interceptStdErr)}</div>`;
+            html += `<div style="font-size:11px;color:#666;margin-top:4px">df = ${reg.df}</div>`;
+
+            // Per-group breakdown if multiple groups
+            if (corrData.groups.length > 1) {
+                html += `<div style="font-weight:600;margin-top:10px;margin-bottom:4px">Per-Group Correlations</div>`;
+                html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+                html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:2px 4px">Group</th><th style="padding:2px 4px">n</th><th style="padding:2px 4px">Pearson r</th><th style="padding:2px 4px">p</th><th style="padding:2px 4px">R\u00B2</th></tr>';
+                corrData.groups.forEach(g => {
+                    if (g.points.length < 3) return;
+                    const gx = g.points.map(p => p.xMean);
+                    const gy = g.points.map(p => p.yMean);
+                    const gp = Statistics.pearsonCorrelation(gx, gy);
+                    const gr = Statistics.linearRegression(gx, gy);
+                    html += `<tr><td style="padding:2px 4px">${g.group}</td><td style="text-align:center;padding:2px 4px">${g.points.length}</td><td style="text-align:center;padding:2px 4px">${fmt(gp.r)}</td><td style="text-align:center;padding:2px 4px">${fmtP(gp.p)}</td><td style="text-align:center;padding:2px 4px">${fmt(gr.rSquared)}</td></tr>`;
+                });
+                html += '</table>';
+            }
+        }
+
+        this._showStatsResult(html);
     }
 
     _runGrowthAnova() {

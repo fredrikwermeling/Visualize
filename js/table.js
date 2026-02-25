@@ -639,6 +639,12 @@ class DataTable {
         this._addDeleteColumnHeaders();
         this._updateDeleteButtonVisibility();
 
+        // Rebuild axis assignment row if visible (correlation mode)
+        const axisRow = document.getElementById('axisAssignmentRow');
+        if (axisRow && axisRow.style.display !== 'none') {
+            this._rebuildAxisAssignmentCells();
+        }
+
         if (window.app) {
             window.app.updateGraph();
         }
@@ -1286,7 +1292,7 @@ class DataTable {
             td.textContent = i === 0 ? '' : 'Axis:';
             td.style.fontSize = '10px';
             td.style.fontWeight = '600';
-            td.style.color = '#7c3aed';
+            td.style.color = '#2d6a1e';
             row.appendChild(td);
         }
 

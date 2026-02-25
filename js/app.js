@@ -825,9 +825,9 @@ class App {
             document.getElementById('corrErrorType').value = 'sem';
             document.getElementById('corrPointSize').value = 6;
             document.getElementById('corrCapWidth').value = 5;
-            document.getElementById('corrShowRegression').checked = true;
+            document.getElementById('corrRegressionType').value = 'linear';
+            document.getElementById('corrRegressionScope').value = 'all';
             document.getElementById('corrShowCI').checked = true;
-            document.getElementById('corrShowLabels').checked = false;
             document.getElementById('corrShowZeroLines').checked = false;
             document.getElementById('corrStatsContent').value = 'simple';
             this._correlationTableData = null;
@@ -1503,8 +1503,7 @@ class App {
                 { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
                 { label: 'X Tick Font', fontKey: 'xTickFont', tickStep: 'xTickStep' },
                 { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yTickStep' },
-                { label: 'Stats Box', fontKey: 'statsFont' },
-                { label: 'Sample Labels', fontKey: 'labelFont', visKey: 'showSampleLabels' }
+                { label: 'Stats Box', fontKey: 'statsFont' }
             ];
             this._correlationGroupRows = true;
         } else {
@@ -1957,9 +1956,9 @@ class App {
             errorType: document.getElementById('corrErrorType')?.value || 'sem',
             pointSize: parseFloat(document.getElementById('corrPointSize')?.value) || 6,
             capWidth: parseFloat(document.getElementById('corrCapWidth')?.value) || 5,
-            showRegression: document.getElementById('corrShowRegression')?.checked ?? true,
+            regressionType: document.getElementById('corrRegressionType')?.value || 'linear',
+            regressionScope: document.getElementById('corrRegressionScope')?.value || 'all',
             showConfidenceInterval: document.getElementById('corrShowCI')?.checked ?? true,
-            showSampleLabels: document.getElementById('corrShowLabels')?.checked ?? false,
             showZeroLines: document.getElementById('corrShowZeroLines')?.checked ?? false,
             statsContent: document.getElementById('corrStatsContent')?.value || 'simple'
         };
@@ -1968,8 +1967,8 @@ class App {
     _bindCorrelationControls() {
         const ids = ['corrWidth', 'corrHeight', 'corrXMin', 'corrXMax', 'corrYMin', 'corrYMax',
             'corrXTickStep', 'corrYTickStep', 'corrColorTheme', 'corrErrorType',
-            'corrPointSize', 'corrCapWidth', 'corrShowRegression', 'corrShowCI',
-            'corrShowLabels', 'corrShowZeroLines', 'corrStatsContent'];
+            'corrPointSize', 'corrCapWidth', 'corrRegressionType', 'corrRegressionScope',
+            'corrShowCI', 'corrShowZeroLines', 'corrStatsContent'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => this.updateGraph());

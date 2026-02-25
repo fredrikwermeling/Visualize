@@ -16,14 +16,14 @@ class CorrelationRenderer {
             colorTheme: 'default',
             errorType: 'sem', // sem | sd | none
             capWidth: 5,
-            showRegression: true,
+            regressionType: 'linear', // none | linear | poly2 | poly3
+            regressionScope: 'all', // all | per-group
             showConfidenceInterval: true,
             confidenceLevel: 0.95,
             regressionLineWidth: 2,
             regressionLineColor: '#333',
             regressionLineDash: '',
             statsContent: 'simple', // none | simple | extended
-            showSampleLabels: false,
             // Fonts
             titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
             xLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
@@ -32,7 +32,6 @@ class CorrelationRenderer {
             yTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             legendFont: { family: 'Arial', size: 11, bold: false, italic: false },
             statsFont: { family: 'Arial', size: 11, bold: false, italic: false },
-            labelFont: { family: 'Arial', size: 10, bold: false, italic: false },
             // Visibility
             showTitle: true,
             showXLabel: true,
@@ -47,8 +46,7 @@ class CorrelationRenderer {
             statsOffset: { x: 0, y: 0 },
             // Per-group
             groupOverrides: {},
-            hiddenGroups: [],
-            sampleLabelOffsets: {}
+            hiddenGroups: []
         };
         this._nudgeOffsetKey = null;
 
@@ -62,6 +60,192 @@ class CorrelationRenderer {
             neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166']
         };
         this.symbolCycle = ['circle','square','triangle','diamond','cross','star'];
+    }
+
+    // Compute regression for given x,y arrays and type
+    _computeRegression(x, y, type) {
+        if (!x || !y || x.length < 2) return null;
+        const n = x.length;
+
+        if (type === 'linear') {
+            const reg = Statistics.linearRegression(x, y);
+            if (!reg) return null;
+            const sign = reg.intercept >= 0 ? ' + ' : ' \u2212 ';
+            return {
+                predict: xi => reg.slope * xi + reg.intercept,
+                equation: `y = ${reg.slope.toFixed(3)}x${sign}${Math.abs(reg.intercept).toFixed(3)}`,
+                rSquared: reg.rSquared,
+                linear: reg // keep for CI calculation
+            };
+        }
+
+        // Polynomial regression (degree 2 or 3)
+        const degree = type === 'poly2' ? 2 : 3;
+        if (n <= degree) return null;
+
+        // Build Vandermonde matrix and solve normal equations
+        // X^T X c = X^T y
+        const cols = degree + 1;
+        // Compute X^T X
+        const XtX = Array.from({ length: cols }, () => new Array(cols).fill(0));
+        const XtY = new Array(cols).fill(0);
+        for (let i = 0; i < n; i++) {
+            const powers = [1];
+            for (let d = 1; d <= degree * 2; d++) powers.push(powers[d - 1] * x[i]);
+            for (let r = 0; r < cols; r++) {
+                for (let c = 0; c < cols; c++) {
+                    XtX[r][c] += powers[r + c];
+                }
+                XtY[r] += powers[r] * y[i];
+            }
+        }
+
+        // Gaussian elimination with partial pivoting
+        const A = XtX.map((row, i) => [...row, XtY[i]]);
+        for (let col = 0; col < cols; col++) {
+            let maxRow = col;
+            for (let row = col + 1; row < cols; row++) {
+                if (Math.abs(A[row][col]) > Math.abs(A[maxRow][col])) maxRow = row;
+            }
+            [A[col], A[maxRow]] = [A[maxRow], A[col]];
+            if (Math.abs(A[col][col]) < 1e-12) return null;
+            for (let row = col + 1; row < cols; row++) {
+                const f = A[row][col] / A[col][col];
+                for (let j = col; j <= cols; j++) A[row][j] -= f * A[col][j];
+            }
+        }
+        const coeffs = new Array(cols);
+        for (let i = cols - 1; i >= 0; i--) {
+            coeffs[i] = A[i][cols];
+            for (let j = i + 1; j < cols; j++) coeffs[i] -= A[i][j] * coeffs[j];
+            coeffs[i] /= A[i][i];
+        }
+
+        const predict = xi => {
+            let val = coeffs[0];
+            let xp = 1;
+            for (let d = 1; d < coeffs.length; d++) { xp *= xi; val += coeffs[d] * xp; }
+            return val;
+        };
+
+        // R²
+        const yMean = y.reduce((a, b) => a + b, 0) / n;
+        let ssTot = 0, ssRes = 0;
+        for (let i = 0; i < n; i++) {
+            ssTot += (y[i] - yMean) ** 2;
+            ssRes += (y[i] - predict(x[i])) ** 2;
+        }
+        const rSquared = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+
+        // Build equation string
+        let eq = 'y = ';
+        const parts = [];
+        for (let d = coeffs.length - 1; d >= 0; d--) {
+            const c = coeffs[d];
+            if (Math.abs(c) < 1e-10 && d > 0) continue;
+            let term = '';
+            if (parts.length > 0) term += c >= 0 ? ' + ' : ' \u2212 ';
+            const absC = parts.length > 0 ? Math.abs(c) : c;
+            if (d === 0) term += absC.toFixed(3);
+            else if (d === 1) term += `${absC.toFixed(3)}x`;
+            else term += `${absC.toFixed(3)}x\u00B2${d === 3 ? '\u00B3'.replace('\u00B2', '') : ''}`;
+            parts.push(term);
+        }
+        // Rebuild properly for degree 2/3
+        const eqParts = [];
+        for (let d = degree; d >= 0; d--) {
+            const c = coeffs[d];
+            const prefix = eqParts.length > 0 ? (c >= 0 ? ' + ' : ' \u2212 ') : (c < 0 ? '\u2212' : '');
+            const absC = Math.abs(c);
+            let suffix = '';
+            if (d === 0) suffix = absC.toFixed(3);
+            else if (d === 1) suffix = `${absC.toFixed(3)}x`;
+            else if (d === 2) suffix = `${absC.toFixed(3)}x\u00B2`;
+            else if (d === 3) suffix = `${absC.toFixed(3)}x\u00B3`;
+            eqParts.push(prefix + suffix);
+        }
+        const equation = 'y = ' + eqParts.join('');
+
+        return { predict, equation, rSquared, linear: null };
+    }
+
+    _drawRegressionCurve(g, xScale, yScale, innerW, innerH, regression, color, lineWidth, lineDash) {
+        if (!regression) return;
+        const clipId = 'reg-clip-' + Math.random().toString(36).slice(2, 8);
+        if (!g.select('defs').node()) g.append('defs');
+        g.select('defs').append('clipPath').attr('id', clipId)
+            .append('rect').attr('x', 0).attr('y', 0).attr('width', innerW).attr('height', innerH);
+
+        if (regression.linear) {
+            // Straight line for linear
+            const xDom = xScale.domain();
+            const x1 = xDom[0], x2 = xDom[1];
+            const y1 = regression.predict(x1);
+            const y2 = regression.predict(x2);
+            g.append('line')
+                .attr('clip-path', `url(#${clipId})`)
+                .attr('x1', xScale(x1)).attr('y1', yScale(y1))
+                .attr('x2', xScale(x2)).attr('y2', yScale(y2))
+                .attr('stroke', color)
+                .attr('stroke-width', lineWidth)
+                .attr('stroke-dasharray', lineDash || '');
+        } else {
+            // Polyline for polynomial
+            const xDom = xScale.domain();
+            const nSteps = 100;
+            const step = (xDom[1] - xDom[0]) / nSteps;
+            const points = [];
+            for (let i = 0; i <= nSteps; i++) {
+                const xi = xDom[0] + i * step;
+                points.push([xScale(xi), yScale(regression.predict(xi))]);
+            }
+            g.append('polyline')
+                .attr('clip-path', `url(#${clipId})`)
+                .attr('points', points.map(p => p.join(',')).join(' '))
+                .attr('fill', 'none')
+                .attr('stroke', color)
+                .attr('stroke-width', lineWidth)
+                .attr('stroke-dasharray', lineDash || '');
+        }
+    }
+
+    _drawCIBand(g, xScale, yScale, innerW, innerH, regression, color) {
+        if (!regression || !regression.linear || regression.linear.n < 3) return;
+        const s = this.settings;
+        const reg = regression.linear;
+        const alpha = 1 - s.confidenceLevel;
+        const tCrit = jStat.studentt.inv(1 - alpha / 2, reg.df);
+        const nSteps = 100;
+        const xDom = xScale.domain();
+        const step = (xDom[1] - xDom[0]) / nSteps;
+
+        const polyPoints = [];
+        for (let i = 0; i <= nSteps; i++) {
+            const xi = xDom[0] + i * step;
+            const yHat = reg.slope * xi + reg.intercept;
+            const se = reg.residualSE * Math.sqrt(1 / reg.n + (xi - reg.meanX) ** 2 / reg.ssXX);
+            const m = tCrit * se;
+            polyPoints.push([xScale(xi), yScale(yHat + m)]);
+        }
+        for (let i = nSteps; i >= 0; i--) {
+            const xi = xDom[0] + i * step;
+            const yHat = reg.slope * xi + reg.intercept;
+            const se = reg.residualSE * Math.sqrt(1 / reg.n + (xi - reg.meanX) ** 2 / reg.ssXX);
+            const m = tCrit * se;
+            polyPoints.push([xScale(xi), yScale(yHat - m)]);
+        }
+
+        const ciClipId = 'ci-clip-' + Math.random().toString(36).slice(2, 8);
+        if (!g.select('defs').node()) g.append('defs');
+        g.select('defs').append('clipPath').attr('id', ciClipId)
+            .append('rect').attr('x', 0).attr('y', 0).attr('width', innerW).attr('height', innerH);
+
+        g.append('polygon')
+            .attr('clip-path', `url(#${ciClipId})`)
+            .attr('points', polyPoints.map(p => p.join(',')).join(' '))
+            .attr('fill', color)
+            .attr('fill-opacity', 0.1)
+            .attr('stroke', 'none');
     }
 
     render(correlationData, settings) {
@@ -145,112 +329,55 @@ class CorrelationRenderer {
             }
         }
 
-        // Regression and CI on all visible points
-        const regX = visiblePoints.map(p => p.xMean);
-        const regY = visiblePoints.map(p => p.yMean);
-        const regression = Statistics.linearRegression(regX, regY);
+        // Get unique group names from visible groups
+        const groupNames = visibleGroups.map(gr => gr.group);
 
-        // Confidence interval band
-        if (s.showConfidenceInterval && regression && regression.n >= 3) {
-            const alpha = 1 - s.confidenceLevel;
-            const tCrit = jStat.studentt.inv(1 - alpha / 2, regression.df);
-            const nSteps = 100;
-            const xDom = xScale.domain();
-            const step = (xDom[1] - xDom[0]) / nSteps;
+        // Regression + CI
+        const regType = s.regressionType || 'none';
+        const regScope = s.regressionScope || 'all';
+        let allRegression = null; // for stats box
 
-            const upper = [];
-            const lower = [];
-            for (let i = 0; i <= nSteps; i++) {
-                const xi = xDom[0] + i * step;
-                const yHat = regression.slope * xi + regression.intercept;
-                const se = regression.residualSE * Math.sqrt(1 / regression.n + (xi - regression.meanX) ** 2 / regression.ssXX);
-                const margin = tCrit * se;
-                upper.push({ x: xi, y: yHat + margin });
-                lower.push({ x: xi, y: yHat - margin });
+        if (regType !== 'none') {
+            if (regScope === 'all') {
+                const regX = visiblePoints.map(p => p.xMean);
+                const regY = visiblePoints.map(p => p.yMean);
+                allRegression = this._computeRegression(regX, regY, regType);
+
+                // CI band (linear only)
+                if (s.showConfidenceInterval && regType === 'linear') {
+                    this._drawCIBand(g, xScale, yScale, innerW, innerH, allRegression, s.regressionLineColor);
+                }
+
+                // Regression line/curve
+                this._drawRegressionCurve(g, xScale, yScale, innerW, innerH, allRegression,
+                    s.regressionLineColor, s.regressionLineWidth, s.regressionLineDash);
+            } else {
+                // Per-group regression
+                visibleGroups.forEach((gr, gi) => {
+                    const pts = gr.points;
+                    if (pts.length < 2) return;
+                    const gx = pts.map(p => p.xMean);
+                    const gy = pts.map(p => p.yMean);
+                    const color = this._getColor(gi);
+                    const reg = this._computeRegression(gx, gy, regType);
+                    if (!reg) return;
+
+                    // CI band per group (linear only)
+                    if (s.showConfidenceInterval && regType === 'linear') {
+                        this._drawCIBand(g, xScale, yScale, innerW, innerH, reg, color);
+                    }
+
+                    this._drawRegressionCurve(g, xScale, yScale, innerW, innerH, reg,
+                        color, s.regressionLineWidth, s.regressionLineDash);
+                });
+                // Compute all-data regression for stats box
+                const regX = visiblePoints.map(p => p.xMean);
+                const regY = visiblePoints.map(p => p.yMean);
+                allRegression = this._computeRegression(regX, regY, regType);
             }
-
-            const areaData = [...upper, ...lower.reverse()];
-            const area = d3.area()
-                .x(d => xScale(d.x))
-                .y0(d => yScale(d.y))
-                .y1((d, i) => i < upper.length ? yScale(lower[lower.length - 1 - i]?.y ?? d.y) : yScale(d.y));
-
-            // Use path with clip
-            const clipId = 'ci-clip-' + Math.random().toString(36).slice(2, 8);
-            g.append('defs').append('clipPath').attr('id', clipId)
-                .append('rect').attr('x', 0).attr('y', 0).attr('width', innerW).attr('height', innerH);
-
-            g.append('path')
-                .datum(areaData)
-                .attr('clip-path', `url(#${clipId})`)
-                .attr('d', d3.area()
-                    .x(d => xScale(d.x))
-                    .y0((d, i) => {
-                        if (i < upper.length) return yScale(lower[upper.length - 1 - i].y);
-                        return yScale(d.y);
-                    })
-                    .y1(d => yScale(d.y))
-                    (upper.concat(lower.reverse()))
-                )
-                .attr('fill', 'none');
-
-            // Simpler approach: draw as polygon
-            const polyPoints = [];
-            for (let i = 0; i <= nSteps; i++) {
-                const xi = xDom[0] + i * step;
-                const yHat = regression.slope * xi + regression.intercept;
-                const se = regression.residualSE * Math.sqrt(1 / regression.n + (xi - regression.meanX) ** 2 / regression.ssXX);
-                const m = tCrit * se;
-                polyPoints.push([xScale(xi), yScale(yHat + m)]);
-            }
-            for (let i = nSteps; i >= 0; i--) {
-                const xi = xDom[0] + i * step;
-                const yHat = regression.slope * xi + regression.intercept;
-                const se = regression.residualSE * Math.sqrt(1 / regression.n + (xi - regression.meanX) ** 2 / regression.ssXX);
-                const m = tCrit * se;
-                polyPoints.push([xScale(xi), yScale(yHat - m)]);
-            }
-
-            // Remove previous failed path
-            g.select('path[d]').filter(function() {
-                return d3.select(this).attr('fill') === 'none' && d3.select(this).attr('clip-path');
-            }).remove();
-
-            const ciClipId = 'ci-clip2-' + Math.random().toString(36).slice(2, 8);
-            g.select('defs').append('clipPath').attr('id', ciClipId)
-                .append('rect').attr('x', 0).attr('y', 0).attr('width', innerW).attr('height', innerH);
-
-            g.append('polygon')
-                .attr('clip-path', `url(#${ciClipId})`)
-                .attr('points', polyPoints.map(p => p.join(',')).join(' '))
-                .attr('fill', s.regressionLineColor)
-                .attr('fill-opacity', 0.1)
-                .attr('stroke', 'none');
-        }
-
-        // Regression line
-        if (s.showRegression && regression) {
-            const xDom = xScale.domain();
-            const x1 = xDom[0], x2 = xDom[1];
-            const y1 = regression.slope * x1 + regression.intercept;
-            const y2 = regression.slope * x2 + regression.intercept;
-
-            const clipId = 'reg-clip-' + Math.random().toString(36).slice(2, 8);
-            if (!g.select('defs').node()) g.append('defs');
-            g.select('defs').append('clipPath').attr('id', clipId)
-                .append('rect').attr('x', 0).attr('y', 0).attr('width', innerW).attr('height', innerH);
-
-            g.append('line')
-                .attr('clip-path', `url(#${clipId})`)
-                .attr('x1', xScale(x1)).attr('y1', yScale(y1))
-                .attr('x2', xScale(x2)).attr('y2', yScale(y2))
-                .attr('stroke', s.regressionLineColor)
-                .attr('stroke-width', s.regressionLineWidth)
-                .attr('stroke-dasharray', s.regressionLineDash || '');
         }
 
         // Error bars
-        const self = this;
         visiblePoints.forEach(pt => {
             const cx = xScale(pt.xMean);
             const cy = yScale(pt.yMean);
@@ -288,9 +415,6 @@ class CorrelationRenderer {
             }
         });
 
-        // Get unique group names from visible groups
-        const groupNames = visibleGroups.map(gr => gr.group);
-
         // Scatter points
         visiblePoints.forEach(pt => {
             const gi = groupNames.indexOf(pt.group || visibleGroups[0]?.group);
@@ -306,62 +430,16 @@ class CorrelationRenderer {
                 .attr('stroke-width', 1)
                 .attr('cursor', 'pointer')
                 .append('title')
-                .text(`${pt.group ? pt.group + ': ' : ''}${pt.sample}\nX: ${pt.xMean.toFixed(3)}\nY: ${pt.yMean.toFixed(3)}`);
+                .text(`${pt.group ? pt.group + ': ' : ''}(${pt.xMean.toFixed(3)}, ${pt.yMean.toFixed(3)})`);
         });
-
-        // Sample labels
-        if (s.showSampleLabels) {
-            const lf = s.labelFont;
-            visiblePoints.forEach(pt => {
-                const label = pt.sample || '';
-                if (!label) return;
-                const userOff = s.sampleLabelOffsets[label] || { x: 0, y: 0 };
-                const lx = xScale(pt.xMean) + 8 + userOff.x;
-                const ly = yScale(pt.yMean) - 4 + userOff.y;
-
-                // Leader line if offset
-                const dist = Math.sqrt(userOff.x ** 2 + userOff.y ** 2);
-                if (dist > 5) {
-                    g.append('line')
-                        .attr('x1', xScale(pt.xMean)).attr('y1', yScale(pt.yMean))
-                        .attr('x2', lx).attr('y2', ly + lf.size * 0.35)
-                        .attr('stroke', '#999').attr('stroke-width', 0.5).attr('stroke-dasharray', '2,2');
-                }
-
-                const txtEl = g.append('text')
-                    .attr('x', lx).attr('y', ly)
-                    .attr('font-size', lf.size + 'px')
-                    .attr('font-family', lf.family)
-                    .attr('font-weight', lf.bold ? 'bold' : 'normal')
-                    .attr('font-style', lf.italic ? 'italic' : 'normal')
-                    .attr('fill', '#333')
-                    .attr('cursor', 'grab')
-                    .text(label);
-
-                txtEl.call(d3.drag()
-                    .filter(ev => !ev.ctrlKey && !ev.button && ev.detail < 2)
-                    .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
-                    .on('drag', function(event) {
-                        if (!self.settings.sampleLabelOffsets[label]) self.settings.sampleLabelOffsets[label] = { x: 0, y: 0 };
-                        self.settings.sampleLabelOffsets[label].x += event.dx;
-                        self.settings.sampleLabelOffsets[label].y += event.dy;
-                        d3.select(this)
-                            .attr('x', parseFloat(d3.select(this).attr('x')) + event.dx)
-                            .attr('y', parseFloat(d3.select(this).attr('y')) + event.dy);
-                    })
-                    .on('end', function() {
-                        d3.select(this).style('cursor', 'grab');
-                        if (window.app) window.app.updateGraph();
-                    })
-                );
-            });
-        }
 
         // Legend
         this._drawLegend(g, innerW, groupNames);
 
         // Stats annotation box
-        this._drawStatsBox(g, innerW, innerH, regX, regY, regression);
+        const regX = visiblePoints.map(p => p.xMean);
+        const regY = visiblePoints.map(p => p.yMean);
+        this._drawStatsBox(g, innerW, innerH, regX, regY, allRegression);
 
         // Title
         if (s.showTitle) this._drawInteractiveText(svg, 'title', margin.left + innerW / 2, 22, s.title, s.titleFont, s.titleOffset);
@@ -403,8 +481,7 @@ class CorrelationRenderer {
 
         const lines = [];
         if (regression) {
-            const sign = regression.intercept >= 0 ? '+' : '';
-            lines.push(`y = ${regression.slope.toFixed(3)}x ${sign}${regression.intercept.toFixed(3)}`);
+            lines.push(regression.equation);
             lines.push(`R\u00B2 = ${regression.rSquared.toFixed(4)}`);
         }
         if (!isNaN(pearson.r)) {
@@ -447,17 +524,20 @@ class CorrelationRenderer {
                 .text(line);
         });
 
-        // Drag stats box
+        // Drag stats box — update transform during drag, updateGraph only on end
         const self = this;
         statsG.call(d3.drag()
             .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
             .on('drag', function(event) {
                 self.settings.statsOffset.x += event.dx;
                 self.settings.statsOffset.y += event.dy;
-                if (window.app) window.app.updateGraph();
+                const newX = innerW - 10 + self.settings.statsOffset.x - boxW;
+                const newY = 10 + self.settings.statsOffset.y;
+                d3.select(this).attr('transform', `translate(${newX}, ${newY})`);
             })
             .on('end', function() {
                 d3.select(this).style('cursor', 'grab');
+                if (window.app) window.app.updateGraph();
                 self._selectLabelForNudge('statsOffset');
             })
         );
@@ -505,6 +585,7 @@ class CorrelationRenderer {
             })
             .on('end', function() {
                 d3.select(this).style('cursor', 'grab');
+                if (window.app) window.app.updateGraph();
                 self._selectLabelForNudge('legendOffset');
             })
         );

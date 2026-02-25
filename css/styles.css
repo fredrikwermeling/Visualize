@@ -132,6 +132,7 @@ header {
 .graph-panel .heatmap-controls,
 .graph-panel .growth-controls,
 .graph-panel .volcano-controls,
+.graph-panel .correlation-controls,
 .graph-panel > input[type="hidden"] {
     margin-left: 14px;
     margin-right: 14px;
@@ -144,7 +145,8 @@ header {
 .graph-panel .graph-controls,
 .graph-panel .heatmap-controls,
 .graph-panel .growth-controls,
-.graph-panel .volcano-controls {
+.graph-panel .volcano-controls,
+.graph-panel .correlation-controls {
     margin-bottom: 14px;
 }
 
@@ -505,7 +507,8 @@ tr:hover .row-delete-btn {
 
 /* Full-width sections (not inside graph-controls 2-col grid) get 4 columns */
 .volcano-controls .control-grid-2col,
-.growth-controls .control-grid-2col {
+.growth-controls .control-grid-2col,
+.correlation-controls .control-grid-2col {
     grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
@@ -521,7 +524,8 @@ tr:hover .row-delete-btn {
 
 /* In 4-col grids, use fixed label width so all boxes are uniform */
 .volcano-controls .control-grid-2col .control-group label,
-.growth-controls .control-grid-2col .control-group label {
+.growth-controls .control-grid-2col .control-group label,
+.correlation-controls .control-grid-2col .control-group label {
     flex: 0 0 70px;
     white-space: nowrap;
     font-size: 10px;
@@ -1298,6 +1302,71 @@ tr:hover .row-delete-btn {
     z-index: 1000;
     white-space: nowrap;
     line-height: 1.5;
+    display: none;
+}
+
+/* Correlation Controls */
+.correlation-controls {
+    margin-bottom: 10px;
+}
+
+.correlation-controls .control-section {
+    padding: 10px 12px;
+    background-color: var(--gray-100);
+    border-radius: var(--radius-md);
+    border-left: 4px solid #7c3aed;
+}
+
+.correlation-controls .control-section h3 {
+    color: #5b21b6;
+    margin-bottom: 6px;
+    font-size: 0.95em;
+    font-weight: 600;
+}
+
+/* Axis Assignment Row */
+.axis-assignment-row {
+    background-color: #f5f0ff !important;
+}
+
+.axis-assignment-row td {
+    padding: 3px 4px !important;
+    border-bottom: 2px solid #c4b5fd !important;
+}
+
+.axis-assignment-cell {
+    text-align: center;
+}
+
+.axis-select {
+    width: 100%;
+    padding: 2px 4px;
+    border: 1px solid #c4b5fd;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    background: white;
+    color: #5b21b6;
+    cursor: pointer;
+}
+
+.axis-select:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.25);
+}
+
+.axis-assignment-label {
+    background-color: #f5f0ff !important;
+}
+
+/* Hide axis assignment row cells when ID cols are hidden */
+.data-table.hide-id-cols .axis-assignment-row td.id-cell {
+    display: none;
+}
+
+.data-table.hide-row-toggles .axis-assignment-row td.row-toggle-cell {
     display: none;
 }
 

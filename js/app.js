@@ -8,14 +8,17 @@ class App {
         this.heatmapRenderer = new HeatmapRenderer('graphContainer');
         this.growthRenderer = new GrowthCurveRenderer('graphContainer');
         this.volcanoRenderer = new VolcanoRenderer('graphContainer');
+        this.correlationRenderer = new CorrelationRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
         this.columnAnnotationManager = new AnnotationManager();
         this.heatmapAnnotationManager = new AnnotationManager();
         this.growthAnnotationManager = new AnnotationManager();
         this.volcanoAnnotationManager = new AnnotationManager();
+        this.correlationAnnotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.columnAnnotationManager;
         this.growthRenderer.annotationManager = this.growthAnnotationManager;
         this.volcanoRenderer.annotationManager = this.volcanoAnnotationManager;
+        this.correlationRenderer.annotationManager = this.correlationAnnotationManager;
         this._undoStack = [];
         this.mode = 'heatmap';
 
@@ -24,6 +27,7 @@ class App {
         this._heatmapTableData = null;
         this._growthTableData = null;
         this._volcanoTableData = null;
+        this._correlationTableData = null;
 
         // Bind event listeners
         this._bindTableControls();
@@ -37,6 +41,7 @@ class App {
         this._bindHeatmapControls();
         this._bindGrowthControls();
         this._bindVolcanoControls();
+        this._bindCorrelationControls();
 
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
@@ -99,7 +104,7 @@ class App {
             this.dataTable.clearData();
             this._clearStats();
         });
-        this._sampleIndex = { column: 0, heatmap: 0, growth: 0, volcano: 0 };
+        this._sampleIndex = { column: 0, heatmap: 0, growth: 0, volcano: 0, correlation: 0 };
         document.getElementById('addTestData').addEventListener('click', () => {
             const idx = this._sampleIndex[this.mode] || 0;
             if (this.mode === 'heatmap') {
@@ -108,6 +113,8 @@ class App {
                 this.dataTable.loadGrowthSampleData(idx);
             } else if (this.mode === 'volcano') {
                 this.dataTable.loadVolcanoSampleData(idx);
+            } else if (this.mode === 'correlation') {
+                this.dataTable.loadCorrelationSampleData(idx);
             } else {
                 this.dataTable.loadSampleData(idx);
             }
@@ -801,6 +808,30 @@ class App {
             document.getElementById('volcanoDownColor').value = '#457B9D';
             this._volcanoTableData = null;
             this.dataTable.loadVolcanoSampleData();
+        } else if (this.mode === 'correlation') {
+            const fresh = new CorrelationRenderer('graphContainer');
+            this.correlationRenderer.settings = fresh.settings;
+            this.correlationRenderer._nudgeOffsetKey = null;
+            document.getElementById('corrWidth').value = 400;
+            document.getElementById('corrHeight').value = 400;
+            document.getElementById('corrXMin').value = '';
+            document.getElementById('corrXMax').value = '';
+            document.getElementById('corrYMin').value = '';
+            document.getElementById('corrYMax').value = '';
+            document.getElementById('corrXTickStep').value = '';
+            document.getElementById('corrYTickStep').value = '';
+            document.getElementById('corrColorTheme').value = 'default';
+            document.getElementById('corrErrorType').value = 'sem';
+            document.getElementById('corrPointSize').value = 6;
+            document.getElementById('corrCapWidth').value = 5;
+            document.getElementById('corrShowRegression').checked = true;
+            document.getElementById('corrShowCI').checked = true;
+            document.getElementById('corrShowLabels').checked = false;
+            document.getElementById('corrShowZeroLines').checked = false;
+            document.getElementById('corrStatsContent').value = 'simple';
+            this._correlationTableData = null;
+            this.dataTable._axisAssignments = {};
+            this.dataTable.loadCorrelationSampleData();
         } else if (this.mode === 'column') {
             this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
             this.graphRenderer._titleOffset = { x: 0, y: 0 };
@@ -856,15 +887,25 @@ class App {
             ]);
             disabledRows.push(tr.classList.contains('row-disabled'));
         });
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : '_heatmapTableData';
-        this[key] = { headers, rows, idData, disabledRows, numRows: rows.length };
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : '_heatmapTableData';
+        const saved = { headers, rows, idData, disabledRows, numRows: rows.length };
+        if (mode === 'correlation' && this.dataTable._axisAssignments) {
+            saved.axisAssignments = { ...this.dataTable._axisAssignments };
+        }
+        this[key] = saved;
     }
 
     _restoreTableData(mode) {
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : '_heatmapTableData';
         const saved = this[key];
         if (saved) {
             this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows, saved.idData);
+            if (mode === 'correlation' && saved.axisAssignments) {
+                this.dataTable._axisAssignments = { ...saved.axisAssignments };
+                if (document.getElementById('axisAssignmentRow')?.style.display !== 'none') {
+                    this.dataTable._rebuildAxisAssignmentCells();
+                }
+            }
             // Restore disabled rows
             if (saved.disabledRows) {
                 const trs = this.dataTable.tbody.querySelectorAll('tr');
@@ -884,6 +925,8 @@ class App {
                 this.dataTable.loadGrowthSampleData();
             } else if (mode === 'volcano') {
                 this.dataTable.loadVolcanoSampleData();
+            } else if (mode === 'correlation') {
+                this.dataTable.loadCorrelationSampleData();
             } else {
                 this.dataTable.loadSampleData();
             }
@@ -895,12 +938,20 @@ class App {
         const isGrowth = this.mode === 'growth';
         const isColumn = this.mode === 'column';
         const isVolcano = this.mode === 'volcano';
+        const isCorrelation = this.mode === 'correlation';
 
         // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
         if (table) {
-            table.classList.toggle('hide-id-cols', !isHeatmap);
-            table.classList.toggle('hide-row-toggles', !isHeatmap);
+            table.classList.toggle('hide-id-cols', !(isHeatmap || isCorrelation));
+            table.classList.toggle('hide-row-toggles', !(isHeatmap || isCorrelation));
+        }
+
+        // Axis assignment row
+        if (isCorrelation) {
+            this.dataTable.showAxisAssignmentRow();
+        } else {
+            this.dataTable.hideAxisAssignmentRow();
         }
 
         // Column-specific controls (top-level elements)
@@ -949,16 +1000,24 @@ class App {
         const volcanoControls = document.getElementById('volcanoControls');
         if (volcanoControls) volcanoControls.style.display = isVolcano ? '' : 'none';
 
+        // Correlation controls
+        const correlationControls = document.getElementById('correlationControls');
+        if (correlationControls) correlationControls.style.display = isCorrelation ? '' : 'none';
+
+        // Correlation group manager
+        const corrGrpMgr = document.getElementById('correlationGroupManager');
+        if (corrGrpMgr) corrGrpMgr.style.display = isCorrelation ? '' : 'none';
+
         // Hide graph-controls wrapper for modes that don't use it
         const graphControlsEl = document.querySelector('.graph-controls');
-        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap) ? 'none' : '';
+        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isCorrelation) ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
             el.style.display = isHeatmap ? 'inline-block' : 'none';
         });
 
-        // Stats export only for column/growth
+        // Stats export only for column/growth (not correlation — stats are built-in)
         const statsBtn = document.getElementById('exportStats');
         if (statsBtn) statsBtn.style.display = (isColumn || isGrowth) ? '' : 'none';
 
@@ -970,7 +1029,7 @@ class App {
                 if (label === 'Growth Curves') {
                     og.style.display = isGrowth ? '' : 'none';
                 } else {
-                    og.style.display = (isGrowth || isVolcano) ? 'none' : '';
+                    og.style.display = (isGrowth || isVolcano || isCorrelation) ? 'none' : '';
                 }
             });
             // Reset to appropriate default when switching modes
@@ -1332,6 +1391,7 @@ class App {
         if (this.mode === 'column') return this.graphRenderer;
         if (this.mode === 'growth') return this.growthRenderer;
         if (this.mode === 'volcano') return this.volcanoRenderer;
+        if (this.mode === 'correlation') return this.correlationRenderer;
         return this.heatmapRenderer;
     }
 
@@ -1421,6 +1481,18 @@ class App {
                 { label: 'Y Tick Font', fontKey: 'yTickFont' },
                 { label: 'Gene Labels', fontKey: 'labelFont' }
             ];
+        } else if (this.mode === 'correlation') {
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+                { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
+                { label: 'X Tick Font', fontKey: 'xTickFont', tickStep: 'xTickStep' },
+                { label: 'Y Tick Font', fontKey: 'yTickFont', tickStep: 'yTickStep' },
+                { label: 'Stats Box', fontKey: 'statsFont' },
+                { label: 'Sample Labels', fontKey: 'labelFont', visKey: 'showSampleLabels' }
+            ];
+            this._correlationGroupRows = true;
         } else {
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
@@ -1714,6 +1786,74 @@ class App {
                 });
             }
         }
+
+        // Per-group color/symbol for correlation mode
+        if (this._correlationGroupRows) {
+            this._correlationGroupRows = false;
+            const corrData = this.dataTable.getCorrelationData();
+            if (corrData && corrData.groups && corrData.groups.length > 0) {
+                const sep = document.createElement('div');
+                sep.style.cssText = 'grid-column:1/-1;border-top:1px solid #e5e7eb;margin:6px 0 2px;font-size:11px;font-weight:600;color:#374151;padding-top:4px';
+                sep.textContent = 'Group Colors & Symbols';
+                body.appendChild(sep);
+
+                const gr = this.correlationRenderer;
+                if (!gr.settings.groupOverrides) gr.settings.groupOverrides = {};
+                const symbols = ['circle','square','triangle','diamond','cross','star'];
+
+                corrData.groups.forEach((gObj, gi) => {
+                    const gName = gObj.group;
+                    const ov = gr.settings.groupOverrides[gName] || {};
+                    const grow = document.createElement('div');
+                    grow.className = 'text-settings-row';
+                    grow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0';
+
+                    const colorInp = document.createElement('input');
+                    colorInp.type = 'color';
+                    colorInp.value = ov.color || gr._getColor(gi);
+                    colorInp.style.cssText = 'width:24px;height:20px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0;flex:0 0 24px';
+                    colorInp.addEventListener('input', () => {
+                        if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                        gr.settings.groupOverrides[gName].color = colorInp.value;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(colorInp);
+
+                    const symSel = document.createElement('select');
+                    symSel.style.cssText = 'font-size:10px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;flex:0 0 auto;width:58px';
+                    const curSym = ov.symbol || gr._getSymbolForGroup(gi, gName);
+                    symbols.forEach(sym => {
+                        const opt = document.createElement('option');
+                        opt.value = sym;
+                        opt.textContent = sym.charAt(0).toUpperCase() + sym.slice(1);
+                        if (sym === curSym) opt.selected = true;
+                        symSel.appendChild(opt);
+                    });
+                    symSel.addEventListener('change', () => {
+                        if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                        gr.settings.groupOverrides[gName].symbol = symSel.value;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(symSel);
+
+                    const labelInp = document.createElement('input');
+                    labelInp.type = 'text';
+                    labelInp.value = ov.label || gName;
+                    labelInp.placeholder = gName;
+                    labelInp.style.cssText = 'flex:1;min-width:50px;padding:2px 4px;font-size:11px;border:1px solid #e5e7eb;border-radius:3px';
+                    labelInp.addEventListener('input', () => {
+                        if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                        const val = labelInp.value.trim();
+                        if (val && val !== gName) gr.settings.groupOverrides[gName].label = val;
+                        else delete gr.settings.groupOverrides[gName].label;
+                        this.updateGraph();
+                    });
+                    grow.appendChild(labelInp);
+
+                    body.appendChild(grow);
+                });
+            }
+        }
     }
 
     _getHeatmapSettings() {
@@ -1788,6 +1928,133 @@ class App {
         });
     }
 
+    _getCorrelationSettings() {
+        const parseOpt = id => { const v = document.getElementById(id)?.value?.trim(); return v ? parseFloat(v) : null; };
+        return {
+            width: parseInt(document.getElementById('corrWidth')?.value) || 400,
+            height: parseInt(document.getElementById('corrHeight')?.value) || 400,
+            xMin: parseOpt('corrXMin'),
+            xMax: parseOpt('corrXMax'),
+            yMin: parseOpt('corrYMin'),
+            yMax: parseOpt('corrYMax'),
+            xTickStep: parseOpt('corrXTickStep'),
+            yTickStep: parseOpt('corrYTickStep'),
+            colorTheme: document.getElementById('corrColorTheme')?.value || 'default',
+            errorType: document.getElementById('corrErrorType')?.value || 'sem',
+            pointSize: parseFloat(document.getElementById('corrPointSize')?.value) || 6,
+            capWidth: parseFloat(document.getElementById('corrCapWidth')?.value) || 5,
+            showRegression: document.getElementById('corrShowRegression')?.checked ?? true,
+            showConfidenceInterval: document.getElementById('corrShowCI')?.checked ?? true,
+            showSampleLabels: document.getElementById('corrShowLabels')?.checked ?? false,
+            showZeroLines: document.getElementById('corrShowZeroLines')?.checked ?? false,
+            statsContent: document.getElementById('corrStatsContent')?.value || 'simple'
+        };
+    }
+
+    _bindCorrelationControls() {
+        const ids = ['corrWidth', 'corrHeight', 'corrXMin', 'corrXMax', 'corrYMin', 'corrYMax',
+            'corrXTickStep', 'corrYTickStep', 'corrColorTheme', 'corrErrorType',
+            'corrPointSize', 'corrCapWidth', 'corrShowRegression', 'corrShowCI',
+            'corrShowLabels', 'corrShowZeroLines', 'corrStatsContent'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => this.updateGraph());
+        });
+    }
+
+    _updateCorrelationGroupManager(corrData) {
+        const container = document.getElementById('correlationGroupManager');
+        const listEl = document.getElementById('correlationGroupList');
+        if (!container || !listEl || !corrData || !corrData.groups) return;
+
+        const groups = corrData.groups;
+        if (groups.length === 0) { container.style.display = 'none'; return; }
+        container.style.display = '';
+
+        const settings = this.correlationRenderer.settings;
+        if (!settings.hiddenGroups) settings.hiddenGroups = [];
+        const hiddenGroups = settings.hiddenGroups;
+
+        const groupNames = groups.map(g => g.group);
+        let orderedLabels;
+        if (settings.groupOrder && settings.groupOrder.length > 0) {
+            orderedLabels = settings.groupOrder.filter(g => groupNames.includes(g));
+            groupNames.forEach(g => { if (!orderedLabels.includes(g)) orderedLabels.push(g); });
+        } else {
+            orderedLabels = [...groupNames];
+        }
+
+        listEl.innerHTML = '';
+        orderedLabels.forEach((label, idx) => {
+            const gi = groupNames.indexOf(label);
+            const color = this.correlationRenderer._getColor(gi);
+            const isHidden = hiddenGroups.includes(label);
+
+            const item = document.createElement('div');
+            item.className = 'group-item' + (isHidden ? ' hidden' : '');
+            item.draggable = true;
+            item.dataset.label = label;
+            item.dataset.idx = idx;
+
+            const handle = document.createElement('span');
+            handle.className = 'drag-handle';
+            handle.textContent = '\u2261';
+
+            const dot = document.createElement('span');
+            dot.className = 'color-dot';
+            dot.style.background = color;
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'group-label';
+            const ov = settings.groupOverrides && settings.groupOverrides[label];
+            labelSpan.textContent = (ov && ov.label) || label;
+
+            const eyeBtn = document.createElement('button');
+            eyeBtn.className = 'visibility-btn';
+            eyeBtn.textContent = isHidden ? '\u{1F6AB}' : '\u{1F441}';
+            eyeBtn.title = isHidden ? 'Show group' : 'Hide group';
+            eyeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isHidden) {
+                    settings.hiddenGroups = hiddenGroups.filter(l => l !== label);
+                } else {
+                    settings.hiddenGroups = [...hiddenGroups, label];
+                }
+                this.updateGraph();
+            });
+
+            item.appendChild(handle);
+            item.appendChild(dot);
+            item.appendChild(labelSpan);
+            item.appendChild(eyeBtn);
+            listEl.appendChild(item);
+
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', idx.toString());
+                item.style.opacity = '0.5';
+            });
+            item.addEventListener('dragend', () => {
+                item.style.opacity = '';
+                listEl.querySelectorAll('.group-item').forEach(el => el.classList.remove('drag-over'));
+            });
+            item.addEventListener('dragover', (e) => { e.preventDefault(); item.classList.add('drag-over'); });
+            item.addEventListener('dragleave', () => { item.classList.remove('drag-over'); });
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.classList.remove('drag-over');
+                const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                const toIdx = idx;
+                if (fromIdx === toIdx) return;
+                const newOrder = [...orderedLabels];
+                const [moved] = newOrder.splice(fromIdx, 1);
+                newOrder.splice(toIdx, 0, moved);
+                settings.groupOrder = newOrder;
+                this.updateGraph();
+            });
+        });
+    }
+
     _updateHeatmapInfo(settings, el) {
         if (!el) return;
         if (!settings.showInfo) {
@@ -1843,6 +2110,7 @@ class App {
         if (this.mode === 'heatmap') return this.heatmapAnnotationManager;
         if (this.mode === 'growth') return this.growthAnnotationManager;
         if (this.mode === 'volcano') return this.volcanoAnnotationManager;
+        if (this.mode === 'correlation') return this.correlationAnnotationManager;
         return this.columnAnnotationManager;
     }
 
@@ -1861,7 +2129,7 @@ class App {
     undo() {
         if (this._undoStack.length === 0) return;
         const snapshot = this._undoStack.pop();
-        const mgr = snapshot.mode === 'heatmap' ? this.heatmapAnnotationManager : snapshot.mode === 'growth' ? this.growthAnnotationManager : snapshot.mode === 'volcano' ? this.volcanoAnnotationManager : this.columnAnnotationManager;
+        const mgr = snapshot.mode === 'heatmap' ? this.heatmapAnnotationManager : snapshot.mode === 'growth' ? this.growthAnnotationManager : snapshot.mode === 'volcano' ? this.volcanoAnnotationManager : snapshot.mode === 'correlation' ? this.correlationAnnotationManager : this.columnAnnotationManager;
         mgr.annotations = snapshot.annotations;
         mgr.selectedIndex = -1;
         mgr._selectedBracketIdx = -1;
@@ -1934,6 +2202,14 @@ class App {
             const volcanoData = this.dataTable.getVolcanoData();
             const volcanoSettings = this._getVolcanoSettings();
             this.volcanoRenderer.render(volcanoData, volcanoSettings);
+            return;
+        }
+        if (this.mode === 'correlation') {
+            if (infoEl) infoEl.style.display = 'none';
+            const corrData = this.dataTable.getCorrelationData();
+            const corrSettings = this._getCorrelationSettings();
+            this.correlationRenderer.render(corrData, corrSettings);
+            this._updateCorrelationGroupManager(corrData);
             return;
         }
         if (infoEl) infoEl.style.display = 'none';

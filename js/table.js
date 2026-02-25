@@ -495,7 +495,7 @@ class DataTable {
             }
 
             // In heatmap mode: detect leading text columns as Group/Sample IDs
-            const isHeatmap = window.app && window.app.mode === 'heatmap';
+            const isHeatmap = window.app && (window.app.mode === 'heatmap' || window.app.mode === 'correlation');
             let idColCount = 0;
             if (isHeatmap && dataRows.length > 0) {
                 for (let col = 0; col < Math.min(2, numCols); col++) {
@@ -1240,6 +1240,207 @@ class DataTable {
         ];
         const d = datasets[index % datasets.length];
         this.setupTable(headers, Math.max(d.rows.length + 2, 10), d.rows);
+        if (window.app) window.app.updateGraph();
+    }
+
+    // --- Correlation mode: axis assignment row ---
+
+    showAxisAssignmentRow() {
+        if (!this._axisAssignments) this._axisAssignments = {};
+        let row = document.getElementById('axisAssignmentRow');
+        if (!row) {
+            row = document.createElement('tr');
+            row.id = 'axisAssignmentRow';
+            row.className = 'axis-assignment-row';
+            // Insert after header row
+            const thead = this.headerRow.parentElement;
+            if (thead) {
+                const nextEl = this.headerRow.nextSibling;
+                if (nextEl) thead.insertBefore(row, nextEl);
+                else thead.appendChild(row);
+            }
+        }
+        row.style.display = '';
+        this._rebuildAxisAssignmentCells();
+    }
+
+    hideAxisAssignmentRow() {
+        const row = document.getElementById('axisAssignmentRow');
+        if (row) row.style.display = 'none';
+    }
+
+    _rebuildAxisAssignmentCells() {
+        const row = document.getElementById('axisAssignmentRow');
+        if (!row) return;
+        row.innerHTML = '';
+
+        // Toggle col placeholder
+        const toggleTd = document.createElement('td');
+        toggleTd.className = 'row-toggle-cell';
+        row.appendChild(toggleTd);
+
+        // ID col placeholders (Group, Sample)
+        for (let i = 0; i < 2; i++) {
+            const td = document.createElement('td');
+            td.className = 'id-cell axis-assignment-label';
+            td.textContent = i === 0 ? '' : 'Axis:';
+            td.style.fontSize = '10px';
+            td.style.fontWeight = '600';
+            td.style.color = '#7c3aed';
+            row.appendChild(td);
+        }
+
+        // One dropdown per data column
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+        headers.forEach((th, idx) => {
+            const td = document.createElement('td');
+            td.className = 'axis-assignment-cell';
+            const sel = document.createElement('select');
+            sel.className = 'axis-select';
+            ['—', 'X', 'Y'].forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v === '—' ? '' : v;
+                opt.textContent = v;
+                sel.appendChild(opt);
+            });
+            const current = this._axisAssignments[idx];
+            if (current) sel.value = current;
+            sel.addEventListener('change', () => {
+                this._axisAssignments[idx] = sel.value;
+                if (window.app) window.app.updateGraph();
+            });
+            td.appendChild(sel);
+            row.appendChild(td);
+        });
+
+        // Delete col placeholder
+        const delTd = document.createElement('td');
+        delTd.className = 'row-delete-cell';
+        row.appendChild(delTd);
+    }
+
+    getCorrelationData() {
+        if (!this._axisAssignments) return null;
+
+        const headers = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+        const xIndices = [];
+        const yIndices = [];
+        headers.forEach((_, idx) => {
+            const a = this._axisAssignments[idx];
+            if (a === 'X') xIndices.push(idx);
+            else if (a === 'Y') yIndices.push(idx);
+        });
+
+        if (xIndices.length === 0 || yIndices.length === 0) return null;
+
+        const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
+        const groupsMap = {};
+        const allPoints = [];
+
+        rows.forEach(row => {
+            const idCells = row.querySelectorAll('td.id-cell');
+            const group = idCells[0] ? idCells[0].textContent.trim() : '';
+            const sample = idCells[1] ? idCells[1].textContent.trim() : '';
+            const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
+
+            // Collect X values
+            const xVals = [];
+            xIndices.forEach(ci => {
+                const v = dataCells[ci] ? parseFloat(dataCells[ci].textContent.trim()) : NaN;
+                if (!isNaN(v)) xVals.push(v);
+            });
+            // Collect Y values
+            const yVals = [];
+            yIndices.forEach(ci => {
+                const v = dataCells[ci] ? parseFloat(dataCells[ci].textContent.trim()) : NaN;
+                if (!isNaN(v)) yVals.push(v);
+            });
+
+            if (xVals.length === 0 || yVals.length === 0) return;
+
+            const xMean = Statistics.mean(xVals);
+            const yMean = Statistics.mean(yVals);
+            const xSD = xVals.length > 1 ? Statistics.std(xVals) : 0;
+            const ySD = yVals.length > 1 ? Statistics.std(yVals) : 0;
+            const xSEM = xVals.length > 1 ? Statistics.sem(xVals) : 0;
+            const ySEM = yVals.length > 1 ? Statistics.sem(yVals) : 0;
+
+            const pt = { sample, group, xMean, yMean, xSD, ySD, xSEM, ySEM, xValues: xVals, yValues: yVals };
+            allPoints.push(pt);
+
+            const gKey = group || '__ungrouped__';
+            if (!groupsMap[gKey]) groupsMap[gKey] = { group: group || 'All', points: [] };
+            groupsMap[gKey].points.push(pt);
+        });
+
+        const groups = Object.values(groupsMap);
+        return { groups, allPoints };
+    }
+
+    loadCorrelationSampleData(index = 0) {
+        const datasets = [
+            { // 0: Protein vs mRNA — 2 groups, 3X + 3Y replicates, strong correlation
+                headers: ['mRNA_1', 'mRNA_2', 'mRNA_3', 'Protein_1', 'Protein_2', 'Protein_3'],
+                ids: [
+                    ['WT','Gene1'],['WT','Gene2'],['WT','Gene3'],['WT','Gene4'],['WT','Gene5'],['WT','Gene6'],['WT','Gene7'],['WT','Gene8'],
+                    ['KO','Gene1'],['KO','Gene2'],['KO','Gene3'],['KO','Gene4'],['KO','Gene5'],['KO','Gene6'],['KO','Gene7'],['KO','Gene8']
+                ],
+                rows: [
+                    [2.1,2.3,1.9, 15,17,14], [4.5,4.2,4.8, 32,28,35], [6.1,5.8,6.4, 48,45,52],
+                    [3.2,3.5,3.0, 22,25,20], [7.8,7.5,8.1, 62,58,65], [5.4,5.1,5.7, 40,37,43],
+                    [1.5,1.8,1.2, 10,13,8], [8.5,8.2,8.8, 70,66,73],
+                    [1.8,2.0,1.6, 8,10,7], [3.8,3.5,4.1, 18,15,21], [5.5,5.2,5.8, 28,25,31],
+                    [2.5,2.8,2.2, 12,14,10], [7.2,6.9,7.5, 38,35,41], [4.8,4.5,5.1, 22,20,25],
+                    [6.8,6.5,7.1, 35,32,38], [8.0,7.7,8.3, 42,39,45]
+                ],
+                assignments: { 0: 'X', 1: 'X', 2: 'X', 3: 'Y', 4: 'Y', 5: 'Y' }
+            },
+            { // 1: Drug dose vs response — 3 groups, single X + Y
+                headers: ['Dose', 'Response'],
+                ids: [
+                    ['DrugA','S1'],['DrugA','S2'],['DrugA','S3'],['DrugA','S4'],['DrugA','S5'],['DrugA','S6'],
+                    ['DrugB','S1'],['DrugB','S2'],['DrugB','S3'],['DrugB','S4'],['DrugB','S5'],['DrugB','S6'],
+                    ['Placebo','S1'],['Placebo','S2'],['Placebo','S3'],['Placebo','S4'],['Placebo','S5'],['Placebo','S6']
+                ],
+                rows: [
+                    [1,12],[5,35],[10,58],[20,72],[50,88],[100,95],
+                    [1,8],[5,22],[10,40],[20,55],[50,70],[100,78],
+                    [1,5],[5,8],[10,10],[20,12],[50,15],[100,14]
+                ],
+                assignments: { 0: 'X', 1: 'Y' }
+            },
+            { // 2: Height vs Weight — 2 groups
+                headers: ['Height_cm', 'Weight_kg'],
+                ids: [
+                    ['Male','P1'],['Male','P2'],['Male','P3'],['Male','P4'],['Male','P5'],['Male','P6'],['Male','P7'],['Male','P8'],
+                    ['Female','P1'],['Female','P2'],['Female','P3'],['Female','P4'],['Female','P5'],['Female','P6'],['Female','P7'],['Female','P8']
+                ],
+                rows: [
+                    [170,68],[175,74],[180,82],[168,65],[185,90],[178,78],[172,70],[182,85],
+                    [158,52],[162,56],[168,62],[155,50],[172,65],[165,58],[160,54],[170,64]
+                ],
+                assignments: { 0: 'X', 1: 'Y' }
+            },
+            { // 3: Study time vs Score — weak positive, single group
+                headers: ['Hours', 'Score'],
+                ids: [
+                    ['','S1'],['','S2'],['','S3'],['','S4'],['','S5'],['','S6'],['','S7'],['','S8'],['','S9'],['','S10'],
+                    ['','S11'],['','S12'],['','S13'],['','S14'],['','S15']
+                ],
+                rows: [
+                    [2,55],[4,62],[6,70],[1,48],[8,78],[3,58],[5,65],[7,75],[2,50],[9,82],
+                    [4,60],[6,68],[1,52],[10,85],[3,54]
+                ],
+                assignments: { 0: 'X', 1: 'Y' }
+            }
+        ];
+        const d = datasets[index % datasets.length];
+        this._axisAssignments = { ...d.assignments };
+        this.setupTable(d.headers, Math.max(d.rows.length + 2, 10), d.rows, d.ids);
+        // Rebuild axis assignment row if visible
+        if (document.getElementById('axisAssignmentRow')?.style.display !== 'none') {
+            this._rebuildAxisAssignmentCells();
+        }
         if (window.app) window.app.updateGraph();
     }
 }

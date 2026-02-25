@@ -666,6 +666,79 @@ class Statistics {
         };
     }
 
+    // --- Correlation / regression helpers ---
+
+    static pearsonCorrelation(x, y) {
+        const n = Math.min(x.length, y.length);
+        if (n < 3) return { r: NaN, p: NaN, t: NaN, df: NaN, n };
+        const mx = this.mean(x.slice(0, n));
+        const my = this.mean(y.slice(0, n));
+        let ssXX = 0, ssYY = 0, ssXY = 0;
+        for (let i = 0; i < n; i++) {
+            const dx = x[i] - mx;
+            const dy = y[i] - my;
+            ssXX += dx * dx;
+            ssYY += dy * dy;
+            ssXY += dx * dy;
+        }
+        const r = ssXX > 0 && ssYY > 0 ? ssXY / Math.sqrt(ssXX * ssYY) : 0;
+        const df = n - 2;
+        const t = r * Math.sqrt(df / (1 - r * r + 1e-15));
+        const p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), df));
+        return { r, p, t, df, n };
+    }
+
+    static spearmanCorrelation(x, y) {
+        const n = Math.min(x.length, y.length);
+        if (n < 3) return { rho: NaN, p: NaN, n };
+        const rank = (arr) => {
+            const sorted = arr.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+            const ranks = new Array(arr.length);
+            let i = 0;
+            while (i < sorted.length) {
+                let j = i;
+                while (j < sorted.length && sorted[j].v === sorted[i].v) j++;
+                const avgRank = (i + j - 1) / 2 + 1;
+                for (let k = i; k < j; k++) ranks[sorted[k].i] = avgRank;
+                i = j;
+            }
+            return ranks;
+        };
+        const rx = rank(x.slice(0, n));
+        const ry = rank(y.slice(0, n));
+        const result = this.pearsonCorrelation(rx, ry);
+        return { rho: result.r, p: result.p, n };
+    }
+
+    static linearRegression(x, y) {
+        const n = Math.min(x.length, y.length);
+        if (n < 3) return null;
+        const mx = this.mean(x.slice(0, n));
+        const my = this.mean(y.slice(0, n));
+        let ssXX = 0, ssXY = 0;
+        for (let i = 0; i < n; i++) {
+            const dx = x[i] - mx;
+            ssXX += dx * dx;
+            ssXY += dx * (y[i] - my);
+        }
+        if (ssXX === 0) return null;
+        const slope = ssXY / ssXX;
+        const intercept = my - slope * mx;
+        // Residuals
+        let ssRes = 0, ssTot = 0;
+        for (let i = 0; i < n; i++) {
+            const pred = slope * x[i] + intercept;
+            ssRes += (y[i] - pred) ** 2;
+            ssTot += (y[i] - my) ** 2;
+        }
+        const rSquared = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+        const df = n - 2;
+        const residualSE = Math.sqrt(ssRes / df);
+        const slopeStdErr = residualSE / Math.sqrt(ssXX);
+        const interceptStdErr = residualSE * Math.sqrt(1 / n + mx * mx / ssXX);
+        return { slope, intercept, rSquared, slopeStdErr, interceptStdErr, residualSE, df, n, meanX: mx, ssXX };
+    }
+
     static growthPostHoc(growthData, options = {}) {
         const { timepoints, groups, subjects, groupMap } = growthData;
         const correction = options.correction || 'holm';

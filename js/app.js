@@ -61,6 +61,7 @@ class App {
 
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
+        this._bindGraphSettingsPanel();
         this._wrapNumberInputs();
 
         // Load sample data and draw initial graph
@@ -1512,6 +1513,151 @@ class App {
         }
     }
 
+    // ===== Graph Settings Panel (gear button) =====
+    _bindGraphSettingsPanel() {
+        const btn = document.getElementById('graphSettingsBtn');
+        const closeBtn = document.getElementById('graphSettingsClose');
+        if (btn) btn.addEventListener('click', () => this._toggleGraphSettingsPanel());
+        if (closeBtn) closeBtn.addEventListener('click', () => this._closeGraphSettingsPanel());
+        this._makeGraphSettingsDraggable();
+    }
+
+    _makeGraphSettingsDraggable() {
+        const panel = document.getElementById('graphSettingsPanel');
+        const handle = document.getElementById('graphSettingsDragHandle');
+        if (!panel || !handle) return;
+        let offsetX, offsetY;
+        handle.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            e.preventDefault();
+            const rect = panel.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            const onMove = (ev) => {
+                panel.style.left = (ev.clientX - offsetX) + 'px';
+                panel.style.top = (ev.clientY - offsetY) + 'px';
+                panel.style.right = 'auto';
+            };
+            const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    _toggleGraphSettingsPanel() {
+        const panel = document.getElementById('graphSettingsPanel');
+        if (!panel) return;
+        const btn = document.getElementById('graphSettingsBtn');
+        if (panel.style.display === 'none') {
+            this._openGraphSettingsPanel();
+            if (btn) btn.classList.add('active');
+        } else {
+            this._closeGraphSettingsPanel();
+        }
+    }
+
+    _closeGraphSettingsPanel() {
+        const panel = document.getElementById('graphSettingsPanel');
+        if (panel) panel.style.display = 'none';
+        const btn = document.getElementById('graphSettingsBtn');
+        if (btn) btn.classList.remove('active');
+        if (this._graphSettingsOutsideHandler) {
+            document.removeEventListener('mousedown', this._graphSettingsOutsideHandler);
+            this._graphSettingsOutsideHandler = null;
+        }
+    }
+
+    _openGraphSettingsPanel() {
+        const panel = document.getElementById('graphSettingsPanel');
+        const body = document.getElementById('graphSettingsBody');
+        if (!panel || !body) return;
+
+        panel.style.display = '';
+        this._buildGraphSettingsRows();
+
+        // Position near toolbar
+        const toolbar = document.getElementById('drawingToolbar');
+        if (toolbar) {
+            const rect = toolbar.getBoundingClientRect();
+            let top = rect.bottom + 4;
+            let left = rect.left;
+            const panelRect = panel.getBoundingClientRect();
+            if (top + panelRect.height > window.innerHeight - 10) top = Math.max(10, window.innerHeight - panelRect.height - 10);
+            if (left + 360 > window.innerWidth) left = Math.max(10, window.innerWidth - 370);
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+            panel.style.right = 'auto';
+        }
+
+        // Close on outside click
+        if (this._graphSettingsOutsideHandler) {
+            document.removeEventListener('mousedown', this._graphSettingsOutsideHandler);
+        }
+        this._graphSettingsOutsideHandler = (e) => {
+            const btn = document.getElementById('graphSettingsBtn');
+            if (!panel.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                this._closeGraphSettingsPanel();
+                document.removeEventListener('mousedown', this._graphSettingsOutsideHandler);
+                this._graphSettingsOutsideHandler = null;
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('mousedown', this._graphSettingsOutsideHandler);
+        }, 100);
+    }
+
+    _buildGraphSettingsRows() {
+        const body = document.getElementById('graphSettingsBody');
+        if (!body) return;
+        body.innerHTML = '';
+
+        // Define settings per mode: each entry maps to a hidden or visible HTML input by ID
+        let rows = [];
+        if (this.mode === 'pca') {
+            rows = [
+                { label: 'Width', inputId: 'pcaWidth', type: 'number', min: 200, step: 10 },
+                { label: 'Height', inputId: 'pcaHeight', type: 'number', min: 200, step: 10 },
+                { label: 'Point Size', inputId: 'pcaPointSize', type: 'number', min: 1, max: 20, step: 0.5 }
+            ];
+        }
+        // Future: add rows for other modes here
+
+        if (rows.length === 0) {
+            body.innerHTML = '<div style="padding:8px;font-size:12px;color:#888">No appearance settings for this mode.</div>';
+            return;
+        }
+
+        rows.forEach(row => {
+            const sourceInput = document.getElementById(row.inputId);
+            if (!sourceInput) return;
+
+            const rowDiv = document.createElement('div');
+            rowDiv.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #e5e7eb;';
+
+            const lbl = document.createElement('label');
+            lbl.style.cssText = 'flex:0 0 70px;font-size:12px;font-weight:500;color:#4b5563;';
+            lbl.textContent = row.label;
+            rowDiv.appendChild(lbl);
+
+            const input = document.createElement('input');
+            input.type = row.type || 'number';
+            input.value = sourceInput.value;
+            if (row.min !== undefined) input.min = row.min;
+            if (row.max !== undefined) input.max = row.max;
+            if (row.step !== undefined) input.step = row.step;
+            input.style.cssText = 'flex:1;padding:4px 6px;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;text-align:center;font-family:Open Sans,sans-serif;';
+
+            // Sync popout → hidden input → re-render
+            input.addEventListener('input', () => {
+                sourceInput.value = input.value;
+                sourceInput.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            rowDiv.appendChild(input);
+            body.appendChild(rowDiv);
+        });
+    }
+
     _getActiveRenderer() {
         if (this.mode === 'column') return this.graphRenderer;
         if (this.mode === 'growth') return this.growthRenderer;
@@ -2206,16 +2352,25 @@ class App {
         const listEl = document.getElementById('pcaGroupList');
         if (!container || !listEl || !matrixData || !matrixData.groupAssignments) return;
 
-        const groups = [...new Set(matrixData.groupAssignments)];
-        if (groups.length <= 1) { container.style.display = 'none'; return; }
+        const allGroupNames = [...new Set(matrixData.groupAssignments)];
+        if (allGroupNames.length <= 1) { container.style.display = 'none'; return; }
         container.style.display = '';
 
         const settings = this.pcaRenderer.settings;
         if (!settings.hiddenGroups) settings.hiddenGroups = [];
 
+        let orderedLabels;
+        if (settings.groupOrder && settings.groupOrder.length > 0) {
+            orderedLabels = settings.groupOrder.filter(g => allGroupNames.includes(g));
+            allGroupNames.forEach(g => { if (!orderedLabels.includes(g)) orderedLabels.push(g); });
+        } else {
+            orderedLabels = [...allGroupNames];
+        }
+
         listEl.innerHTML = '';
-        groups.forEach((label, idx) => {
-            const color = this.pcaRenderer._getColor(idx);
+        orderedLabels.forEach((label, idx) => {
+            const gi = allGroupNames.indexOf(label);
+            const color = this.pcaRenderer._getColor(gi);
             const isHidden = settings.hiddenGroups.includes(label);
 
             const item = document.createElement('div');
@@ -2256,6 +2411,30 @@ class App {
             item.appendChild(labelSpan);
             item.appendChild(eyeBtn);
             listEl.appendChild(item);
+
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', idx.toString());
+                item.style.opacity = '0.5';
+            });
+            item.addEventListener('dragend', () => {
+                item.style.opacity = '';
+                listEl.querySelectorAll('.group-item').forEach(el => el.classList.remove('drag-over'));
+            });
+            item.addEventListener('dragover', (e) => { e.preventDefault(); item.classList.add('drag-over'); });
+            item.addEventListener('dragleave', () => { item.classList.remove('drag-over'); });
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.classList.remove('drag-over');
+                const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                const toIdx = idx;
+                if (fromIdx === toIdx) return;
+                const newOrder = [...orderedLabels];
+                const [moved] = newOrder.splice(fromIdx, 1);
+                newOrder.splice(toIdx, 0, moved);
+                settings.groupOrder = newOrder;
+                this.updateGraph();
+            });
         });
     }
 

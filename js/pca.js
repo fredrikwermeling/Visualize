@@ -24,12 +24,12 @@ class PCARenderer {
             pcY: 2,
             // t-SNE params
             perplexity: 30,
-            tsneIterations: 500,
+            tsneIterations: 1000,
             tsneLearningRate: 200,
             // UMAP params
             nNeighbors: 15,
             minDist: 0.1,
-            umapIterations: 200,
+            umapIterations: 500,
             // Fonts
             titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
             xLabelFont: { family: 'Arial', size: 15, bold: false, italic: false },
@@ -184,10 +184,19 @@ class PCARenderer {
 
         const perplexity = Math.min(this.settings.perplexity, Math.floor((n - 1) / 3));
         const maxIter = this.settings.tsneIterations;
-        const lr = this.settings.tsneLearningRate;
+        const baseLr = this.settings.tsneLearningRate;
 
-        // Clean NaN
-        const data = matrix.map(row => row.map(v => isNaN(v) ? 0 : v));
+        // Clean NaN and z-score standardize columns
+        const raw = matrix.map(row => row.map(v => isNaN(v) ? 0 : v));
+        const means = new Array(p).fill(0);
+        const stds = new Array(p).fill(0);
+        for (let j = 0; j < p; j++) {
+            for (let i = 0; i < n; i++) means[j] += raw[i][j];
+            means[j] /= n;
+            for (let i = 0; i < n; i++) stds[j] += (raw[i][j] - means[j]) ** 2;
+            stds[j] = Math.sqrt(stds[j] / n) || 1;
+        }
+        const data = raw.map(row => row.map((v, j) => (v - means[j]) / stds[j]));
 
         // Pairwise squared distances
         const dist2 = Array.from({ length: n }, () => new Array(n).fill(0));
@@ -242,7 +251,7 @@ class PCARenderer {
         const prevY = Array.from({ length: n }, () => [0, 0]);
 
         // Early exaggeration
-        const exagEnd = 100;
+        const exagEnd = Math.min(100, Math.floor(maxIter * 0.1));
         for (let i = 0; i < n; i++)
             for (let j = 0; j < n; j++)
                 if (i !== j) P[i][j] *= 4;
@@ -253,6 +262,9 @@ class PCARenderer {
                     for (let j = 0; j < n; j++)
                         if (i !== j) P[i][j] /= 4;
             }
+
+            // Learning rate decay: baseLr → 0.1*baseLr over iterations
+            const lr = baseLr * (1 - 0.9 * iter / maxIter);
 
             // Compute Q (student-t)
             const Q = Array.from({ length: n }, () => new Array(n).fill(0));
@@ -276,6 +288,13 @@ class PCARenderer {
                     const mult = 4 * (P[i][j] - Q[i][j] / sumQ) * Q[i][j];
                     gx += mult * (Y[i][0] - Y[j][0]);
                     gy += mult * (Y[i][1] - Y[j][1]);
+                }
+
+                // Gradient norm clipping (max 5.0 per point)
+                const gnorm = Math.sqrt(gx * gx + gy * gy);
+                if (gnorm > 5.0) {
+                    gx = gx * 5.0 / gnorm;
+                    gy = gy * 5.0 / gnorm;
                 }
 
                 // Adaptive gains
@@ -310,8 +329,21 @@ class PCARenderer {
         const minDist = this.settings.minDist;
         const maxIter = this.settings.umapIterations;
 
-        // Clean NaN
-        const data = matrix.map(row => row.map(v => isNaN(v) ? 0 : v));
+        // Clean NaN and z-score standardize columns
+        const raw = matrix.map(row => row.map(v => isNaN(v) ? 0 : v));
+        const colMeans = new Array(p).fill(0);
+        const colStds = new Array(p).fill(0);
+        for (let j = 0; j < p; j++) {
+            for (let i = 0; i < n; i++) colMeans[j] += raw[i][j];
+            colMeans[j] /= n;
+            for (let i = 0; i < n; i++) colStds[j] += (raw[i][j] - colMeans[j]) ** 2;
+            colStds[j] = Math.sqrt(colStds[j] / n) || 1;
+        }
+        const data = raw.map(row => row.map((v, j) => (v - colMeans[j]) / colStds[j]));
+
+        // Compute a, b from minDist (approximation of UMAP curve parameters)
+        const umapA = 1.929 / (1 + 0.0815 * Math.pow(minDist, 1.8));
+        const umapB = 0.7915;
 
         // Pairwise distances
         const dists = Array.from({ length: n }, () => new Array(n).fill(0));
@@ -356,21 +388,27 @@ class PCARenderer {
         // Symmetrize: w_sym = w + w^T - w * w^T
         for (let i = 0; i < n; i++) {
             for (let j = i + 1; j < n; j++) {
-                const a = graph[i][j], b = graph[j][i];
-                const sym = a + b - a * b;
+                const ga = graph[i][j], gb = graph[j][i];
+                const sym = ga + gb - ga * gb;
                 graph[i][j] = graph[j][i] = sym;
             }
         }
 
-        // Initialize with spectral-ish layout (use PCA for init if available)
+        // Initialize with PCA, normalize to unit variance (not *0.01)
         let seed = 42;
         const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
 
-        // Use PCA for initialization
         const pcaResult = this._runPCA(data);
-        const Y = pcaResult
-            ? pcaResult.scores.map(s => [s[0] * 0.01, s[1] * 0.01])
-            : Array.from({ length: n }, () => [(rand() - 0.5) * 10, (rand() - 0.5) * 10]);
+        let Y;
+        if (pcaResult) {
+            const pc0 = pcaResult.scores.map(s => s[0]);
+            const pc1 = pcaResult.scores.map(s => s[1]);
+            const std0 = Math.sqrt(pc0.reduce((s, v) => s + v * v, 0) / n) || 1;
+            const std1 = Math.sqrt(pc1.reduce((s, v) => s + v * v, 0) / n) || 1;
+            Y = pcaResult.scores.map(s => [s[0] / std0, s[1] / std1]);
+        } else {
+            Y = Array.from({ length: n }, () => [(rand() - 0.5) * 10, (rand() - 0.5) * 10]);
+        }
 
         // Collect edges
         const edges = [];
@@ -381,7 +419,6 @@ class PCARenderer {
         }
 
         // Optimization (simplified SGD)
-        const a = 1.0, b = 1.0; // UMAP curve params for minDist approximation
         for (let epoch = 0; epoch < maxIter; epoch++) {
             const alpha = 1.0 - epoch / maxIter; // learning rate decay
 
@@ -390,7 +427,7 @@ class PCARenderer {
                 const dx = Y[e.i][0] - Y[e.j][0];
                 const dy = Y[e.i][1] - Y[e.j][1];
                 const d2 = dx * dx + dy * dy + 1e-6;
-                const grad = -2 * a * b * Math.pow(d2, b - 1) / (1 + a * Math.pow(d2, b));
+                const grad = -2 * umapA * umapB * Math.pow(d2, umapB - 1) / (1 + umapA * Math.pow(d2, umapB));
                 const gx = grad * dx * alpha * e.w;
                 const gy = grad * dy * alpha * e.w;
                 Y[e.i][0] += gx;
@@ -409,10 +446,10 @@ class PCARenderer {
                     const dx = Y[i][0] - Y[j][0];
                     const dy = Y[i][1] - Y[j][1];
                     const d2 = dx * dx + dy * dy + 1e-6;
-                    const grad = 2 * b / ((0.001 + d2) * (1 + a * Math.pow(d2, b)));
+                    const grad = 2 * umapB / ((0.001 + d2) * (1 + umapA * Math.pow(d2, umapB)));
                     const clip = Math.min(grad, 4);
-                    Y[i][0] += clip * dx * alpha * 0.1;
-                    Y[i][1] += clip * dy * alpha * 0.1;
+                    Y[i][0] += clip * dx * alpha * 1.0;
+                    Y[i][1] += clip * dy * alpha * 1.0;
                 }
             }
         }
@@ -433,27 +470,48 @@ class PCARenderer {
         const s = this.settings;
         const { matrix, rowLabels, groupAssignments, colLabels } = matrixData;
 
-        // Compute embedding
-        const dataHash = JSON.stringify(matrix).length + '_' + matrix.length + '_' + matrix[0].length;
+        // Keep full group list for legend display
+        const allGroupNames = [...new Set(groupAssignments)];
+
+        // Filter matrix rows by visible groups BEFORE computing embedding
+        const hiddenGroups = s.hiddenGroups || [];
+        const visibleIndices = [];
+        for (let i = 0; i < matrix.length; i++) {
+            if (!hiddenGroups.includes(groupAssignments[i])) {
+                visibleIndices.push(i);
+            }
+        }
+        const visibleMatrix = visibleIndices.map(i => matrix[i]);
+        const visibleRowLabels = visibleIndices.map(i => rowLabels[i]);
+        const visibleGroups = visibleIndices.map(i => groupAssignments[i]);
+
+        if (visibleMatrix.length < 2 || !visibleMatrix[0] || visibleMatrix[0].length < 2) {
+            this.container.innerHTML = '<div class="empty-state"><h3>Need at least 2 visible samples</h3><p>Unhide groups to see the embedding</p></div>';
+            return;
+        }
+
+        // Compute embedding (only on visible data)
+        const dataHash = JSON.stringify(visibleMatrix).length + '_' + visibleMatrix.length + '_' + visibleMatrix[0].length + '_' + [...hiddenGroups].sort().join(',');
         let embedding;
 
         if (this._cachedEmbedding && this._cachedMethod === s.method && this._cachedDataHash === dataHash
             && (s.method === 'pca' || (s.method === 'tsne' && this._cachedPerplexity === s.perplexity)
-                || (s.method === 'umap' && this._cachedNNeighbors === s.nNeighbors))) {
+                || (s.method === 'umap' && this._cachedNNeighbors === s.nNeighbors && this._cachedMinDist === s.minDist))) {
             embedding = this._cachedEmbedding;
         } else {
             if (s.method === 'pca') {
-                embedding = this._runPCA(matrix);
+                embedding = this._runPCA(visibleMatrix);
             } else if (s.method === 'tsne') {
-                embedding = this._runTSNE(matrix);
+                embedding = this._runTSNE(visibleMatrix);
             } else if (s.method === 'umap') {
-                embedding = this._runUMAP(matrix);
+                embedding = this._runUMAP(visibleMatrix);
             }
             this._cachedEmbedding = embedding;
             this._cachedMethod = s.method;
             this._cachedDataHash = dataHash;
             this._cachedPerplexity = s.perplexity;
             this._cachedNNeighbors = s.nNeighbors;
+            this._cachedMinDist = s.minDist;
         }
 
         if (!embedding || !embedding.scores) {
@@ -471,20 +529,17 @@ class PCARenderer {
             if (yIdx >= maxPC) yIdx = Math.min(1, maxPC - 1);
         }
 
-        // Build points with group info
-        const allGroupNames = [...new Set(groupAssignments)];
-        const points = embedding.scores.map((sc, i) => ({
+        // Build points from visible data only
+        const visiblePoints = embedding.scores.map((sc, i) => ({
             x: sc[xIdx],
             y: sc[yIdx],
-            group: groupAssignments[i] || 'All',
-            label: rowLabels[i] || `Sample ${i + 1}`
+            group: visibleGroups[i] || 'All',
+            label: visibleRowLabels[i] || `Sample ${i + 1}`
         }));
 
-        // Filter hidden groups
-        const visiblePoints = points.filter(p => !s.hiddenGroups.includes(p.group));
-
-        // Layout
-        const margin = { top: 50, right: 30, bottom: 65, left: 65 };
+        // Layout — increase right margin for legend
+        const legendWidth = (s.showLegend && allGroupNames.length > 1) ? this._estimateLegendWidth(allGroupNames) + 16 : 30;
+        const margin = { top: 50, right: legendWidth, bottom: 65, left: 65 };
         const width = s.width;
         const height = s.height;
         const innerW = width - margin.left - margin.right;
@@ -574,7 +629,8 @@ class PCARenderer {
                         .attr('x1', cx).attr('y1', cy)
                         .attr('x2', ex).attr('y2', ey)
                         .attr('stroke', '#c0392b')
-                        .attr('stroke-width', 1.5)
+                        .attr('stroke-width', 1)
+                        .attr('stroke-opacity', 0.7)
                         .attr('marker-end', 'url(#arrowhead)');
 
                     g.append('text')
@@ -582,8 +638,12 @@ class PCARenderer {
                         .attr('x', ex + (lx >= 0 ? 3 : -3))
                         .attr('y', ey - 3)
                         .attr('text-anchor', lx >= 0 ? 'start' : 'end')
-                        .attr('font-size', '9px')
+                        .attr('font-size', '11px')
                         .attr('fill', '#c0392b')
+                        .style('paint-order', 'stroke')
+                        .attr('stroke', 'white')
+                        .attr('stroke-width', 3)
+                        .attr('stroke-linejoin', 'round')
                         .text(colLabels[j]);
                 }
 
@@ -647,22 +707,55 @@ class PCARenderer {
         }
     }
 
+    _estimateLegendWidth(groupNames) {
+        const lf = this.settings.legendFont;
+        // Rough estimate: ~7px per char at 11px font, plus symbol+padding
+        const charWidth = lf.size * 0.6;
+        const maxLabelWidth = Math.max(...groupNames.map(n => n.length * charWidth));
+        return 20 + maxLabelWidth + 12; // symbol + text + padding
+    }
+
     _drawLegend(g, innerW, groupNames) {
         const s = this.settings;
         if (!s.showLegend || groupNames.length <= 1) return;
+
+        // Respect groupOrder for legend item ordering
+        let orderedNames;
+        if (s.groupOrder && s.groupOrder.length > 0) {
+            orderedNames = s.groupOrder.filter(g => groupNames.includes(g));
+            groupNames.forEach(g => { if (!orderedNames.includes(g)) orderedNames.push(g); });
+        } else {
+            orderedNames = [...groupNames];
+        }
 
         const lf = s.legendFont;
         const loff = s.legendOffset;
         const hiddenGroups = s.hiddenGroups || [];
 
+        const baseX = innerW + 12;
+        const baseY = 0;
+
         const legendG = g.append('g')
-            .attr('transform', `translate(${10 + loff.x}, ${5 + loff.y})`)
+            .attr('transform', `translate(${baseX + loff.x}, ${baseY + loff.y})`)
             .attr('cursor', 'grab');
 
-        groupNames.forEach((name, i) => {
+        // White background rect
+        const legendW = this._estimateLegendWidth(orderedNames);
+        const legendH = orderedNames.length * 20 + 8;
+        legendG.append('rect')
+            .attr('x', -4).attr('y', -10)
+            .attr('width', legendW)
+            .attr('height', legendH)
+            .attr('fill', 'white')
+            .attr('stroke', '#ddd')
+            .attr('stroke-width', 1)
+            .attr('rx', 3);
+
+        orderedNames.forEach((name, i) => {
+            const gi = groupNames.indexOf(name);
             const ly = i * 20;
-            const color = this._getColor(i);
-            const symbolGen = this._d3Symbol(this._getSymbolForGroup(i));
+            const color = this._getColor(gi >= 0 ? gi : 0);
+            const symbolGen = this._d3Symbol(this._getSymbolForGroup(gi >= 0 ? gi : 0));
             const isHidden = hiddenGroups.includes(name);
             const opacity = isHidden ? 0.3 : 1;
 
@@ -690,7 +783,7 @@ class PCARenderer {
                 self.settings.legendOffset.x += event.dx;
                 self.settings.legendOffset.y += event.dy;
                 d3.select(this).attr('transform',
-                    `translate(${10 + self.settings.legendOffset.x}, ${5 + self.settings.legendOffset.y})`);
+                    `translate(${baseX + self.settings.legendOffset.x}, ${baseY + self.settings.legendOffset.y})`);
             })
             .on('end', function() {
                 d3.select(this).style('cursor', 'grab');

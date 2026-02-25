@@ -68,6 +68,7 @@
                     </table>
                 </div>
                 
+                <div class="table-hint" style="font-size:10px;color:#9ca3af;padding:2px 4px;margin-top:1px">Click column headers to hide/show them in the graph. Double-click row checkboxes to toggle samples.</div>
                 <div class="table-controls">
                     <button id="addColumn" class="btn btn-secondary">+ Column</button>
                     <button id="addRow" class="btn btn-secondary">+ Row</button>
@@ -452,8 +453,8 @@
                     </div>
                 </div>
 
-                <input type="hidden" id="pcaWidth" value="400">
-                <input type="hidden" id="pcaHeight" value="400">
+                <input type="hidden" id="pcaWidth" value="300">
+                <input type="hidden" id="pcaHeight" value="300">
                 <input type="hidden" id="pcaPointSize" value="6">
                 <input type="hidden" id="pcaXMin" value="">
                 <input type="hidden" id="pcaXMax" value="">
@@ -471,6 +472,7 @@
                                     <option value="tsne">t-SNE</option>
                                     <option value="umap">UMAP</option>
                                 </select>
+                                <button id="pcaInfoBtn" type="button" title="Method info" style="width:20px;height:20px;border-radius:50%;border:1px solid #ccc;background:#f3f4f6;font-size:11px;cursor:pointer;padding:0;line-height:18px;flex:0 0 20px;color:#6b7280">?</button>
                             </div>
                             <div class="control-group"><label>Colors:</label>
                                 <select id="pcaColorTheme">
@@ -491,6 +493,16 @@
                         </div>
                         <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
                             <label style="font-size:12px" class="pca-only"><input type="checkbox" id="pcaShowLoadings"> Loadings</label>
+                        </div>
+                        <div id="pcaInfoPanel" style="display:none;margin-top:6px;padding:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;line-height:1.5;color:#374151">
+                            <div style="font-weight:600;margin-bottom:4px">When to use each method:</div>
+                            <div><b>PCA</b> &mdash; Best for exploring linear relationships. Fast, deterministic. Shows which variables (loadings) drive separation. Use when groups separate along linear axes.</div>
+                            <div style="margin-top:3px"><b>t-SNE</b> &mdash; Reveals clusters in complex, non-linear data. Good for visualizing distinct groups. Perplexity controls local vs global focus (5&ndash;50). Stochastic: re-runs may differ.</div>
+                            <div style="margin-top:3px"><b>UMAP</b> &mdash; Similar to t-SNE but better preserves global structure. Faster on large datasets. Neighbors controls local detail; Min Dist controls point packing.</div>
+                            <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Statistics used:</div>
+                            <div><b>PCA:</b> Covariance matrix eigendecomposition (Jacobi iteration). Data is centered. Variance explained shown per component.</div>
+                            <div style="margin-top:2px"><b>t-SNE:</b> Pairwise Gaussian similarities in high-D, Student-t in low-D. Gradient descent with momentum, early exaggeration, learning rate decay.</div>
+                            <div style="margin-top:2px"><b>UMAP:</b> k-NN graph with fuzzy simplicial set. Optimized via SGD with attractive/repulsive forces. Initialized from PCA.</div>
                         </div>
                     </div>
                 </div>

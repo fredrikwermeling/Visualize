@@ -9,8 +9,8 @@ class PCARenderer {
             title: 'PCA',
             xLabel: 'PC1',
             yLabel: 'PC2',
-            width: 400,
-            height: 400,
+            width: 300,
+            height: 300,
             pointSize: 6,
             pointOpacity: 0.8,
             colorTheme: 'default',
@@ -187,7 +187,7 @@ class PCARenderer {
         const p = matrix[0].length;
         if (n < 3) return null;
 
-        const perplexity = Math.min(this.settings.perplexity, Math.floor((n - 1) / 3));
+        const perplexity = Math.min(this.settings.perplexity, n - 1);
         const maxIter = this.settings.tsneIterations;
         const baseLr = this.settings.tsneLearningRate;
 
@@ -611,8 +611,8 @@ class PCARenderer {
         // Draw points
         visiblePoints.forEach(pt => {
             const gi = allGroupNames.indexOf(pt.group);
-            const color = this._getColor(gi >= 0 ? gi : 0);
-            const symbolGen = this._d3Symbol(this._getSymbolForGroup(gi >= 0 ? gi : 0));
+            const color = this._getColor(gi >= 0 ? gi : 0, pt.group);
+            const symbolGen = this._d3Symbol(this._getSymbolForGroup(gi >= 0 ? gi : 0, pt.group));
 
             const pointEl = g.append('path')
                 .attr('d', symbolGen.size(s.pointSize * s.pointSize * Math.PI)())
@@ -799,7 +799,7 @@ class PCARenderer {
             if (!moved) break;
         }
 
-        // Draw arrows and labels
+        // Draw arrows, leader lines, and labels
         for (const l of labels) {
             loadG.append('line')
                 .attr('x1', cx).attr('y1', cy)
@@ -807,6 +807,17 @@ class PCARenderer {
                 .attr('stroke', '#c0392b').attr('stroke-width', 1)
                 .attr('stroke-opacity', 0.7)
                 .attr('marker-end', `url(#${markerId})`);
+
+            // Leader line from arrow tip to label if displaced
+            const dy = Math.abs(l.ty - (l.ey - 2));
+            if (dy > 4) {
+                loadG.append('line')
+                    .attr('x1', l.ex).attr('y1', l.ey)
+                    .attr('x2', l.tx + (l.anchor === 'start' ? -2 : 2)).attr('y2', l.ty)
+                    .attr('stroke', '#c0392b').attr('stroke-width', 0.5)
+                    .attr('stroke-opacity', 0.4)
+                    .attr('stroke-dasharray', '2,2');
+            }
 
             loadG.append('text')
                 .attr('x', l.tx).attr('y', l.ty)
@@ -825,10 +836,10 @@ class PCARenderer {
 
     _estimateLegendWidth(groupNames) {
         const lf = this.settings.legendFont;
-        // Rough estimate: ~7px per char at 11px font, plus symbol+padding
+        const ov = this.settings.groupOverrides || {};
         const charWidth = lf.size * 0.6;
-        const maxLabelWidth = Math.max(...groupNames.map(n => n.length * charWidth));
-        return 20 + maxLabelWidth + 12; // symbol + text + padding
+        const maxLabelWidth = Math.max(...groupNames.map(n => ((ov[n] && ov[n].label) || n).length * charWidth));
+        return 20 + maxLabelWidth + 12;
     }
 
     _drawLegend(g, innerW, groupNames) {
@@ -870,10 +881,12 @@ class PCARenderer {
         orderedNames.forEach((name, i) => {
             const gi = groupNames.indexOf(name);
             const ly = i * 20;
-            const color = this._getColor(gi >= 0 ? gi : 0);
-            const symbolGen = this._d3Symbol(this._getSymbolForGroup(gi >= 0 ? gi : 0));
+            const color = this._getColor(gi >= 0 ? gi : 0, name);
+            const symbolGen = this._d3Symbol(this._getSymbolForGroup(gi >= 0 ? gi : 0, name));
             const isHidden = hiddenGroups.includes(name);
             const opacity = isHidden ? 0.3 : 1;
+            const ov = s.groupOverrides[name] || {};
+            const displayName = ov.label || name;
 
             legendG.append('path')
                 .attr('d', symbolGen.size(50)())
@@ -889,7 +902,7 @@ class PCARenderer {
                 .attr('font-style', lf.italic ? 'italic' : 'normal')
                 .attr('fill', '#333')
                 .attr('opacity', opacity)
-                .text(name);
+                .text(displayName);
         });
 
         const self = this;
@@ -1110,12 +1123,16 @@ class PCARenderer {
             .attr('font-style', tickFont.italic ? 'italic' : 'normal');
     }
 
-    _getColor(groupIndex) {
+    _getColor(groupIndex, groupName) {
+        const ov = groupName && this.settings.groupOverrides[groupName];
+        if (ov && ov.color) return ov.color;
         const theme = this.colorThemes[this.settings.colorTheme] || this.colorThemes.default;
         return theme[groupIndex % theme.length];
     }
 
-    _getSymbolForGroup(groupIndex) {
+    _getSymbolForGroup(groupIndex, groupName) {
+        const ov = groupName && this.settings.groupOverrides[groupName];
+        if (ov && ov.symbol) return ov.symbol;
         return this.symbolCycle[groupIndex % this.symbolCycle.length];
     }
 

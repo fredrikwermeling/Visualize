@@ -1474,6 +1474,34 @@ tr:hover .row-delete-btn {
     min-height: 0;
 }
 
+/* 2-column grid for Aa text settings panel */
+#textSettingsPanel {
+    width: 400px;
+}
+
+#textSettingsBody {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 8px;
+}
+
+#textSettingsBody .ts-full-width {
+    grid-column: 1 / -1;
+}
+
+#textSettingsBody .ts-font-controls select {
+    width: 80px;
+}
+
+#textSettingsBody .ts-font-controls input[type="number"] {
+    width: 38px;
+}
+
+#textSettingsBody .text-settings-row {
+    border-bottom: none;
+    padding: 4px 0;
+}
+
 .text-settings-row {
     display: grid;
     grid-template-columns: 22px 1fr;

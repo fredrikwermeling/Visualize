@@ -1625,12 +1625,50 @@ class App {
 
         // Define settings per mode: each entry maps to a hidden or visible HTML input by ID
         let rows = [];
-        if (this.mode === 'pca') {
+        if (this.mode === 'column') {
+            rows = [
+                { label: 'Width', inputId: 'graphWidth', type: 'number', min: 50, step: 10 },
+                { label: 'Height', inputId: 'graphHeight', type: 'number', min: 50, step: 10 },
+                { label: 'Pt Size', inputId: 'pointSize', type: 'number', min: 1, max: 30, step: 1 }
+            ];
+        } else if (this.mode === 'growth') {
+            rows = [
+                { label: 'Width', inputId: 'growthWidth', type: 'number', min: 100, step: 10 },
+                { label: 'Height', inputId: 'growthHeight', type: 'number', min: 100, step: 10 },
+                { label: 'Sym Size', inputId: 'growthSymbolSize', type: 'number', min: 1, max: 20, step: 0.5 },
+                { label: 'Line W', inputId: 'growthMeanLineWidth', type: 'number', min: 0.5, max: 10, step: 0.5 },
+                { label: 'X Min', inputId: 'growthXMin', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'X Max', inputId: 'growthXMax', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'Y Min', inputId: 'growthYMin', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'Y Max', inputId: 'growthYMax', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'X Step', inputId: 'growthXTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' },
+                { label: 'Y Step', inputId: 'growthYTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' }
+            ];
+        } else if (this.mode === 'volcano') {
+            rows = [
+                { label: 'Width', inputId: 'volcanoWidth', type: 'number', min: 100, step: 10 },
+                { label: 'Height', inputId: 'volcanoHeight', type: 'number', min: 100, step: 10 },
+                { label: 'Pt Size', inputId: 'volcanoPointSize', type: 'number', min: 1, max: 20, step: 0.5 }
+            ];
+        } else if (this.mode === 'correlation') {
+            rows = [
+                { label: 'Width', inputId: 'corrWidth', type: 'number', min: 100, step: 10 },
+                { label: 'Height', inputId: 'corrHeight', type: 'number', min: 100, step: 10 },
+                { label: 'Pt Size', inputId: 'corrPointSize', type: 'number', min: 1, max: 20, step: 0.5 },
+                { label: '', inputId: null },
+                { label: 'X Min', inputId: 'corrXMin', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'X Max', inputId: 'corrXMax', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'Y Min', inputId: 'corrYMin', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'Y Max', inputId: 'corrYMax', type: 'number', step: 'any', placeholder: 'Auto' },
+                { label: 'X Step', inputId: 'corrXTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' },
+                { label: 'Y Step', inputId: 'corrYTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' }
+            ];
+        } else if (this.mode === 'pca') {
             rows = [
                 { label: 'Width', inputId: 'pcaWidth', type: 'number', min: 200, step: 10 },
                 { label: 'Height', inputId: 'pcaHeight', type: 'number', min: 200, step: 10 },
                 { label: 'Pt Size', inputId: 'pcaPointSize', type: 'number', min: 1, max: 20, step: 0.5 },
-                { label: '', inputId: null }, // spacer
+                { label: '', inputId: null },
                 { label: 'X Min', inputId: 'pcaXMin', type: 'number', step: 'any', placeholder: 'Auto' },
                 { label: 'X Max', inputId: 'pcaXMax', type: 'number', step: 'any', placeholder: 'Auto' },
                 { label: 'Y Min', inputId: 'pcaYMin', type: 'number', step: 'any', placeholder: 'Auto' },
@@ -1638,8 +1676,24 @@ class App {
                 { label: 'X Step', inputId: 'pcaXTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' },
                 { label: 'Y Step', inputId: 'pcaYTickStep', type: 'number', step: 'any', min: 0, placeholder: 'Auto' }
             ];
+        } else if (this.mode === 'heatmap') {
+            rows = [
+                { label: 'Width', inputId: 'heatmapWidth', type: 'number', min: 50, step: 10 },
+                { label: 'Height', inputId: 'heatmapHeight', type: 'number', min: 50, step: 10 }
+            ];
+        } else if (this.mode === 'venn') {
+            rows = [
+                { label: 'Width', inputId: 'vennWidth', type: 'number', min: 100, step: 10 },
+                { label: 'Height', inputId: 'vennHeight', type: 'number', min: 100, step: 10 }
+            ];
+        } else if (this.mode === 'oncoprint') {
+            rows = [
+                { label: 'Width', inputId: 'oncoprintWidth', type: 'number', min: 100, step: 10 },
+                { label: 'Cell W', inputId: 'oncoprintCellWidth', type: 'number', min: 4, max: 40, step: 1 },
+                { label: 'Cell H', inputId: 'oncoprintCellHeight', type: 'number', min: 8, max: 60, step: 1 },
+                { label: 'Gap', inputId: 'oncoprintCellGap', type: 'number', min: 0, max: 5, step: 0.5 }
+            ];
         }
-        // Future: add rows for other modes here
 
         if (rows.length === 0) {
             body.innerHTML = '<div style="padding:8px;font-size:12px;color:#888">No appearance settings for this mode.</div>';
@@ -1805,6 +1859,7 @@ class App {
                 { label: 'Y Tick Font', fontKey: 'yTickFont' },
                 { label: 'Loadings', fontKey: 'loadingsFont' }
             ];
+            this._pcaGroupRows = true;
         } else if (this.mode === 'venn') {
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
@@ -1957,7 +2012,7 @@ class App {
                 filled.forEach((group, gi) => {
                     const origIdx = data.indexOf(group);
                     const grow = document.createElement('div');
-                    grow.className = 'text-settings-row';
+                    grow.className = 'text-settings-row ts-full-width';
                     grow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0';
 
                     // Color picker
@@ -2041,7 +2096,7 @@ class App {
                 growthData.groups.forEach((gName, gi) => {
                     const ov = gr.settings.groupOverrides[gName] || {};
                     const grow = document.createElement('div');
-                    grow.className = 'text-settings-row';
+                    grow.className = 'text-settings-row ts-full-width';
                     grow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0';
 
                     // Color picker
@@ -2129,7 +2184,7 @@ class App {
                     const gName = gObj.group;
                     const ov = gr.settings.groupOverrides[gName] || {};
                     const grow = document.createElement('div');
-                    grow.className = 'text-settings-row';
+                    grow.className = 'text-settings-row ts-full-width';
                     grow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0';
 
                     const colorInp = document.createElement('input');
@@ -2176,6 +2231,77 @@ class App {
 
                     body.appendChild(grow);
                 });
+            }
+        }
+
+        // Per-group color/symbol for PCA mode
+        if (this._pcaGroupRows) {
+            this._pcaGroupRows = false;
+            const matrixData = this.dataTable.getMatrixData();
+            if (matrixData && matrixData.groupAssignments) {
+                const groupNames = [...new Set(matrixData.groupAssignments)];
+                if (groupNames.length > 0) {
+                    const sep = document.createElement('div');
+                    sep.className = 'ts-full-width';
+                    sep.style.cssText = 'grid-column:1/-1;border-top:1px solid #e5e7eb;margin:6px 0 2px;font-size:11px;font-weight:600;color:#374151;padding-top:4px';
+                    sep.textContent = 'Group Colors & Symbols';
+                    body.appendChild(sep);
+
+                    const gr = this.pcaRenderer;
+                    if (!gr.settings.groupOverrides) gr.settings.groupOverrides = {};
+                    const symbols = ['circle','square','triangle','diamond','cross','star'];
+
+                    groupNames.forEach((gName, gi) => {
+                        const ov = gr.settings.groupOverrides[gName] || {};
+                        const grow = document.createElement('div');
+                        grow.className = 'text-settings-row ts-full-width';
+                        grow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0';
+
+                        const colorInp = document.createElement('input');
+                        colorInp.type = 'color';
+                        colorInp.value = ov.color || gr._getColor(gi, gName);
+                        colorInp.style.cssText = 'width:24px;height:20px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0;flex:0 0 24px';
+                        colorInp.addEventListener('input', () => {
+                            if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                            gr.settings.groupOverrides[gName].color = colorInp.value;
+                            this.updateGraph();
+                        });
+                        grow.appendChild(colorInp);
+
+                        const symSel = document.createElement('select');
+                        symSel.style.cssText = 'font-size:10px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;flex:0 0 auto;width:58px';
+                        const curSym = ov.symbol || gr._getSymbolForGroup(gi, gName);
+                        symbols.forEach(sym => {
+                            const opt = document.createElement('option');
+                            opt.value = sym;
+                            opt.textContent = sym.charAt(0).toUpperCase() + sym.slice(1);
+                            if (sym === curSym) opt.selected = true;
+                            symSel.appendChild(opt);
+                        });
+                        symSel.addEventListener('change', () => {
+                            if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                            gr.settings.groupOverrides[gName].symbol = symSel.value;
+                            this.updateGraph();
+                        });
+                        grow.appendChild(symSel);
+
+                        const labelInp = document.createElement('input');
+                        labelInp.type = 'text';
+                        labelInp.value = ov.label || gName;
+                        labelInp.placeholder = gName;
+                        labelInp.style.cssText = 'flex:1;min-width:50px;padding:2px 4px;font-size:11px;border:1px solid #e5e7eb;border-radius:3px';
+                        labelInp.addEventListener('input', () => {
+                            if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                            const val = labelInp.value.trim();
+                            if (val && val !== gName) gr.settings.groupOverrides[gName].label = val;
+                            else delete gr.settings.groupOverrides[gName].label;
+                            this.updateGraph();
+                        });
+                        grow.appendChild(labelInp);
+
+                        body.appendChild(grow);
+                    });
+                }
             }
         }
     }
@@ -2312,13 +2438,16 @@ class App {
             'pcaXMin', 'pcaXMax', 'pcaYMin', 'pcaYMax', 'pcaXTickStep', 'pcaYTickStep'];
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.addEventListener('input', () => {
+            if (!el) return;
+            const handler = () => {
                 // Clear cached embedding when method or params change
                 if (['pcaMethod', 'pcaPerplexity', 'pcaNNeighbors', 'pcaMinDist'].includes(id)) {
                     this.pcaRenderer._cachedEmbedding = null;
                 }
                 this.updateGraph();
-            });
+            };
+            el.addEventListener('input', handler);
+            el.addEventListener('change', handler);
         });
 
         // Show/hide method-specific params
@@ -2334,6 +2463,15 @@ class App {
                 this.pcaRenderer.settings.title = titles[m] || 'PCA';
                 this.pcaRenderer._cachedEmbedding = null;
                 this.updateGraph();
+            });
+        }
+
+        // Info button toggle
+        const infoBtn = document.getElementById('pcaInfoBtn');
+        const infoPanel = document.getElementById('pcaInfoPanel');
+        if (infoBtn && infoPanel) {
+            infoBtn.addEventListener('click', () => {
+                infoPanel.style.display = infoPanel.style.display === 'none' ? '' : 'none';
             });
         }
     }

@@ -1063,6 +1063,14 @@ tr:hover .row-delete-btn {
     background: var(--green-600);
     color: white;
 }
+.mode-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--gray-100);
+}
+.mode-btn:disabled:hover {
+    background: var(--gray-100);
+}
 
 .mode-reset-btn {
     grid-row: 1 / 3;

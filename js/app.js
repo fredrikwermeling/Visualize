@@ -708,6 +708,7 @@ class App {
     _bindModeSelector() {
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                if (btn.disabled) return;
                 const prevMode = this.mode;
                 if (btn.dataset.mode === prevMode) return;
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));

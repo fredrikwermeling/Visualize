@@ -138,20 +138,6 @@ class CorrelationRenderer {
         const rSquared = ssTot > 0 ? 1 - ssRes / ssTot : 0;
 
         // Build equation string
-        let eq = 'y = ';
-        const parts = [];
-        for (let d = coeffs.length - 1; d >= 0; d--) {
-            const c = coeffs[d];
-            if (Math.abs(c) < 1e-10 && d > 0) continue;
-            let term = '';
-            if (parts.length > 0) term += c >= 0 ? ' + ' : ' \u2212 ';
-            const absC = parts.length > 0 ? Math.abs(c) : c;
-            if (d === 0) term += absC.toFixed(3);
-            else if (d === 1) term += `${absC.toFixed(3)}x`;
-            else term += `${absC.toFixed(3)}x\u00B2${d === 3 ? '\u00B3'.replace('\u00B2', '') : ''}`;
-            parts.push(term);
-        }
-        // Rebuild properly for degree 2/3
         const eqParts = [];
         for (let d = degree; d >= 0; d--) {
             const c = coeffs[d];

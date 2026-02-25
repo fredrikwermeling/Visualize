@@ -786,7 +786,7 @@ class DataTable {
         return { colLabels, rowLabels, matrix, groupAssignments };
     }
 
-    getRawCSVText() {
+    _buildCSVLines() {
         const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.row-toggle-col)');
         const headers = [];
         headerCells.forEach(th => {
@@ -796,6 +796,20 @@ class DataTable {
             headers.push(clone.textContent.trim());
         });
         const lines = [headers.join(',')];
+
+        // Include axis assignment row if in correlation mode
+        const axisRow = document.getElementById('axisAssignmentRow');
+        if (axisRow && axisRow.style.display !== 'none' && this._axisAssignments) {
+            // ID columns (Group, Sample) get empty axis labels
+            const axisParts = ['', ''];
+            const dataHeaders = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)');
+            dataHeaders.forEach((_, idx) => {
+                const a = this._axisAssignments[idx];
+                axisParts.push(a === 'X' ? 'X' : a === 'Y' ? 'Y' : '');
+            });
+            lines.push(axisParts.join(','));
+        }
+
         const rows = this.tbody.querySelectorAll('tr');
         rows.forEach(row => {
             const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)');
@@ -803,29 +817,15 @@ class DataTable {
             cells.forEach(td => vals.push(td.textContent.trim()));
             if (vals.some(v => v !== '')) lines.push(vals.join(','));
         });
-        return lines.join('\n');
+        return lines;
+    }
+
+    getRawCSVText() {
+        return this._buildCSVLines().join('\n');
     }
 
     exportRawCSV() {
-        const headerCells = this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.row-toggle-col)');
-        const headers = [];
-        headerCells.forEach(th => {
-            const clone = th.cloneNode(true);
-            const btn = clone.querySelector('.th-delete-btn');
-            if (btn) btn.remove();
-            headers.push(clone.textContent.trim());
-        });
-
-        const lines = [headers.join(',')];
-        const rows = this.tbody.querySelectorAll('tr');
-        rows.forEach(row => {
-            const cells = row.querySelectorAll('td:not(.row-delete-cell):not(.row-toggle-cell)');
-            const vals = [];
-            cells.forEach(td => vals.push(td.textContent.trim()));
-            if (vals.some(v => v !== '')) lines.push(vals.join(','));
-        });
-
-        const csv = lines.join('\n');
+        const csv = this._buildCSVLines().join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

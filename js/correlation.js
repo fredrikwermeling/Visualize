@@ -260,6 +260,9 @@ class CorrelationRenderer {
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
+        // All group names (for stable color assignment)
+        const allGroupNames = correlationData.groups.map(gr => gr.group);
+
         // Filter hidden groups
         const visibleGroups = correlationData.groups.filter(gr => !s.hiddenGroups.includes(gr.group));
         const visiblePoints = visibleGroups.flatMap(gr => gr.points);
@@ -315,9 +318,6 @@ class CorrelationRenderer {
             }
         }
 
-        // Get unique group names from visible groups
-        const groupNames = visibleGroups.map(gr => gr.group);
-
         // Regression + CI
         const regType = s.regressionType || 'none';
         const regScope = s.regressionScope || 'all';
@@ -340,15 +340,15 @@ class CorrelationRenderer {
             } else {
                 // Per-group regression
                 const perGroupRegressions = [];
-                visibleGroups.forEach((gr, gi) => {
+                visibleGroups.forEach((gr) => {
                     const pts = gr.points;
                     if (pts.length < 2) return;
                     const gx = pts.map(p => p.xMean);
                     const gy = pts.map(p => p.yMean);
-                    const color = this._getColor(gi);
+                    const color = this._getColor(allGroupNames.indexOf(gr.group));
                     const reg = this._computeRegression(gx, gy, regType);
                     if (!reg) return;
-                    perGroupRegressions.push({ name: gr.group, reg });
+                    perGroupRegressions.push({ name: gr.group, reg, n: pts.length });
 
                     // CI band per group (linear only)
                     if (s.showConfidenceInterval && regType === 'linear') {
@@ -403,7 +403,7 @@ class CorrelationRenderer {
 
         // Scatter points
         visiblePoints.forEach(pt => {
-            const gi = groupNames.indexOf(pt.group || visibleGroups[0]?.group);
+            const gi = allGroupNames.indexOf(pt.group || visibleGroups[0]?.group);
             const color = this._getColor(gi >= 0 ? gi : 0);
             const symbolGen = this._d3Symbol(this._getSymbolForGroup(gi >= 0 ? gi : 0));
 
@@ -419,13 +419,13 @@ class CorrelationRenderer {
                 .text(`${pt.group ? pt.group + ': ' : ''}(${pt.xMean.toFixed(3)}, ${pt.yMean.toFixed(3)})`);
         });
 
-        // Legend
-        this._drawLegend(g, innerW, groupNames);
+        // Legend (use all group names for stable colors)
+        this._drawLegend(g, innerW, allGroupNames);
 
         // Stats annotation box
         const regX = visiblePoints.map(p => p.xMean);
         const regY = visiblePoints.map(p => p.yMean);
-        this._drawStatsBox(g, innerW, innerH, regX, regY, allRegression);
+        this._drawStatsBox(g, innerW, innerH, regX, regY, allRegression, visibleGroups, allGroupNames);
 
         // Title
         if (s.showTitle) this._drawInteractiveText(svg, 'title', margin.left + innerW / 2, 22, s.title, s.titleFont, s.titleOffset);
@@ -457,33 +457,46 @@ class CorrelationRenderer {
         }
     }
 
-    _drawStatsBox(g, innerW, innerH, x, y, regression) {
+    _drawStatsBox(g, innerW, innerH, x, y, regression, visibleGroups, allGroupNames) {
         const s = this.settings;
         if (s.statsContent === 'none') return;
 
-        const pearson = Statistics.pearsonCorrelation(x, y);
         const sf = s.statsFont;
         const off = s.statsOffset;
-
         const lines = [];
+
         if (regression && regression.perGroup) {
-            // Per-group mode: show R² per group
+            // Per-group mode: show per-group stats
             regression.perGroup.forEach(pg => {
-                lines.push(`${pg.name}: R\u00B2 = ${pg.reg.rSquared.toFixed(4)}`);
+                const grObj = visibleGroups && visibleGroups.find(vg => vg.group === pg.name);
+                const pts = grObj ? grObj.points : [];
+                const gx = pts.map(p => p.xMean);
+                const gy = pts.map(p => p.yMean);
+                const gPearson = gx.length >= 3 ? Statistics.pearsonCorrelation(gx, gy) : null;
+                const rStr = gPearson && !isNaN(gPearson.r) ? `, r=${gPearson.r.toFixed(3)}` : '';
+                lines.push(`${pg.name} (n=${pg.n}): R\u00B2=${pg.reg.rSquared.toFixed(3)}${rStr}`);
             });
-        } else if (regression) {
-            lines.push(regression.equation);
-            lines.push(`R\u00B2 = ${regression.rSquared.toFixed(4)}`);
-        }
-        if (!isNaN(pearson.r)) {
-            lines.push(`Pearson r = ${pearson.r.toFixed(4)}, ${Statistics.formatPValue(pearson.p)}`);
-        }
-        if (s.statsContent === 'extended') {
-            const spearman = Statistics.spearmanCorrelation(x, y);
-            if (!isNaN(spearman.rho)) {
-                lines.push(`Spearman \u03C1 = ${spearman.rho.toFixed(4)}, ${Statistics.formatPValue(spearman.p)}`);
+            if (s.statsContent === 'extended' && visibleGroups) {
+                const totalN = visibleGroups.reduce((sum, vg) => sum + vg.points.length, 0);
+                lines.push(`Total n = ${totalN}`);
             }
-            lines.push(`n = ${pearson.n}`);
+        } else {
+            // All-data mode or no regression
+            if (regression) {
+                lines.push(regression.equation);
+                lines.push(`R\u00B2 = ${regression.rSquared.toFixed(4)}`);
+            }
+            const pearson = Statistics.pearsonCorrelation(x, y);
+            if (!isNaN(pearson.r)) {
+                lines.push(`Pearson r = ${pearson.r.toFixed(4)}, ${Statistics.formatPValue(pearson.p)}`);
+            }
+            if (s.statsContent === 'extended') {
+                const spearman = Statistics.spearmanCorrelation(x, y);
+                if (!isNaN(spearman.rho)) {
+                    lines.push(`Spearman \u03C1 = ${spearman.rho.toFixed(4)}, ${Statistics.formatPValue(spearman.p)}`);
+                }
+                lines.push(`n = ${x.length}`);
+            }
         }
 
         if (lines.length === 0) return;
@@ -545,15 +558,19 @@ class CorrelationRenderer {
             .attr('transform', `translate(${10 + loff.x}, ${5 + loff.y})`)
             .attr('cursor', 'grab');
 
+        const hiddenGroups = s.hiddenGroups || [];
         groupNames.forEach((name, i) => {
             const ly = i * 20;
             const color = this._getColor(i);
             const symbolGen = this._d3Symbol(this._getSymbolForGroup(i));
+            const isHidden = hiddenGroups.includes(name);
+            const opacity = isHidden ? 0.3 : 1;
 
             legendG.append('path')
                 .attr('d', symbolGen.size(50)())
                 .attr('transform', `translate(6,${ly})`)
-                .attr('fill', color);
+                .attr('fill', color)
+                .attr('opacity', opacity);
 
             legendG.append('text')
                 .attr('x', 16).attr('y', ly + 4)
@@ -562,6 +579,7 @@ class CorrelationRenderer {
                 .attr('font-weight', lf.bold ? 'bold' : 'normal')
                 .attr('font-style', lf.italic ? 'italic' : 'normal')
                 .attr('fill', '#333')
+                .attr('opacity', opacity)
                 .text(name);
         });
 

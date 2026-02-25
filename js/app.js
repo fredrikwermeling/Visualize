@@ -548,6 +548,11 @@ class App {
 
     _exportStats() {
         const resultsEl = document.getElementById('statsResults');
+        // Auto-run correlation test if no results yet
+        if (this.mode === 'correlation' && (!resultsEl || !resultsEl.textContent.trim())) {
+            const testType = document.getElementById('testType')?.value || 'pearson';
+            this._runCorrelationTest(testType);
+        }
         if (!resultsEl || !resultsEl.textContent.trim()) {
             alert('No statistics results to export. Run a test first.');
             return;
@@ -1995,18 +2000,18 @@ class App {
         if (!settings.hiddenGroups) settings.hiddenGroups = [];
         const hiddenGroups = settings.hiddenGroups;
 
-        const groupNames = groups.map(g => g.group);
+        const allGroupNames = groups.map(g => g.group);
         let orderedLabels;
         if (settings.groupOrder && settings.groupOrder.length > 0) {
-            orderedLabels = settings.groupOrder.filter(g => groupNames.includes(g));
-            groupNames.forEach(g => { if (!orderedLabels.includes(g)) orderedLabels.push(g); });
+            orderedLabels = settings.groupOrder.filter(g => allGroupNames.includes(g));
+            allGroupNames.forEach(g => { if (!orderedLabels.includes(g)) orderedLabels.push(g); });
         } else {
-            orderedLabels = [...groupNames];
+            orderedLabels = [...allGroupNames];
         }
 
         listEl.innerHTML = '';
         orderedLabels.forEach((label, idx) => {
-            const gi = groupNames.indexOf(label);
+            const gi = allGroupNames.indexOf(label);
             const color = this.correlationRenderer._getColor(gi);
             const isHidden = hiddenGroups.includes(label);
 
@@ -3019,8 +3024,13 @@ class App {
             return;
         }
 
-        const x = corrData.allPoints.map(p => p.xMean);
-        const y = corrData.allPoints.map(p => p.yMean);
+        const regScope = this.correlationRenderer.settings.regressionScope || 'all';
+        const hiddenGroups = this.correlationRenderer.settings.hiddenGroups || [];
+        const visibleGroups = corrData.groups.filter(g => !hiddenGroups.includes(g.group));
+        const visiblePoints = visibleGroups.flatMap(g => g.points);
+
+        const x = visiblePoints.map(p => p.xMean);
+        const y = visiblePoints.map(p => p.yMean);
         const n = x.length;
 
         let html = '';
@@ -3033,39 +3043,67 @@ class App {
         const sig = p => p < 0.001 ? '***' : p < 0.01 ? '**' : p < 0.05 ? '*' : 'ns';
 
         if (testType === 'pearson' || testType === 'spearman' || testType === 'linear-regression') {
-            // Always compute all three for a comprehensive report
-            const pearson = Statistics.pearsonCorrelation(x, y);
-            const spearman = Statistics.spearmanCorrelation(x, y);
-            const reg = Statistics.linearRegression(x, y);
+            const isPerGroup = regScope === 'per-group' && visibleGroups.length > 1;
 
-            html += `<div style="font-weight:600;margin-bottom:6px">Correlation Analysis (n = ${n})</div>`;
+            if (isPerGroup) {
+                // Per-group primary analysis
+                const totalN = visiblePoints.length;
+                html += `<div style="font-weight:600;margin-bottom:6px">Per-Group Correlation Analysis (total n = ${totalN})</div>`;
 
-            html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px">';
-            html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:3px 6px">Test</th><th style="padding:3px 6px">Statistic</th><th style="padding:3px 6px">p-value</th><th style="padding:3px 6px">Sig.</th></tr>';
-            html += `<tr style="background:${testType === 'pearson' ? '#f0f8e8' : '#fff'}"><td style="padding:3px 6px">Pearson r</td><td style="text-align:center;padding:3px 6px">${fmt(pearson.r)}</td><td style="text-align:center;padding:3px 6px">${fmtP(pearson.p)}</td><td style="text-align:center;padding:3px 6px">${sig(pearson.p)}</td></tr>`;
-            html += `<tr style="background:${testType === 'spearman' ? '#f0f8e8' : '#fff'}"><td style="padding:3px 6px">Spearman \u03C1</td><td style="text-align:center;padding:3px 6px">${fmt(spearman.rho)}</td><td style="text-align:center;padding:3px 6px">${fmtP(spearman.p)}</td><td style="text-align:center;padding:3px 6px">${sig(spearman.p)}</td></tr>`;
-            html += '</table>';
-
-            html += `<div style="font-weight:600;margin-bottom:4px">Linear Regression</div>`;
-            html += `<div style="font-size:12px;margin-bottom:2px">y = ${fmt(reg.slope)} \u00D7 x + ${fmt(reg.intercept)}</div>`;
-            html += `<div style="font-size:12px;margin-bottom:2px">R\u00B2 = ${fmt(reg.rSquared)} &nbsp;|&nbsp; Residual SE = ${fmt(reg.residualSE)}</div>`;
-            html += `<div style="font-size:12px;margin-bottom:2px">Slope SE = ${fmt(reg.slopeStdErr)} &nbsp;|&nbsp; Intercept SE = ${fmt(reg.interceptStdErr)}</div>`;
-            html += `<div style="font-size:11px;color:#666;margin-top:4px">df = ${reg.df}</div>`;
-
-            // Per-group breakdown if multiple groups
-            if (corrData.groups.length > 1) {
-                html += `<div style="font-weight:600;margin-top:10px;margin-bottom:4px">Per-Group Correlations</div>`;
-                html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
-                html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:2px 4px">Group</th><th style="padding:2px 4px">n</th><th style="padding:2px 4px">Pearson r</th><th style="padding:2px 4px">p</th><th style="padding:2px 4px">R\u00B2</th></tr>';
-                corrData.groups.forEach(g => {
-                    if (g.points.length < 3) return;
+                visibleGroups.forEach(g => {
+                    if (g.points.length < 3) {
+                        html += `<div style="font-size:12px;margin:4px 0;color:#888">${g.group} (n=${g.points.length}): too few points</div>`;
+                        return;
+                    }
                     const gx = g.points.map(p => p.xMean);
                     const gy = g.points.map(p => p.yMean);
-                    const gp = Statistics.pearsonCorrelation(gx, gy);
-                    const gr = Statistics.linearRegression(gx, gy);
-                    html += `<tr><td style="padding:2px 4px">${g.group}</td><td style="text-align:center;padding:2px 4px">${g.points.length}</td><td style="text-align:center;padding:2px 4px">${fmt(gp.r)}</td><td style="text-align:center;padding:2px 4px">${fmtP(gp.p)}</td><td style="text-align:center;padding:2px 4px">${fmt(gr.rSquared)}</td></tr>`;
+                    const gPearson = Statistics.pearsonCorrelation(gx, gy);
+                    const gSpearman = Statistics.spearmanCorrelation(gx, gy);
+                    const gReg = Statistics.linearRegression(gx, gy);
+
+                    html += `<div style="font-weight:600;margin-top:8px;margin-bottom:4px">${g.group} (n = ${g.points.length})</div>`;
+                    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">';
+                    html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:2px 4px">Test</th><th style="padding:2px 4px">Statistic</th><th style="padding:2px 4px">p-value</th><th style="padding:2px 4px">Sig.</th></tr>';
+                    html += `<tr><td style="padding:2px 4px">Pearson r</td><td style="text-align:center;padding:2px 4px">${fmt(gPearson.r)}</td><td style="text-align:center;padding:2px 4px">${fmtP(gPearson.p)}</td><td style="text-align:center;padding:2px 4px">${sig(gPearson.p)}</td></tr>`;
+                    html += `<tr><td style="padding:2px 4px">Spearman \u03C1</td><td style="text-align:center;padding:2px 4px">${fmt(gSpearman.rho)}</td><td style="text-align:center;padding:2px 4px">${fmtP(gSpearman.p)}</td><td style="text-align:center;padding:2px 4px">${sig(gSpearman.p)}</td></tr>`;
+                    html += '</table>';
+                    html += `<div style="font-size:11px;color:#555;margin-bottom:2px">y = ${fmt(gReg.slope)} \u00D7 x + ${fmt(gReg.intercept)} &nbsp;|&nbsp; R\u00B2 = ${fmt(gReg.rSquared)}</div>`;
                 });
+            } else {
+                // All-data analysis
+                const pearson = Statistics.pearsonCorrelation(x, y);
+                const spearman = Statistics.spearmanCorrelation(x, y);
+                const reg = Statistics.linearRegression(x, y);
+
+                html += `<div style="font-weight:600;margin-bottom:6px">Correlation Analysis (n = ${n})</div>`;
+
+                html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px">';
+                html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:3px 6px">Test</th><th style="padding:3px 6px">Statistic</th><th style="padding:3px 6px">p-value</th><th style="padding:3px 6px">Sig.</th></tr>';
+                html += `<tr style="background:${testType === 'pearson' ? '#f0f8e8' : '#fff'}"><td style="padding:3px 6px">Pearson r</td><td style="text-align:center;padding:3px 6px">${fmt(pearson.r)}</td><td style="text-align:center;padding:3px 6px">${fmtP(pearson.p)}</td><td style="text-align:center;padding:3px 6px">${sig(pearson.p)}</td></tr>`;
+                html += `<tr style="background:${testType === 'spearman' ? '#f0f8e8' : '#fff'}"><td style="padding:3px 6px">Spearman \u03C1</td><td style="text-align:center;padding:3px 6px">${fmt(spearman.rho)}</td><td style="text-align:center;padding:3px 6px">${fmtP(spearman.p)}</td><td style="text-align:center;padding:3px 6px">${sig(spearman.p)}</td></tr>`;
                 html += '</table>';
+
+                html += `<div style="font-weight:600;margin-bottom:4px">Linear Regression</div>`;
+                html += `<div style="font-size:12px;margin-bottom:2px">y = ${fmt(reg.slope)} \u00D7 x + ${fmt(reg.intercept)}</div>`;
+                html += `<div style="font-size:12px;margin-bottom:2px">R\u00B2 = ${fmt(reg.rSquared)} &nbsp;|&nbsp; Residual SE = ${fmt(reg.residualSE)}</div>`;
+                html += `<div style="font-size:12px;margin-bottom:2px">Slope SE = ${fmt(reg.slopeStdErr)} &nbsp;|&nbsp; Intercept SE = ${fmt(reg.interceptStdErr)}</div>`;
+                html += `<div style="font-size:11px;color:#666;margin-top:4px">df = ${reg.df}</div>`;
+
+                // Per-group breakdown if multiple groups
+                if (visibleGroups.length > 1) {
+                    html += `<div style="font-weight:600;margin-top:10px;margin-bottom:4px">Per-Group Correlations</div>`;
+                    html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+                    html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:2px 4px">Group</th><th style="padding:2px 4px">n</th><th style="padding:2px 4px">Pearson r</th><th style="padding:2px 4px">p</th><th style="padding:2px 4px">R\u00B2</th></tr>';
+                    visibleGroups.forEach(g => {
+                        if (g.points.length < 3) return;
+                        const gx = g.points.map(p => p.xMean);
+                        const gy = g.points.map(p => p.yMean);
+                        const gp = Statistics.pearsonCorrelation(gx, gy);
+                        const gr = Statistics.linearRegression(gx, gy);
+                        html += `<tr><td style="padding:2px 4px">${g.group}</td><td style="text-align:center;padding:2px 4px">${g.points.length}</td><td style="text-align:center;padding:2px 4px">${fmt(gp.r)}</td><td style="text-align:center;padding:2px 4px">${fmtP(gp.p)}</td><td style="text-align:center;padding:2px 4px">${fmt(gr.rSquared)}</td></tr>`;
+                    });
+                    html += '</table>';
+                }
             }
         }
 

@@ -2416,8 +2416,8 @@ class App {
         const pf = (id) => { const v = document.getElementById(id)?.value; return v === '' || v == null ? null : parseFloat(v); };
         return {
             method: document.getElementById('pcaMethod')?.value || 'pca',
-            width: parseInt(document.getElementById('pcaWidth')?.value) || 400,
-            height: parseInt(document.getElementById('pcaHeight')?.value) || 400,
+            width: parseInt(document.getElementById('pcaWidth')?.value) || 300,
+            height: parseInt(document.getElementById('pcaHeight')?.value) || 300,
             colorTheme: document.getElementById('pcaColorTheme')?.value || 'default',
             pointSize: parseFloat(document.getElementById('pcaPointSize')?.value) || 6,
             pcX: parseInt(document.getElementById('pcaPCX')?.value) || 1,

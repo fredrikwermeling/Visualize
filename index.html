@@ -36,16 +36,16 @@
             <div class="panel data-panel">
                 <div class="mode-selector">
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
-                    <button class="mode-btn" data-mode="column">Column</button>
-                    <button class="mode-btn" data-mode="growth">Time Series</button>
-                    <button class="mode-btn" data-mode="volcano">Volcano</button>
-                    <button class="mode-btn" data-mode="correlation">Correlation</button>
-                    <button class="mode-btn" data-mode="kaplan-meier">Kaplan-Meier</button>
                     <!-- PCA mode: uses same matrix data as heatmap (getMatrixData).
                          TODO: Add t-SNE and UMAP as dimensionality reduction method options
                          alongside PCA (dropdown: PCA / t-SNE / UMAP). All three take the same
                          matrix input and produce 2D scatter output with group coloring. -->
                     <button class="mode-btn" data-mode="pca" disabled title="Coming soon">PCA</button>
+                    <button class="mode-btn" data-mode="column">Column</button>
+                    <button class="mode-btn" data-mode="growth">Time Series</button>
+                    <button class="mode-btn" data-mode="kaplan-meier">Kaplan-Meier</button>
+                    <button class="mode-btn" data-mode="volcano">Volcano</button>
+                    <button class="mode-btn" data-mode="correlation">Correlation</button>
                     <!-- Venn/UpSet mode: set intersection visualization.
                          Input: sets (columns) with member lists or binary membership matrix.
                          Renders Venn diagrams (2-3 sets) or UpSet plots (any number of sets). -->

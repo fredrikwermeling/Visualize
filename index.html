@@ -71,7 +71,7 @@
                     <button id="addRow" class="btn btn-secondary">+ Row</button>
                     <button id="clearData" class="btn btn-secondary">Clear</button>
                     <button id="addTestData" class="btn btn-secondary">Test Data</button>
-                    <button id="expandTable" class="btn btn-secondary" title="Toggle expanded table view">&#8646; Expand</button>
+                    <button id="expandTable" class="btn btn-expand" title="Toggle expanded table view">&#8646; Expand</button>
                     <label class="paste-mode-toggle" title="When checked, pasted data is appended below existing rows instead of replacing"><input type="checkbox" id="pasteAppend"> Append paste</label>
                 </div>
 
@@ -173,7 +173,7 @@
 
                 <div id="heatmapControls" class="heatmap-controls" style="display:none">
                     <div class="control-section">
-                        <h3>Heatmap Settings</h3>
+                        <h3 style="display:flex;align-items:center;justify-content:space-between">Heatmap Settings <button class="settings-default-btn" data-reset-mode="heatmap" title="Reset to defaults">Defaults</button></h3>
                         <div class="heatmap-grid">
                             <div class="hm-ctrl">
                                 <label>Cluster</label>
@@ -310,7 +310,7 @@
 
                 <div id="growthControls" class="growth-controls" style="display:none">
                     <div class="control-section">
-                        <h3>Time Series Settings</h3>
+                        <h3 style="display:flex;align-items:center;justify-content:space-between">Time Series Settings <button class="settings-default-btn" data-reset-mode="growth" title="Reset to defaults">Defaults</button></h3>
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Width:</label><input type="number" id="growthWidth" value="300" min="100" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="growthHeight" value="300" min="100" step="10"></div>
@@ -367,7 +367,7 @@
 
                 <div id="volcanoControls" class="volcano-controls" style="display:none">
                     <div class="control-section">
-                        <h3>Volcano Plot Settings</h3>
+                        <h3 style="display:flex;align-items:center;justify-content:space-between">Volcano Plot Settings <button class="settings-default-btn" data-reset-mode="volcano" title="Reset to defaults">Defaults</button></h3>
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Width:</label><input type="number" id="volcanoWidth" value="450" min="200" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="volcanoHeight" value="400" min="200" step="10"></div>
@@ -386,7 +386,7 @@
 
                 <div id="correlationControls" class="correlation-controls" style="display:none">
                     <div class="control-section">
-                        <h3>Correlation Plot Settings</h3>
+                        <h3 style="display:flex;align-items:center;justify-content:space-between">Correlation Plot Settings <button class="settings-default-btn" data-reset-mode="correlation" title="Reset to defaults">Defaults</button></h3>
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Width:</label><input type="number" id="corrWidth" value="400" min="200" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="corrHeight" value="400" min="200" step="10"></div>
@@ -430,7 +430,7 @@
                                 <option value="all" selected>All data</option>
                                 <option value="per-group">Per group</option>
                             </select>
-                            <label style="font-size:12px"><input type="checkbox" id="corrShowCI" checked> CI band</label>
+                            <label style="font-size:12px"><input type="checkbox" id="corrShowCI" checked> 95% CI</label>
                             <label style="font-size:12px"><input type="checkbox" id="corrShowZeroLines"> Zero lines</label>
                         </div>
                         <div style="margin-top:4px">
@@ -446,7 +446,7 @@
 
                 <div class="graph-controls">
                     <div class="control-section" id="dimensionsSection">
-                        <h3>Dimensions & Style</h3>
+                        <h3 style="display:flex;align-items:center;justify-content:space-between">Dimensions & Style <button class="settings-default-btn" data-reset-mode="column" title="Reset to defaults">Defaults</button></h3>
                         <div class="control-grid-2col">
                             <div class="control-group column-only">
                                 <label>Width:</label>

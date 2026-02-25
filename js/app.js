@@ -129,6 +129,7 @@ class App {
                 const mc = document.querySelector('.main-content');
                 const expanding = !mc.classList.contains('table-expanded');
                 mc.classList.toggle('table-expanded');
+                expandBtn.classList.toggle('active', expanding);
                 if (expanding) {
                     // Add columns/rows to fill the wider table
                     const targetCols = Math.max(this.dataTable._dataColCount(), 12);
@@ -732,6 +733,11 @@ class App {
         // Reset button
         const resetBtn = document.getElementById('resetMode');
         if (resetBtn) resetBtn.addEventListener('click', () => this._resetCurrentMode());
+
+        // Per-section "Defaults" buttons
+        document.querySelectorAll('.settings-default-btn').forEach(btn => {
+            btn.addEventListener('click', () => this._resetCurrentMode());
+        });
     }
 
     _resetCurrentMode() {
@@ -2028,10 +2034,11 @@ class App {
             eyeBtn.title = isHidden ? 'Show group' : 'Hide group';
             eyeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (isHidden) {
-                    settings.hiddenGroups = hiddenGroups.filter(l => l !== label);
+                const cur = settings.hiddenGroups;
+                if (cur.includes(label)) {
+                    settings.hiddenGroups = cur.filter(l => l !== label);
                 } else {
-                    settings.hiddenGroups = [...hiddenGroups, label];
+                    settings.hiddenGroups = [...cur, label];
                 }
                 this.updateGraph();
             });
@@ -2346,10 +2353,11 @@ class App {
             eyeBtn.title = isHidden ? 'Show group' : 'Hide group';
             eyeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (isHidden) {
-                    settings.hiddenGroups = hiddenGroups.filter(l => l !== label);
+                const cur = settings.hiddenGroups;
+                if (cur.includes(label)) {
+                    settings.hiddenGroups = cur.filter(l => l !== label);
                 } else {
-                    settings.hiddenGroups = [...hiddenGroups, label];
+                    settings.hiddenGroups = [...cur, label];
                 }
                 this.updateGraph();
             });
@@ -2447,10 +2455,11 @@ class App {
             eyeBtn.title = isHidden ? 'Show group' : 'Hide group';
             eyeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (isHidden) {
-                    settings.hiddenGroups = hiddenGroups.filter(l => l !== label);
+                const cur = settings.hiddenGroups;
+                if (cur.includes(label)) {
+                    settings.hiddenGroups = cur.filter(l => l !== label);
                 } else {
-                    settings.hiddenGroups = [...hiddenGroups, label];
+                    settings.hiddenGroups = [...cur, label];
                 }
                 this.updateGraph();
             });

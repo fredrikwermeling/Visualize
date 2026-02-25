@@ -353,6 +353,7 @@ class CorrelationRenderer {
                     s.regressionLineColor, s.regressionLineWidth, s.regressionLineDash);
             } else {
                 // Per-group regression
+                const perGroupRegressions = [];
                 visibleGroups.forEach((gr, gi) => {
                     const pts = gr.points;
                     if (pts.length < 2) return;
@@ -361,6 +362,7 @@ class CorrelationRenderer {
                     const color = this._getColor(gi);
                     const reg = this._computeRegression(gx, gy, regType);
                     if (!reg) return;
+                    perGroupRegressions.push({ name: gr.group, reg });
 
                     // CI band per group (linear only)
                     if (s.showConfidenceInterval && regType === 'linear') {
@@ -370,10 +372,8 @@ class CorrelationRenderer {
                     this._drawRegressionCurve(g, xScale, yScale, innerW, innerH, reg,
                         color, s.regressionLineWidth, s.regressionLineDash);
                 });
-                // Compute all-data regression for stats box
-                const regX = visiblePoints.map(p => p.xMean);
-                const regY = visiblePoints.map(p => p.yMean);
-                allRegression = this._computeRegression(regX, regY, regType);
+                // Store per-group results for stats box
+                allRegression = { perGroup: perGroupRegressions };
             }
         }
 
@@ -480,7 +480,12 @@ class CorrelationRenderer {
         const off = s.statsOffset;
 
         const lines = [];
-        if (regression) {
+        if (regression && regression.perGroup) {
+            // Per-group mode: show R² per group
+            regression.perGroup.forEach(pg => {
+                lines.push(`${pg.name}: R\u00B2 = ${pg.reg.rSquared.toFixed(4)}`);
+            });
+        } else if (regression) {
             lines.push(regression.equation);
             lines.push(`R\u00B2 = ${regression.rSquared.toFixed(4)}`);
         }

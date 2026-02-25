@@ -753,23 +753,65 @@ class PCARenderer {
             .attr('orient', 'auto')
             .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', '#c0392b');
 
+        // Collect arrow endpoints and label info
+        const fontSize = lf.size || 11;
+        const charW = fontSize * 0.6;
+        const labelH = fontSize + 2;
+        const labels = [];
         for (let j = 0; j < colLabels.length; j++) {
             const lx = loadX[j] * arrowScale;
-            const ly = -loadY[j] * arrowScale; // invert Y for screen coords
+            const ly = -loadY[j] * arrowScale;
             if (Math.abs(lx) < 0.5 && Math.abs(ly) < 0.5) continue;
+            const ex = cx + lx, ey = cy + ly;
+            const anchor = lx >= 0 ? 'start' : 'end';
+            const labelW = colLabels[j].length * charW;
+            // Initial label position: offset from arrow tip
+            let tx = ex + (lx >= 0 ? 4 : -4);
+            let ty = ey - 2;
+            labels.push({ j, ex, ey, tx, ty, anchor, w: labelW, h: labelH, text: colLabels[j] });
+        }
 
+        // Iterative collision resolution — push overlapping labels apart
+        for (let iter = 0; iter < 30; iter++) {
+            let moved = false;
+            for (let a = 0; a < labels.length; a++) {
+                for (let b = a + 1; b < labels.length; b++) {
+                    const la = labels[a], lb = labels[b];
+                    // Compute bounding boxes
+                    const ax1 = la.anchor === 'start' ? la.tx : la.tx - la.w;
+                    const ax2 = ax1 + la.w;
+                    const ay1 = la.ty - la.h * 0.8;
+                    const ay2 = la.ty + la.h * 0.2;
+                    const bx1 = lb.anchor === 'start' ? lb.tx : lb.tx - lb.w;
+                    const bx2 = bx1 + lb.w;
+                    const by1 = lb.ty - lb.h * 0.8;
+                    const by2 = lb.ty + lb.h * 0.2;
+                    // Check overlap
+                    if (ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1) {
+                        const overlapY = Math.min(ay2, by2) - Math.max(ay1, by1);
+                        const push = (overlapY / 2) + 1;
+                        if (la.ty < lb.ty) { la.ty -= push; lb.ty += push; }
+                        else { la.ty += push; lb.ty -= push; }
+                        moved = true;
+                    }
+                }
+            }
+            if (!moved) break;
+        }
+
+        // Draw arrows and labels
+        for (const l of labels) {
             loadG.append('line')
                 .attr('x1', cx).attr('y1', cy)
-                .attr('x2', cx + lx).attr('y2', cy + ly)
+                .attr('x2', l.ex).attr('y2', l.ey)
                 .attr('stroke', '#c0392b').attr('stroke-width', 1)
                 .attr('stroke-opacity', 0.7)
                 .attr('marker-end', `url(#${markerId})`);
 
             loadG.append('text')
-                .attr('x', cx + lx + (lx >= 0 ? 3 : -3))
-                .attr('y', cy + ly - 3)
-                .attr('text-anchor', lx >= 0 ? 'start' : 'end')
-                .attr('font-size', (lf.size || 11) + 'px')
+                .attr('x', l.tx).attr('y', l.ty)
+                .attr('text-anchor', l.anchor)
+                .attr('font-size', fontSize + 'px')
                 .attr('font-family', lf.family || 'Arial')
                 .attr('font-weight', lf.bold ? 'bold' : 'normal')
                 .attr('font-style', lf.italic ? 'italic' : 'normal')
@@ -777,7 +819,7 @@ class PCARenderer {
                 .style('paint-order', 'stroke')
                 .attr('stroke', 'white').attr('stroke-width', 3)
                 .attr('stroke-linejoin', 'round')
-                .text(colLabels[j]);
+                .text(l.text);
         }
     }
 

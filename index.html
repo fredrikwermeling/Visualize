@@ -34,6 +34,7 @@
         <div class="main-content">
             <!-- Left Panel: Data Input -->
             <div class="panel data-panel">
+                <div class="mode-selector-label">Graph Mode</div>
                 <div class="mode-selector">
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
                     <!-- PCA mode: uses same matrix data as heatmap (getMatrixData).
@@ -50,6 +51,11 @@
                          Input: sets (columns) with member lists or binary membership matrix.
                          Renders Venn diagrams (2-3 sets) or UpSet plots (any number of sets). -->
                     <button class="mode-btn" data-mode="venn" disabled title="Coming soon">Venn/UpSet</button>
+                    <!-- OncoPrint mode: genomic alteration landscape visualization.
+                         Input: matrix with genes as rows, samples as columns, values are
+                         alteration types (missense, nonsense, amplification, deletion, fusion, etc.).
+                         Renders stacked/overlapping colored blocks per cell, with track bars. -->
+                    <button class="mode-btn" data-mode="oncoprint" disabled title="Coming soon">OncoPrint</button>
                     <button id="resetMode" class="mode-reset-btn" title="Reset current mode settings to defaults">&#8635;</button>
                 </div>
                 <h2>Data Input</h2>

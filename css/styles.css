@@ -1020,6 +1020,16 @@ tr:hover .row-delete-btn {
 }
 
 /* Mode Selector */
+.mode-selector-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    margin-left: 12px;
+}
+
 .mode-selector {
     display: grid;
     grid-template-columns: repeat(3, 1fr) auto;

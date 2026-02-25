@@ -11,6 +11,7 @@ class App {
         this.correlationRenderer = new CorrelationRenderer('graphContainer');
         this.pcaRenderer = new PCARenderer('graphContainer');
         this.vennRenderer = new VennRenderer('graphContainer');
+        this.oncoprintRenderer = new OncoPrintRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
         this.columnAnnotationManager = new AnnotationManager();
         this.heatmapAnnotationManager = new AnnotationManager();
@@ -19,12 +20,14 @@ class App {
         this.correlationAnnotationManager = new AnnotationManager();
         this.pcaAnnotationManager = new AnnotationManager();
         this.vennAnnotationManager = new AnnotationManager();
+        this.oncoprintAnnotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.columnAnnotationManager;
         this.growthRenderer.annotationManager = this.growthAnnotationManager;
         this.volcanoRenderer.annotationManager = this.volcanoAnnotationManager;
         this.correlationRenderer.annotationManager = this.correlationAnnotationManager;
         this.pcaRenderer.annotationManager = this.pcaAnnotationManager;
         this.vennRenderer.annotationManager = this.vennAnnotationManager;
+        this.oncoprintRenderer.annotationManager = this.oncoprintAnnotationManager;
         this._undoStack = [];
         this.mode = 'heatmap';
 
@@ -36,6 +39,7 @@ class App {
         this._correlationTableData = null;
         this._pcaTableData = null;
         this._vennTableData = null;
+        this._oncoprintTableData = null;
         this._kaplanMeierTableData = null;
 
         // Bind event listeners
@@ -53,6 +57,7 @@ class App {
         this._bindCorrelationControls();
         this._bindPCAControls();
         this._bindVennControls();
+        this._bindOncoPrintControls();
 
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
@@ -130,6 +135,8 @@ class App {
                 this.dataTable.loadHeatmapSampleData(idx);
             } else if (this.mode === 'venn') {
                 this.dataTable.loadVennSampleData(idx);
+            } else if (this.mode === 'oncoprint') {
+                this.dataTable.loadOncoPrintSampleData(idx);
             } else {
                 this.dataTable.loadSampleData(idx);
             }
@@ -898,6 +905,20 @@ class App {
             document.getElementById('vennShowLabels').checked = true;
             this._vennTableData = null;
             this.dataTable.loadVennSampleData();
+        } else if (this.mode === 'oncoprint') {
+            const fresh = new OncoPrintRenderer('graphContainer');
+            this.oncoprintRenderer.settings = fresh.settings;
+            this.oncoprintRenderer._nudgeOffsetKey = null;
+            document.getElementById('oncoprintWidth').value = 600;
+            document.getElementById('oncoprintColorTheme').value = 'default';
+            document.getElementById('oncoprintCellWidth').value = 12;
+            document.getElementById('oncoprintCellHeight').value = 20;
+            document.getElementById('oncoprintCellGap').value = 1;
+            document.getElementById('oncoprintShowRowBar').checked = true;
+            document.getElementById('oncoprintShowColBar').checked = true;
+            document.getElementById('oncoprintSortSamples').checked = true;
+            this._oncoprintTableData = null;
+            this.dataTable.loadOncoPrintSampleData();
         } else if (this.mode === 'column') {
             this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
             this.graphRenderer._titleOffset = { x: 0, y: 0 };
@@ -953,7 +974,7 @@ class App {
             ]);
             disabledRows.push(tr.classList.contains('row-disabled'));
         });
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'venn' ? '_vennTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'venn' ? '_vennTableData' : mode === 'oncoprint' ? '_oncoprintTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
         const saved = { headers, rows, idData, disabledRows, numRows: rows.length };
         if (mode === 'correlation' && this.dataTable._axisAssignments) {
             saved.axisAssignments = { ...this.dataTable._axisAssignments };
@@ -962,7 +983,7 @@ class App {
     }
 
     _restoreTableData(mode) {
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'venn' ? '_vennTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'venn' ? '_vennTableData' : mode === 'oncoprint' ? '_oncoprintTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
         const saved = this[key];
         if (saved) {
             this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows, saved.idData);
@@ -997,6 +1018,8 @@ class App {
                 this.dataTable.loadCorrelationSampleData();
             } else if (mode === 'venn') {
                 this.dataTable.loadVennSampleData();
+            } else if (mode === 'oncoprint') {
+                this.dataTable.loadOncoPrintSampleData();
             } else {
                 this.dataTable.loadSampleData();
             }
@@ -1011,13 +1034,14 @@ class App {
         const isCorrelation = this.mode === 'correlation';
         const isPCA = this.mode === 'pca';
         const isVenn = this.mode === 'venn';
+        const isOncoprint = this.mode === 'oncoprint';
         const isKaplanMeier = this.mode === 'kaplan-meier';
 
         // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
         if (table) {
-            table.classList.toggle('hide-id-cols', !(isHeatmap || isCorrelation || isPCA || isVenn));
-            table.classList.toggle('hide-row-toggles', !(isHeatmap || isCorrelation || isPCA || isVenn));
+            table.classList.toggle('hide-id-cols', !(isHeatmap || isCorrelation || isPCA || isVenn || isOncoprint));
+            table.classList.toggle('hide-row-toggles', !(isHeatmap || isCorrelation || isPCA || isVenn || isOncoprint));
         }
 
         // Axis assignment row
@@ -1093,13 +1117,17 @@ class App {
         const vennControls = document.getElementById('vennControls');
         if (vennControls) vennControls.style.display = isVenn ? '' : 'none';
 
+        // OncoPrint controls
+        const oncoprintControls = document.getElementById('oncoprintControls');
+        if (oncoprintControls) oncoprintControls.style.display = isOncoprint ? '' : 'none';
+
         // Hide graph-controls wrapper for modes that don't use it
         const graphControlsEl = document.querySelector('.graph-controls');
-        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier || isPCA || isVenn) ? 'none' : '';
+        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier || isPCA || isVenn || isOncoprint) ? 'none' : '';
 
         // Hide dimensions section for modes with own controls
         const dimSection = document.getElementById('dimensionsSection');
-        if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn) ? 'none' : '';
+        if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn || isOncoprint) ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
@@ -1491,6 +1519,7 @@ class App {
         if (this.mode === 'correlation') return this.correlationRenderer;
         if (this.mode === 'pca') return this.pcaRenderer;
         if (this.mode === 'venn') return this.vennRenderer;
+        if (this.mode === 'oncoprint') return this.oncoprintRenderer;
         return this.heatmapRenderer;
     }
 
@@ -1605,6 +1634,12 @@ class App {
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
                 { label: 'Set Labels', fontKey: 'labelFont' },
                 { label: 'Counts', fontKey: 'countFont' }
+            ];
+        } else if (this.mode === 'oncoprint') {
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'Row Labels', fontKey: 'rowLabelFont' },
+                { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' }
             ];
         } else {
             elements = [
@@ -2144,6 +2179,28 @@ class App {
         });
     }
 
+    _getOncoPrintSettings() {
+        return {
+            width: parseInt(document.getElementById('oncoprintWidth')?.value) || 600,
+            colorTheme: document.getElementById('oncoprintColorTheme')?.value || 'default',
+            cellWidth: parseInt(document.getElementById('oncoprintCellWidth')?.value) || 12,
+            cellHeight: parseInt(document.getElementById('oncoprintCellHeight')?.value) || 20,
+            cellGap: parseFloat(document.getElementById('oncoprintCellGap')?.value) ?? 1,
+            showRowBarChart: document.getElementById('oncoprintShowRowBar')?.checked ?? true,
+            showColBarChart: document.getElementById('oncoprintShowColBar')?.checked ?? true,
+            sortSamples: document.getElementById('oncoprintSortSamples')?.checked ?? true
+        };
+    }
+
+    _bindOncoPrintControls() {
+        const ids = ['oncoprintWidth', 'oncoprintColorTheme', 'oncoprintCellWidth', 'oncoprintCellHeight',
+            'oncoprintCellGap', 'oncoprintShowRowBar', 'oncoprintShowColBar', 'oncoprintSortSamples'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => this.updateGraph());
+        });
+    }
+
     _updatePCAGroupManager(matrixData) {
         const container = document.getElementById('pcaGroupManager');
         const listEl = document.getElementById('pcaGroupList');
@@ -2471,6 +2528,13 @@ class App {
             const vennData = this.dataTable.getVennData();
             const vennSettings = this._getVennSettings();
             this.vennRenderer.render(vennData, vennSettings);
+            return;
+        }
+        if (this.mode === 'oncoprint') {
+            if (infoEl) infoEl.style.display = 'none';
+            const opData = this.dataTable.getOncoPrintData();
+            const opSettings = this._getOncoPrintSettings();
+            this.oncoprintRenderer.render(opData, opSettings);
             return;
         }
         if (infoEl) infoEl.style.display = 'none';

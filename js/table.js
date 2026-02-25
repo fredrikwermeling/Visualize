@@ -1447,6 +1447,104 @@ class DataTable {
         }
     }
 
+    getOncoPrintData() {
+        // Returns { colLabels: [sample names], rowLabels: [gene names], matrix: [[category strings]] }
+        const colLabels = [];
+        this.headerRow.querySelectorAll('th:not(.delete-col-header):not(.id-col):not(.row-toggle-col)').forEach(th => {
+            const clone = th.cloneNode(true);
+            const btn = clone.querySelector('.th-delete-btn');
+            if (btn) btn.remove();
+            colLabels.push(clone.textContent.trim() || 'Unnamed');
+        });
+
+        const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
+        const matrix = [];
+        const rowLabels = [];
+
+        rows.forEach((row, ri) => {
+            const idCells = row.querySelectorAll('td.id-cell');
+            const groupVal = idCells[0] ? idCells[0].textContent.trim() : '';
+            const sampleVal = idCells[1] ? idCells[1].textContent.trim() : '';
+            const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
+            const rowData = [];
+            let hasAny = false;
+            for (let c = 0; c < dataCells.length; c++) {
+                const v = dataCells[c].textContent.trim();
+                rowData.push(v);
+                if (v) hasAny = true;
+            }
+            if (hasAny) {
+                matrix.push(rowData);
+                rowLabels.push(sampleVal || groupVal || ('Row ' + (ri + 1)));
+            }
+        });
+
+        return { colLabels, rowLabels, matrix };
+    }
+
+    loadOncoPrintSampleData(index = 0) {
+        const datasets = [
+            { // Genomic alteration landscape
+                headers: ['Sample1','Sample2','Sample3','Sample4','Sample5','Sample6','Sample7','Sample8','Sample9','Sample10'],
+                ids: [
+                    ['','TP53'],['','KRAS'],['','PIK3CA'],['','BRAF'],['','EGFR'],['','PTEN'],['','APC'],['','CDKN2A']
+                ],
+                rows: [
+                    ['missense','','nonsense','missense','','missense','','frameshift','missense',''],
+                    ['','missense','','','missense','missense','','','','missense'],
+                    ['missense','','','missense','','','amplification','','missense',''],
+                    ['','','missense','','','','','missense','',''],
+                    ['','amplification','','','deletion','','missense','','amplification',''],
+                    ['deletion','','','deletion','','nonsense','','deletion','',''],
+                    ['','nonsense','frameshift','','nonsense','','frameshift','','','nonsense'],
+                    ['','','deletion','','','deletion','','','deletion','deletion']
+                ]
+            },
+            { // Drug response categories
+                headers: ['Patient1','Patient2','Patient3','Patient4','Patient5','Patient6','Patient7','Patient8'],
+                ids: [
+                    ['','DrugA'],['','DrugB'],['','DrugC'],['','DrugD'],['','DrugE']
+                ],
+                rows: [
+                    ['positive','negative','positive','positive','negative','positive','negative','positive'],
+                    ['negative','positive','positive','negative','positive','negative','positive','negative'],
+                    ['positive','positive','negative','positive','','positive','negative',''],
+                    ['','negative','positive','','negative','','positive','negative'],
+                    ['positive','','negative','positive','positive','negative','','positive']
+                ]
+            },
+            { // Protein expression levels
+                headers: ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12'],
+                ids: [
+                    ['','CD4'],['','CD8'],['','PD-L1'],['','Ki67'],['','HER2'],['','ER']
+                ],
+                rows: [
+                    ['present','absent','present','present','absent','present','absent','present','absent','present','present','absent'],
+                    ['absent','present','present','absent','present','absent','present','present','absent','absent','present','present'],
+                    ['present','present','absent','present','absent','absent','present','absent','present','present','absent','present'],
+                    ['present','absent','present','absent','present','present','absent','present','present','absent','present','absent'],
+                    ['absent','present','absent','present','absent','present','present','absent','absent','present','absent','present'],
+                    ['present','present','present','absent','absent','present','absent','present','present','absent','present','absent']
+                ]
+            },
+            { // Multi-alteration per cell
+                headers: ['S1','S2','S3','S4','S5','S6','S7','S8'],
+                ids: [
+                    ['','TP53'],['','BRCA1'],['','MYC'],['','RB1']
+                ],
+                rows: [
+                    ['missense;amplification','nonsense','','missense','deletion','frameshift;deletion','','missense'],
+                    ['','missense','amplification','','missense;deletion','','nonsense',''],
+                    ['amplification','','amplification','amplification','','amplification','','amplification;deletion'],
+                    ['deletion','','','deletion;frameshift','','','deletion','']
+                ]
+            }
+        ];
+        const d = datasets[index % datasets.length];
+        this.setupTable(d.headers, Math.max(d.rows.length + 2, 10), d.rows, d.ids);
+        if (window.app) window.app.updateGraph();
+    }
+
     loadVennSampleData(index = 0) {
         const datasets = [
             { // Binary matrix: 3 pathways (Venn)

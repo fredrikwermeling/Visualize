@@ -464,39 +464,42 @@ class CorrelationRenderer {
         const sf = s.statsFont;
         const off = s.statsOffset;
         const lines = [];
+        const isExtended = s.statsContent === 'extended';
 
-        if (regression && regression.perGroup) {
-            // Per-group mode: show per-group stats
-            regression.perGroup.forEach(pg => {
-                const grObj = visibleGroups && visibleGroups.find(vg => vg.group === pg.name);
-                const pts = grObj ? grObj.points : [];
-                const gx = pts.map(p => p.xMean);
-                const gy = pts.map(p => p.yMean);
-                const gPearson = gx.length >= 3 ? Statistics.pearsonCorrelation(gx, gy) : null;
-                const rStr = gPearson && !isNaN(gPearson.r) ? `, r=${gPearson.r.toFixed(3)}` : '';
-                lines.push(`${pg.name} (n=${pg.n}): R\u00B2=${pg.reg.rSquared.toFixed(3)}${rStr}`);
-            });
-            if (s.statsContent === 'extended' && visibleGroups) {
-                const totalN = visibleGroups.reduce((sum, vg) => sum + vg.points.length, 0);
-                lines.push(`Total n = ${totalN}`);
+        // Helper: build stats lines for a set of points
+        const buildLines = (label, pts, reg) => {
+            const bx = pts.map(p => p.xMean);
+            const by = pts.map(p => p.yMean);
+            if (label) lines.push(label);
+            if (reg) {
+                lines.push(reg.equation);
+                lines.push(`R\u00B2 = ${reg.rSquared.toFixed(4)}`);
             }
-        } else {
-            // All-data mode or no regression
-            if (regression) {
-                lines.push(regression.equation);
-                lines.push(`R\u00B2 = ${regression.rSquared.toFixed(4)}`);
-            }
-            const pearson = Statistics.pearsonCorrelation(x, y);
-            if (!isNaN(pearson.r)) {
-                lines.push(`Pearson r = ${pearson.r.toFixed(4)}, ${Statistics.formatPValue(pearson.p)}`);
-            }
-            if (s.statsContent === 'extended') {
-                const spearman = Statistics.spearmanCorrelation(x, y);
-                if (!isNaN(spearman.rho)) {
-                    lines.push(`Spearman \u03C1 = ${spearman.rho.toFixed(4)}, ${Statistics.formatPValue(spearman.p)}`);
+            if (bx.length >= 3) {
+                const pearson = Statistics.pearsonCorrelation(bx, by);
+                if (!isNaN(pearson.r)) {
+                    lines.push(`Pearson r = ${pearson.r.toFixed(4)}, ${Statistics.formatPValue(pearson.p)}`);
                 }
-                lines.push(`n = ${x.length}`);
+                if (isExtended) {
+                    const spearman = Statistics.spearmanCorrelation(bx, by);
+                    if (!isNaN(spearman.rho)) {
+                        lines.push(`Spearman \u03C1 = ${spearman.rho.toFixed(4)}, ${Statistics.formatPValue(spearman.p)}`);
+                    }
+                }
             }
+            lines.push(`n = ${bx.length}`);
+        };
+
+        if (regression && regression.perGroup && visibleGroups) {
+            // Per-group: same stats per group
+            regression.perGroup.forEach(pg => {
+                const grObj = visibleGroups.find(vg => vg.group === pg.name);
+                if (!grObj) return;
+                buildLines(`\u2014 ${pg.name} \u2014`, grObj.points, pg.reg);
+            });
+        } else {
+            // All-data
+            buildLines(null, visibleGroups ? visibleGroups.flatMap(vg => vg.points) : [], regression);
         }
 
         if (lines.length === 0) return;

@@ -557,7 +557,10 @@ class App {
             alert('No statistics results to export. Run a test first.');
             return;
         }
-        const text = resultsEl.innerText || resultsEl.textContent;
+        // Use pre-formatted plain text for correlation, fall back to innerText
+        const text = (this.mode === 'correlation' && this._lastCorrelationStatsText)
+            ? this._lastCorrelationStatsText
+            : (resultsEl.innerText || resultsEl.textContent);
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -3029,11 +3032,6 @@ class App {
         const visibleGroups = corrData.groups.filter(g => !hiddenGroups.includes(g.group));
         const visiblePoints = visibleGroups.flatMap(g => g.points);
 
-        const x = visiblePoints.map(p => p.xMean);
-        const y = visiblePoints.map(p => p.yMean);
-        const n = x.length;
-
-        let html = '';
         const fmt = (v, d = 4) => v != null && !isNaN(v) ? v.toFixed(d) : 'N/A';
         const fmtP = p => {
             if (p == null || isNaN(p)) return 'N/A';
@@ -3042,72 +3040,75 @@ class App {
         };
         const sig = p => p < 0.001 ? '***' : p < 0.01 ? '**' : p < 0.05 ? '*' : 'ns';
 
+        // Helper: build one stats block (HTML + plain text) for a set of points
+        const buildBlock = (label, points) => {
+            const bx = points.map(p => p.xMean);
+            const by = points.map(p => p.yMean);
+            const bn = points.length;
+            if (bn < 3) return { html: `<div style="font-size:12px;color:#888">${label}: too few points (n=${bn})</div>`, text: `${label}: too few points (n=${bn})\n` };
+
+            const pearson = Statistics.pearsonCorrelation(bx, by);
+            const spearman = Statistics.spearmanCorrelation(bx, by);
+            const reg = Statistics.linearRegression(bx, by);
+
+            let h = '';
+            let t = '';
+            h += `<div style="font-weight:600;margin-top:6px;margin-bottom:4px">${label} (n = ${bn})</div>`;
+            t += `${label} (n = ${bn})\n`;
+
+            h += `<div style="font-size:12px;margin-bottom:2px">y = ${fmt(reg.slope)} \u00D7 x + ${fmt(reg.intercept)}</div>`;
+            t += `  Equation: y = ${fmt(reg.slope)} * x + ${fmt(reg.intercept)}\n`;
+            h += `<div style="font-size:12px;margin-bottom:2px">R\u00B2 = ${fmt(reg.rSquared)} &nbsp;|&nbsp; Residual SE = ${fmt(reg.residualSE)}</div>`;
+            t += `  R\u00B2 = ${fmt(reg.rSquared)}  |  Residual SE = ${fmt(reg.residualSE)}\n`;
+            h += `<div style="font-size:12px;margin-bottom:2px">Slope SE = ${fmt(reg.slopeStdErr)} &nbsp;|&nbsp; Intercept SE = ${fmt(reg.interceptStdErr)}</div>`;
+            t += `  Slope SE = ${fmt(reg.slopeStdErr)}  |  Intercept SE = ${fmt(reg.interceptStdErr)}\n`;
+            h += `<div style="font-size:12px;margin-bottom:4px">Pearson r = ${fmt(pearson.r)}, ${fmtP(pearson.p)} ${sig(pearson.p)} &nbsp;|&nbsp; Spearman \u03C1 = ${fmt(spearman.rho)}, ${fmtP(spearman.p)} ${sig(spearman.p)}</div>`;
+            t += `  Pearson r = ${fmt(pearson.r)}, p = ${fmtP(pearson.p)} ${sig(pearson.p)}\n`;
+            t += `  Spearman \u03C1 = ${fmt(spearman.rho)}, p = ${fmtP(spearman.p)} ${sig(spearman.p)}\n`;
+            h += `<div style="font-size:11px;color:#666">df = ${reg.df}</div>`;
+            t += `  df = ${reg.df}\n`;
+
+            return { html: h, text: t };
+        };
+
         if (testType === 'pearson' || testType === 'spearman' || testType === 'linear-regression') {
             const isPerGroup = regScope === 'per-group' && visibleGroups.length > 1;
+            let html = '';
+            let plainText = '';
 
             if (isPerGroup) {
-                // Per-group primary analysis
-                const totalN = visiblePoints.length;
-                html += `<div style="font-weight:600;margin-bottom:6px">Per-Group Correlation Analysis (total n = ${totalN})</div>`;
-
+                html += `<div style="font-weight:600;margin-bottom:4px">Per-Group Correlation Analysis (total n = ${visiblePoints.length})</div>`;
+                plainText += `Per-Group Correlation Analysis (total n = ${visiblePoints.length})\n${'='.repeat(50)}\n`;
                 visibleGroups.forEach(g => {
-                    if (g.points.length < 3) {
-                        html += `<div style="font-size:12px;margin:4px 0;color:#888">${g.group} (n=${g.points.length}): too few points</div>`;
-                        return;
-                    }
-                    const gx = g.points.map(p => p.xMean);
-                    const gy = g.points.map(p => p.yMean);
-                    const gPearson = Statistics.pearsonCorrelation(gx, gy);
-                    const gSpearman = Statistics.spearmanCorrelation(gx, gy);
-                    const gReg = Statistics.linearRegression(gx, gy);
-
-                    html += `<div style="font-weight:600;margin-top:8px;margin-bottom:4px">${g.group} (n = ${g.points.length})</div>`;
-                    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">';
-                    html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:2px 4px">Test</th><th style="padding:2px 4px">Statistic</th><th style="padding:2px 4px">p-value</th><th style="padding:2px 4px">Sig.</th></tr>';
-                    html += `<tr><td style="padding:2px 4px">Pearson r</td><td style="text-align:center;padding:2px 4px">${fmt(gPearson.r)}</td><td style="text-align:center;padding:2px 4px">${fmtP(gPearson.p)}</td><td style="text-align:center;padding:2px 4px">${sig(gPearson.p)}</td></tr>`;
-                    html += `<tr><td style="padding:2px 4px">Spearman \u03C1</td><td style="text-align:center;padding:2px 4px">${fmt(gSpearman.rho)}</td><td style="text-align:center;padding:2px 4px">${fmtP(gSpearman.p)}</td><td style="text-align:center;padding:2px 4px">${sig(gSpearman.p)}</td></tr>`;
-                    html += '</table>';
-                    html += `<div style="font-size:11px;color:#555;margin-bottom:2px">y = ${fmt(gReg.slope)} \u00D7 x + ${fmt(gReg.intercept)} &nbsp;|&nbsp; R\u00B2 = ${fmt(gReg.rSquared)}</div>`;
+                    const block = buildBlock(g.group, g.points);
+                    html += block.html;
+                    plainText += '\n' + block.text;
                 });
             } else {
-                // All-data analysis
-                const pearson = Statistics.pearsonCorrelation(x, y);
-                const spearman = Statistics.spearmanCorrelation(x, y);
-                const reg = Statistics.linearRegression(x, y);
+                const block = buildBlock('All data', visiblePoints);
+                html += block.html;
+                plainText += block.text;
 
-                html += `<div style="font-weight:600;margin-bottom:6px">Correlation Analysis (n = ${n})</div>`;
-
-                html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px">';
-                html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:3px 6px">Test</th><th style="padding:3px 6px">Statistic</th><th style="padding:3px 6px">p-value</th><th style="padding:3px 6px">Sig.</th></tr>';
-                html += `<tr style="background:${testType === 'pearson' ? '#f0f8e8' : '#fff'}"><td style="padding:3px 6px">Pearson r</td><td style="text-align:center;padding:3px 6px">${fmt(pearson.r)}</td><td style="text-align:center;padding:3px 6px">${fmtP(pearson.p)}</td><td style="text-align:center;padding:3px 6px">${sig(pearson.p)}</td></tr>`;
-                html += `<tr style="background:${testType === 'spearman' ? '#f0f8e8' : '#fff'}"><td style="padding:3px 6px">Spearman \u03C1</td><td style="text-align:center;padding:3px 6px">${fmt(spearman.rho)}</td><td style="text-align:center;padding:3px 6px">${fmtP(spearman.p)}</td><td style="text-align:center;padding:3px 6px">${sig(spearman.p)}</td></tr>`;
-                html += '</table>';
-
-                html += `<div style="font-weight:600;margin-bottom:4px">Linear Regression</div>`;
-                html += `<div style="font-size:12px;margin-bottom:2px">y = ${fmt(reg.slope)} \u00D7 x + ${fmt(reg.intercept)}</div>`;
-                html += `<div style="font-size:12px;margin-bottom:2px">R\u00B2 = ${fmt(reg.rSquared)} &nbsp;|&nbsp; Residual SE = ${fmt(reg.residualSE)}</div>`;
-                html += `<div style="font-size:12px;margin-bottom:2px">Slope SE = ${fmt(reg.slopeStdErr)} &nbsp;|&nbsp; Intercept SE = ${fmt(reg.interceptStdErr)}</div>`;
-                html += `<div style="font-size:11px;color:#666;margin-top:4px">df = ${reg.df}</div>`;
-
-                // Per-group breakdown if multiple groups
+                // Also show per-group summary if multiple groups
                 if (visibleGroups.length > 1) {
-                    html += `<div style="font-weight:600;margin-top:10px;margin-bottom:4px">Per-Group Correlations</div>`;
-                    html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
-                    html += '<tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:2px 4px">Group</th><th style="padding:2px 4px">n</th><th style="padding:2px 4px">Pearson r</th><th style="padding:2px 4px">p</th><th style="padding:2px 4px">R\u00B2</th></tr>';
+                    html += `<div style="font-weight:600;margin-top:10px;margin-bottom:4px">Per-Group Summary</div>`;
+                    plainText += '\nPer-Group Summary\n' + '-'.repeat(40) + '\n';
                     visibleGroups.forEach(g => {
                         if (g.points.length < 3) return;
                         const gx = g.points.map(p => p.xMean);
                         const gy = g.points.map(p => p.yMean);
                         const gp = Statistics.pearsonCorrelation(gx, gy);
                         const gr = Statistics.linearRegression(gx, gy);
-                        html += `<tr><td style="padding:2px 4px">${g.group}</td><td style="text-align:center;padding:2px 4px">${g.points.length}</td><td style="text-align:center;padding:2px 4px">${fmt(gp.r)}</td><td style="text-align:center;padding:2px 4px">${fmtP(gp.p)}</td><td style="text-align:center;padding:2px 4px">${fmt(gr.rSquared)}</td></tr>`;
+                        html += `<div style="font-size:12px;margin-bottom:2px">${g.group} (n=${g.points.length}): r=${fmt(gp.r)}, ${fmtP(gp.p)} ${sig(gp.p)}, R\u00B2=${fmt(gr.rSquared)}</div>`;
+                        plainText += `  ${g.group} (n=${g.points.length}): r=${fmt(gp.r)}, p=${fmtP(gp.p)} ${sig(gp.p)}, R\u00B2=${fmt(gr.rSquared)}\n`;
                     });
-                    html += '</table>';
                 }
             }
-        }
 
-        this._showStatsResult(html);
+            this._showStatsResult(html);
+            // Store plain text for export
+            this._lastCorrelationStatsText = plainText + '\nAnalysis performed using jStat (JavaScript Statistical Library)\n';
+        }
     }
 
     _runGrowthAnova() {

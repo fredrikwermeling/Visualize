@@ -9,16 +9,19 @@ class App {
         this.growthRenderer = new GrowthCurveRenderer('graphContainer');
         this.volcanoRenderer = new VolcanoRenderer('graphContainer');
         this.correlationRenderer = new CorrelationRenderer('graphContainer');
+        this.pcaRenderer = new PCARenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
         this.columnAnnotationManager = new AnnotationManager();
         this.heatmapAnnotationManager = new AnnotationManager();
         this.growthAnnotationManager = new AnnotationManager();
         this.volcanoAnnotationManager = new AnnotationManager();
         this.correlationAnnotationManager = new AnnotationManager();
+        this.pcaAnnotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.columnAnnotationManager;
         this.growthRenderer.annotationManager = this.growthAnnotationManager;
         this.volcanoRenderer.annotationManager = this.volcanoAnnotationManager;
         this.correlationRenderer.annotationManager = this.correlationAnnotationManager;
+        this.pcaRenderer.annotationManager = this.pcaAnnotationManager;
         this._undoStack = [];
         this.mode = 'heatmap';
 
@@ -28,6 +31,7 @@ class App {
         this._growthTableData = null;
         this._volcanoTableData = null;
         this._correlationTableData = null;
+        this._pcaTableData = null;
         this._kaplanMeierTableData = null;
 
         // Bind event listeners
@@ -43,6 +47,7 @@ class App {
         this._bindGrowthControls();
         this._bindVolcanoControls();
         this._bindCorrelationControls();
+        this._bindPCAControls();
 
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
@@ -848,6 +853,28 @@ class App {
             this._correlationTableData = null;
             this.dataTable._axisAssignments = {};
             this.dataTable.loadCorrelationSampleData();
+        } else if (this.mode === 'pca') {
+            const fresh = new PCARenderer('graphContainer');
+            this.pcaRenderer.settings = fresh.settings;
+            this.pcaRenderer._cachedEmbedding = null;
+            this.pcaRenderer._nudgeOffsetKey = null;
+            document.getElementById('pcaMethod').value = 'pca';
+            document.getElementById('pcaWidth').value = 400;
+            document.getElementById('pcaHeight').value = 400;
+            document.getElementById('pcaColorTheme').value = 'default';
+            document.getElementById('pcaPointSize').value = 6;
+            document.getElementById('pcaPCX').value = 1;
+            document.getElementById('pcaPCY').value = 2;
+            document.getElementById('pcaPerplexity').value = 30;
+            document.getElementById('pcaNNeighbors').value = 15;
+            document.getElementById('pcaMinDist').value = 0.1;
+            document.getElementById('pcaShowLoadings').checked = false;
+            // Show PCA-specific, hide others
+            document.querySelectorAll('.pca-only').forEach(el => el.style.display = '');
+            document.querySelectorAll('.tsne-only').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.umap-only').forEach(el => el.style.display = 'none');
+            this._pcaTableData = null;
+            this.dataTable.loadHeatmapSampleData(2);
         } else if (this.mode === 'column') {
             this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
             this.graphRenderer._titleOffset = { x: 0, y: 0 };
@@ -903,7 +930,7 @@ class App {
             ]);
             disabledRows.push(tr.classList.contains('row-disabled'));
         });
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
         const saved = { headers, rows, idData, disabledRows, numRows: rows.length };
         if (mode === 'correlation' && this.dataTable._axisAssignments) {
             saved.axisAssignments = { ...this.dataTable._axisAssignments };
@@ -912,7 +939,7 @@ class App {
     }
 
     _restoreTableData(mode) {
-        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
+        const key = mode === 'column' ? '_columnTableData' : mode === 'growth' ? '_growthTableData' : mode === 'volcano' ? '_volcanoTableData' : mode === 'correlation' ? '_correlationTableData' : mode === 'pca' ? '_pcaTableData' : mode === 'kaplan-meier' ? '_kaplanMeierTableData' : '_heatmapTableData';
         const saved = this[key];
         if (saved) {
             this.dataTable.setupTable(saved.headers, saved.numRows, saved.rows, saved.idData);
@@ -937,6 +964,8 @@ class App {
             // Load defaults
             if (mode === 'heatmap') {
                 this.dataTable.loadHeatmapSampleData();
+            } else if (mode === 'pca') {
+                this.dataTable.loadHeatmapSampleData(2); // immune profiling dataset
             } else if (mode === 'growth') {
                 this.dataTable.loadGrowthSampleData();
             } else if (mode === 'volcano') {
@@ -955,13 +984,14 @@ class App {
         const isColumn = this.mode === 'column';
         const isVolcano = this.mode === 'volcano';
         const isCorrelation = this.mode === 'correlation';
+        const isPCA = this.mode === 'pca';
         const isKaplanMeier = this.mode === 'kaplan-meier';
 
         // Show/hide ID columns and row toggles
         const table = document.getElementById('dataTable');
         if (table) {
-            table.classList.toggle('hide-id-cols', !(isHeatmap || isCorrelation));
-            table.classList.toggle('hide-row-toggles', !(isHeatmap || isCorrelation));
+            table.classList.toggle('hide-id-cols', !(isHeatmap || isCorrelation || isPCA));
+            table.classList.toggle('hide-row-toggles', !(isHeatmap || isCorrelation || isPCA));
         }
 
         // Axis assignment row
@@ -1025,13 +1055,21 @@ class App {
         const corrGrpMgr = document.getElementById('correlationGroupManager');
         if (corrGrpMgr) corrGrpMgr.style.display = isCorrelation ? '' : 'none';
 
+        // PCA controls
+        const pcaControls = document.getElementById('pcaControls');
+        if (pcaControls) pcaControls.style.display = isPCA ? '' : 'none';
+
+        // PCA group manager
+        const pcaGrpMgr = document.getElementById('pcaGroupManager');
+        if (pcaGrpMgr) pcaGrpMgr.style.display = isPCA ? '' : 'none';
+
         // Hide graph-controls wrapper for modes that don't use it
         const graphControlsEl = document.querySelector('.graph-controls');
-        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier) ? 'none' : '';
+        if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier || isPCA) ? 'none' : '';
 
-        // Hide dimensions section for correlation (it has its own controls), show stats
+        // Hide dimensions section for modes with own controls
         const dimSection = document.getElementById('dimensionsSection');
-        if (dimSection) dimSection.style.display = isCorrelation ? 'none' : '';
+        if (dimSection) dimSection.style.display = (isCorrelation || isPCA) ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
@@ -1421,6 +1459,7 @@ class App {
         if (this.mode === 'growth') return this.growthRenderer;
         if (this.mode === 'volcano') return this.volcanoRenderer;
         if (this.mode === 'correlation') return this.correlationRenderer;
+        if (this.mode === 'pca') return this.pcaRenderer;
         return this.heatmapRenderer;
     }
 
@@ -1521,6 +1560,15 @@ class App {
                 { label: 'Stats Box', fontKey: 'statsFont' }
             ];
             this._correlationGroupRows = true;
+        } else if (this.mode === 'pca') {
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+                { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
+                { label: 'X Tick Font', fontKey: 'xTickFont' },
+                { label: 'Y Tick Font', fontKey: 'yTickFont' }
+            ];
         } else {
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
@@ -1990,6 +2038,111 @@ class App {
         });
     }
 
+    _getPCASettings() {
+        return {
+            method: document.getElementById('pcaMethod')?.value || 'pca',
+            width: parseInt(document.getElementById('pcaWidth')?.value) || 400,
+            height: parseInt(document.getElementById('pcaHeight')?.value) || 400,
+            colorTheme: document.getElementById('pcaColorTheme')?.value || 'default',
+            pointSize: parseFloat(document.getElementById('pcaPointSize')?.value) || 6,
+            pcX: parseInt(document.getElementById('pcaPCX')?.value) || 1,
+            pcY: parseInt(document.getElementById('pcaPCY')?.value) || 2,
+            perplexity: parseInt(document.getElementById('pcaPerplexity')?.value) || 30,
+            nNeighbors: parseInt(document.getElementById('pcaNNeighbors')?.value) || 15,
+            minDist: parseFloat(document.getElementById('pcaMinDist')?.value) || 0.1,
+            showLoadings: document.getElementById('pcaShowLoadings')?.checked ?? false
+        };
+    }
+
+    _bindPCAControls() {
+        const ids = ['pcaMethod', 'pcaWidth', 'pcaHeight', 'pcaColorTheme', 'pcaPointSize',
+            'pcaPCX', 'pcaPCY', 'pcaPerplexity', 'pcaNNeighbors', 'pcaMinDist', 'pcaShowLoadings'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => {
+                // Clear cached embedding when method or params change
+                if (['pcaMethod', 'pcaPerplexity', 'pcaNNeighbors', 'pcaMinDist'].includes(id)) {
+                    this.pcaRenderer._cachedEmbedding = null;
+                }
+                this.updateGraph();
+            });
+        });
+
+        // Show/hide method-specific params
+        const methodSel = document.getElementById('pcaMethod');
+        if (methodSel) {
+            methodSel.addEventListener('change', () => {
+                const m = methodSel.value;
+                document.querySelectorAll('.pca-only').forEach(el => el.style.display = m === 'pca' ? '' : 'none');
+                document.querySelectorAll('.tsne-only').forEach(el => el.style.display = m === 'tsne' ? '' : 'none');
+                document.querySelectorAll('.umap-only').forEach(el => el.style.display = m === 'umap' ? '' : 'none');
+                // Update title
+                const titles = { pca: 'PCA', tsne: 't-SNE', umap: 'UMAP' };
+                this.pcaRenderer.settings.title = titles[m] || 'PCA';
+                this.pcaRenderer._cachedEmbedding = null;
+                this.updateGraph();
+            });
+        }
+    }
+
+    _updatePCAGroupManager(matrixData) {
+        const container = document.getElementById('pcaGroupManager');
+        const listEl = document.getElementById('pcaGroupList');
+        if (!container || !listEl || !matrixData || !matrixData.groupAssignments) return;
+
+        const groups = [...new Set(matrixData.groupAssignments)];
+        if (groups.length <= 1) { container.style.display = 'none'; return; }
+        container.style.display = '';
+
+        const settings = this.pcaRenderer.settings;
+        if (!settings.hiddenGroups) settings.hiddenGroups = [];
+
+        listEl.innerHTML = '';
+        groups.forEach((label, idx) => {
+            const color = this.pcaRenderer._getColor(idx);
+            const isHidden = settings.hiddenGroups.includes(label);
+
+            const item = document.createElement('div');
+            item.className = 'group-item' + (isHidden ? ' hidden' : '');
+            item.draggable = true;
+            item.dataset.label = label;
+            item.dataset.idx = idx;
+
+            const handle = document.createElement('span');
+            handle.className = 'drag-handle';
+            handle.textContent = '\u2261';
+
+            const dot = document.createElement('span');
+            dot.className = 'color-dot';
+            dot.style.background = color;
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'group-label';
+            labelSpan.textContent = label;
+
+            const eyeBtn = document.createElement('button');
+            eyeBtn.className = 'visibility-btn';
+            eyeBtn.textContent = isHidden ? '\u{1F6AB}' : '\u{1F441}';
+            eyeBtn.title = isHidden ? 'Show group' : 'Hide group';
+            eyeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const cur = settings.hiddenGroups;
+                if (cur.includes(label)) {
+                    settings.hiddenGroups = cur.filter(l => l !== label);
+                } else {
+                    settings.hiddenGroups = [...cur, label];
+                }
+                this.updateGraph();
+            });
+
+            item.appendChild(handle);
+            item.appendChild(dot);
+            item.appendChild(labelSpan);
+            item.appendChild(eyeBtn);
+            listEl.appendChild(item);
+        });
+    }
+
     _updateCorrelationGroupManager(corrData) {
         const container = document.getElementById('correlationGroupManager');
         const listEl = document.getElementById('correlationGroupList');
@@ -2244,6 +2397,14 @@ class App {
             const corrSettings = this._getCorrelationSettings();
             this.correlationRenderer.render(corrData, corrSettings);
             this._updateCorrelationGroupManager(corrData);
+            return;
+        }
+        if (this.mode === 'pca') {
+            if (infoEl) infoEl.style.display = 'none';
+            const matrixData = this.dataTable.getMatrixData();
+            const pcaSettings = this._getPCASettings();
+            this.pcaRenderer.render(matrixData, pcaSettings);
+            this._updatePCAGroupManager(matrixData);
             return;
         }
         if (infoEl) infoEl.style.display = 'none';

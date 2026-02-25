@@ -37,11 +37,7 @@
                 <div class="mode-selector-label">Graph Mode</div>
                 <div class="mode-selector">
                     <button class="mode-btn active" data-mode="heatmap">Heatmap</button>
-                    <!-- PCA mode: uses same matrix data as heatmap (getMatrixData).
-                         TODO: Add t-SNE and UMAP as dimensionality reduction method options
-                         alongside PCA (dropdown: PCA / t-SNE / UMAP). All three take the same
-                         matrix input and produce 2D scatter output with group coloring. -->
-                    <button class="mode-btn" data-mode="pca" disabled title="Coming soon">PCA</button>
+                    <button class="mode-btn" data-mode="pca">PCA</button>
                     <button class="mode-btn" data-mode="column">Column</button>
                     <button class="mode-btn" data-mode="growth">Time Series</button>
                     <button class="mode-btn" data-mode="kaplan-meier">Kaplan-Meier</button>
@@ -455,6 +451,48 @@
                     </div>
                 </div>
 
+                <div id="pcaControls" class="pca-controls" style="display:none">
+                    <div class="control-section">
+                        <h3 style="display:flex;align-items:center;justify-content:space-between">PCA / t-SNE / UMAP Settings <button class="settings-default-btn" data-reset-mode="pca" title="Reset to defaults">Defaults</button></h3>
+                        <div class="control-grid-2col">
+                            <div class="control-group"><label>Method:</label>
+                                <select id="pcaMethod">
+                                    <option value="pca" selected>PCA</option>
+                                    <option value="tsne">t-SNE</option>
+                                    <option value="umap">UMAP</option>
+                                </select>
+                            </div>
+                            <div class="control-group"><label>Colors:</label>
+                                <select id="pcaColorTheme">
+                                    <option value="default">Default</option>
+                                    <option value="pastel">Pastel</option>
+                                    <option value="vivid">Vivid</option>
+                                    <option value="colorblind">Colorblind-safe</option>
+                                    <option value="earth">Earth</option>
+                                    <option value="ocean">Ocean</option>
+                                    <option value="neon">Neon</option>
+                                </select>
+                            </div>
+                            <div class="control-group"><label>Width:</label><input type="number" id="pcaWidth" value="400" min="200" step="10"></div>
+                            <div class="control-group"><label>Height:</label><input type="number" id="pcaHeight" value="400" min="200" step="10"></div>
+                            <div class="control-group"><label>Point Size:</label><input type="number" id="pcaPointSize" value="6" min="1" max="20" step="0.5"></div>
+                            <div class="control-group pca-only"><label>PC X:</label><input type="number" id="pcaPCX" value="1" min="1" max="20" step="1"></div>
+                            <div class="control-group pca-only"><label>PC Y:</label><input type="number" id="pcaPCY" value="2" min="1" max="20" step="1"></div>
+                            <div class="control-group tsne-only" style="display:none"><label>Perplexity:</label><input type="number" id="pcaPerplexity" value="30" min="2" max="100" step="1"></div>
+                            <div class="control-group umap-only" style="display:none"><label>Neighbors:</label><input type="number" id="pcaNNeighbors" value="15" min="2" max="100" step="1"></div>
+                            <div class="control-group umap-only" style="display:none"><label>Min Dist:</label><input type="number" id="pcaMinDist" value="0.1" min="0.001" max="1" step="0.05"></div>
+                        </div>
+                        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+                            <label style="font-size:12px" class="pca-only"><input type="checkbox" id="pcaShowLoadings"> Loadings</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pcaGroupManager" class="group-manager" style="display:none">
+                    <h4>Groups <span style="font-weight:400;font-size:10px;color:#888">(drag to reorder, eye to hide)</span></h4>
+                    <div id="pcaGroupList" class="group-list"></div>
+                </div>
+
                 <div class="graph-controls">
                     <div class="control-section" id="dimensionsSection">
                         <h3 style="display:flex;align-items:center;justify-content:space-between">Dimensions & Style <button class="settings-default-btn" data-reset-mode="column" title="Reset to defaults">Defaults</button></h3>
@@ -720,6 +758,7 @@
     <script src="js/growth.js"></script>
     <script src="js/volcano.js"></script>
     <script src="js/correlation.js"></script>
+    <script src="js/pca.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

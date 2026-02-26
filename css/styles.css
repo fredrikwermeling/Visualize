@@ -135,6 +135,8 @@ header {
 .graph-panel .correlation-controls,
 .graph-panel .pca-controls,
 .graph-panel .kaplan-meier-controls,
+.graph-panel .venn-controls,
+.graph-panel .oncoprint-controls,
 .graph-panel > input[type="hidden"] {
     margin-left: 14px;
     margin-right: 14px;
@@ -150,7 +152,9 @@ header {
 .graph-panel .volcano-controls,
 .graph-panel .correlation-controls,
 .graph-panel .pca-controls,
-.graph-panel .kaplan-meier-controls {
+.graph-panel .kaplan-meier-controls,
+.graph-panel .venn-controls,
+.graph-panel .oncoprint-controls {
     margin-bottom: 14px;
 }
 
@@ -551,7 +555,9 @@ tr:hover .row-delete-btn {
 .growth-controls .control-grid-2col,
 .correlation-controls .control-grid-2col,
 .pca-controls .control-grid-2col,
-.kaplan-meier-controls .control-grid-2col {
+.kaplan-meier-controls .control-grid-2col,
+.venn-controls .control-grid-2col,
+.oncoprint-controls .control-grid-2col {
     grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
@@ -570,7 +576,9 @@ tr:hover .row-delete-btn {
 .growth-controls .control-grid-2col .control-group label,
 .correlation-controls .control-grid-2col .control-group label,
 .pca-controls .control-grid-2col .control-group label,
-.kaplan-meier-controls .control-grid-2col .control-group label {
+.kaplan-meier-controls .control-grid-2col .control-group label,
+.venn-controls .control-grid-2col .control-group label,
+.oncoprint-controls .control-grid-2col .control-group label {
     flex: 0 0 70px;
     white-space: nowrap;
     font-size: 10px;

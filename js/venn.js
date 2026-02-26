@@ -31,8 +31,8 @@ class VennRenderer {
             pastel: ['#AEC6CF','#FFB7B2','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#F0E6EF','#D4F0F0'],
             vivid: ['#E63946','#457B9D','#2A9D8F','#E9C46A','#F4A261','#264653','#A8DADC','#F77F00'],
             colorblind: ['#0072B2','#E69F00','#009E73','#CC79A7','#56B4E9','#D55E00','#F0E442','#000000'],
-            earth: ['#8B4513','#A0522D','#6B8E23','#556B2F','#B8860B','#D2691E','#CD853F','#DEB887'],
-            ocean: ['#003F5C','#2F4B7C','#665191','#A05195','#D45087','#F95D6A','#FF7C43','#FFA600'],
+            earth: ['#A0522D','#2E8B57','#DAA520','#8B0000','#4682B4','#6B8E23','#CD853F','#556B2F','#B8860B','#704214'],
+            ocean: ['#0077B6','#E76F51','#2A9D8F','#F4A261','#264653','#E9C46A','#023E8A','#D62828','#48CAE4','#006D77'],
             neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166']
         };
     }
@@ -139,6 +139,17 @@ class VennRenderer {
         }
     }
 
+    _fmtCount(count, totalItems) {
+        const s = this.settings;
+        const parts = [];
+        if (s.showCounts) parts.push(count.toString());
+        if (s.showPercentages && totalItems > 0) {
+            const pct = (count / totalItems * 100).toFixed(0) + '%';
+            parts.push(s.showCounts ? `(${pct})` : pct);
+        }
+        return parts.join(' ');
+    }
+
     _drawVenn(svg, sets, setNames, intersections) {
         const s = this.settings;
         const n = setNames.length;
@@ -170,12 +181,12 @@ class VennRenderer {
                     .attr('font-weight', s.labelFont.bold ? 'bold' : 'normal')
                     .attr('fill', '#333').text(setNames[0]);
             }
-            if (s.showCounts) {
+            if (s.showCounts || s.showPercentages) {
                 g.append('text').attr('x', cx).attr('y', cy + 5)
                     .attr('text-anchor', 'middle')
                     .attr('font-size', s.countFont.size + 'px')
                     .attr('fill', '#333')
-                    .text(sets[setNames[0]].size);
+                    .text(this._fmtCount(sets[setNames[0]].size, totalItems));
             }
         } else if (n === 2) {
             // Two overlapping circles
@@ -205,26 +216,19 @@ class VennRenderer {
             }
 
             // Counts: left-only, intersection, right-only
-            if (s.showCounts) {
+            if (s.showCounts || s.showPercentages) {
                 const leftOnly = intersections.find(x => x.mask === 1);
                 const rightOnly = intersections.find(x => x.mask === 2);
                 const both = intersections.find(x => x.mask === 3);
-                const fmt = (int) => {
-                    let txt = int ? int.count.toString() : '0';
-                    if (s.showPercentages && totalItems > 0) {
-                        txt += ` (${((int ? int.count : 0) / totalItems * 100).toFixed(0)}%)`;
-                    }
-                    return txt;
-                };
                 g.append('text').attr('x', x1 - overlap * 0.5).attr('y', cy + 5)
                     .attr('text-anchor', 'middle').attr('font-size', s.countFont.size + 'px')
-                    .attr('fill', '#333').text(fmt(leftOnly));
+                    .attr('fill', '#333').text(this._fmtCount(leftOnly ? leftOnly.count : 0, totalItems));
                 g.append('text').attr('x', cx).attr('y', cy + 5)
                     .attr('text-anchor', 'middle').attr('font-size', s.countFont.size + 'px')
-                    .attr('font-weight', 'bold').attr('fill', '#333').text(fmt(both));
+                    .attr('font-weight', 'bold').attr('fill', '#333').text(this._fmtCount(both ? both.count : 0, totalItems));
                 g.append('text').attr('x', x2 + overlap * 0.5).attr('y', cy + 5)
                     .attr('text-anchor', 'middle').attr('font-size', s.countFont.size + 'px')
-                    .attr('fill', '#333').text(fmt(rightOnly));
+                    .attr('fill', '#333').text(this._fmtCount(rightOnly ? rightOnly.count : 0, totalItems));
             }
         } else if (n === 3) {
             // Three overlapping circles in triangle arrangement
@@ -261,15 +265,7 @@ class VennRenderer {
             }
 
             // Counts in each region
-            if (s.showCounts) {
-                const fmt = (count) => {
-                    let txt = count.toString();
-                    if (s.showPercentages && totalItems > 0) {
-                        txt += `\n(${(count / totalItems * 100).toFixed(0)}%)`;
-                    }
-                    return txt;
-                };
-
+            if (s.showCounts || s.showPercentages) {
                 // Region positions (approximate geometric centers)
                 const regionPositions = [
                     { mask: 1, x: centers[0].x, y: centers[0].y - d * 0.6 },           // A only
@@ -290,7 +286,7 @@ class VennRenderer {
                         .attr('font-size', (s.countFont.size - 1) + 'px')
                         .attr('font-weight', rp.mask === 7 ? 'bold' : 'normal')
                         .attr('fill', '#333')
-                        .text(fmt(int.count));
+                        .text(this._fmtCount(int.count, totalItems));
                 });
             }
         }
@@ -299,6 +295,9 @@ class VennRenderer {
     _drawUpSet(svg, sets, setNames, intersections) {
         const s = this.settings;
         const n = setNames.length;
+        const allItems = new Set();
+        for (const items of Object.values(sets)) { for (const item of items) allItems.add(item); }
+        const totalItems = allItems.size;
 
         // Sort intersections by count (descending), filter non-empty
         const sorted = intersections
@@ -343,14 +342,14 @@ class VennRenderer {
                 .attr('rx', 1);
 
             // Count label on top
-            if (s.showCounts) {
+            if (s.showCounts || s.showPercentages) {
                 g.append('text')
                     .attr('x', bx)
                     .attr('y', barY - 3)
                     .attr('text-anchor', 'middle')
                     .attr('font-size', '9px')
                     .attr('fill', '#333')
-                    .text(int.count);
+                    .text(this._fmtCount(int.count, totalItems));
             }
         });
 

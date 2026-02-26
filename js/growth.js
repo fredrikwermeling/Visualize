@@ -74,14 +74,14 @@ class GrowthCurveRenderer {
                 '#0072B2', '#E69F00'
             ],
             earth: [
-                '#8B4513', '#A0522D', '#6B8E23', '#556B2F',
-                '#B8860B', '#D2691E', '#CD853F', '#DEB887',
-                '#808000', '#BDB76B'
+                '#A0522D', '#2E8B57', '#DAA520', '#8B0000',
+                '#4682B4', '#6B8E23', '#CD853F', '#556B2F',
+                '#B8860B', '#704214'
             ],
             ocean: [
-                '#003F5C', '#2F4B7C', '#665191', '#A05195',
-                '#D45087', '#F95D6A', '#FF7C43', '#FFA600',
-                '#488F31', '#00C9A7'
+                '#0077B6', '#E76F51', '#2A9D8F', '#F4A261',
+                '#264653', '#E9C46A', '#023E8A', '#D62828',
+                '#48CAE4', '#006D77'
             ],
             neon: [
                 '#FF006E', '#FB5607', '#FFBE0B', '#3A86FF',
@@ -147,6 +147,7 @@ class GrowthCurveRenderer {
         }
 
         const { timepoints, groups, subjects, groupMap } = growthData;
+        this._lastGroups = groups;
         const s = this.settings;
         const hiddenGroups = s.hiddenGroups || [];
         const lf = s.legendFont || { family: 'Arial', size: 11, bold: false, italic: false };
@@ -161,14 +162,11 @@ class GrowthCurveRenderer {
             legendW = 30 + maxLabel * lf.size * 0.6 + 12;
         }
         let bottomMargin = 60;
-        if (s.showStatsLegend && this.significanceMarkers.length > 0) {
-            bottomMargin += s.statsLegendExtended ? 60 : 45;
-        }
         const margin = { top: 50, right: legendW > 0 ? legendW + 10 : 20, bottom: bottomMargin, left: 65 };
-        const width = s.width;
-        const height = s.height;
-        const innerW = width - margin.left - margin.right;
-        const innerH = height - margin.top - margin.bottom;
+        const innerW = s.width;
+        const innerH = s.height;
+        const width = innerW + margin.left + margin.right;
+        const height = innerH + margin.top + margin.bottom;
 
         const svg = d3.select(this.container)
             .append('svg')
@@ -587,9 +585,12 @@ class GrowthCurveRenderer {
     _drawStatsLegend(g, innerW, innerH) {
         const s = this.settings;
         const off = s.statsLegendOffset;
-        const centerX = innerW / 2;
-        let legendY = innerH + 40;
-        if (s.showXLabel !== false) legendY += 22;
+        // Position right of plot, below legend
+        const groups = this._lastGroups || [];
+        const lf = s.legendFont || { size: 11 };
+        const rowH = Math.max(14, lf.size + 6);
+        const legendBaseX = innerW + 12;
+        const legendBaseY = groups.length * rowH + 30;
 
         const lines = ['* p < 0.05    ** p < 0.01    *** p < 0.001'];
         if (s.statsLegendExtended && s.statsTestName) {
@@ -599,9 +600,9 @@ class GrowthCurveRenderer {
         const legendG = g.append('g').attr('class', 'stats-legend').style('cursor', 'grab');
         lines.forEach((text, i) => {
             legendG.append('text')
-                .attr('x', centerX + off.x)
-                .attr('y', legendY + off.y + i * 14)
-                .attr('text-anchor', 'middle')
+                .attr('x', legendBaseX + off.x)
+                .attr('y', legendBaseY + off.y + i * 14)
+                .attr('text-anchor', 'start')
                 .style('font-family', 'Arial, sans-serif')
                 .style('font-size', '10px')
                 .style('fill', '#666')
@@ -616,9 +617,9 @@ class GrowthCurveRenderer {
                 self.settings.statsLegendOffset.x += event.dx;
                 self.settings.statsLegendOffset.y += event.dy;
                 d3.select(this).selectAll('text')
-                    .attr('x', centerX + self.settings.statsLegendOffset.x);
+                    .attr('x', legendBaseX + self.settings.statsLegendOffset.x);
                 d3.select(this).selectAll('text').each(function(d, i) {
-                    d3.select(this).attr('y', legendY + self.settings.statsLegendOffset.y + i * 14);
+                    d3.select(this).attr('y', legendBaseY + self.settings.statsLegendOffset.y + i * 14);
                 });
             })
             .on('end', function() { d3.select(this).style('cursor', 'grab'); })

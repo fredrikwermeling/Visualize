@@ -385,8 +385,9 @@
                             <div class="control-group"><label>P Threshold:</label><input type="number" id="volcanoPThresh" value="0.05" min="0" max="1" step="0.01"></div>
                             <div class="control-group"><label>FC Threshold:</label><input type="number" id="volcanoFCThresh" value="1.0" min="0" step="0.1"></div>
                             <div class="control-group"><label>Point Size:</label><input type="number" id="volcanoPointSize" value="4" min="1" max="20" step="0.5"></div>
-                            <div class="control-group"><label>Labels:</label><input type="number" id="volcanoTopLabels" value="10" min="0" max="50" step="1"></div>
-                            <div class="control-group"><label>Name Size:</label><input type="number" id="volcanoLabelSize" value="10" min="6" max="24" step="1"></div>
+                            <div class="control-group"><label>Top Labels:</label><input type="number" id="volcanoTopLabels" value="10" min="0" max="50" step="1"></div>
+                            <div class="control-group"><label>Show Labels:</label><label style="font-size:12px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="volcanoShowLabels" checked> On</label></div>
+                            <input type="hidden" id="volcanoLabelSize" value="10">
                             <div style="display:flex;gap:6px;align-items:center">
                                 <label style="font-size:11px;color:var(--text-secondary);white-space:nowrap">Up:</label><input type="color" id="volcanoUpColor" value="#E63946" style="width:28px;height:22px;padding:0;border:1px solid var(--gray-200);border-radius:3px;cursor:pointer">
                                 <label style="font-size:11px;color:var(--text-secondary);white-space:nowrap">Down:</label><input type="color" id="volcanoDownColor" value="#457B9D" style="width:28px;height:22px;padding:0;border:1px solid var(--gray-200);border-radius:3px;cursor:pointer">
@@ -500,9 +501,9 @@
                             <div style="margin-top:3px"><b>t-SNE</b> &mdash; Reveals clusters in complex, non-linear data. Good for visualizing distinct groups. Perplexity controls local vs global focus (5&ndash;50). Stochastic: re-runs may differ.</div>
                             <div style="margin-top:3px"><b>UMAP</b> &mdash; Similar to t-SNE but better preserves global structure. Faster on large datasets. Neighbors controls local detail; Min Dist controls point packing.</div>
                             <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Statistics used:</div>
-                            <div><b>PCA:</b> Covariance matrix eigendecomposition (Jacobi iteration). Data is centered. Variance explained shown per component.</div>
-                            <div style="margin-top:2px"><b>t-SNE:</b> Pairwise Gaussian similarities in high-D, Student-t in low-D. Gradient descent with momentum, early exaggeration, learning rate decay.</div>
-                            <div style="margin-top:2px"><b>UMAP:</b> k-NN graph with fuzzy simplicial set. Optimized via SGD with attractive/repulsive forces. Initialized from PCA.</div>
+                            <div><b>PCA:</b> Eigendecomposition of the covariance matrix. Data is centered. Variance explained (%) shown per component.</div>
+                            <div style="margin-top:2px"><b>t-SNE:</b> Converts pairwise distances to probabilities, then optimizes a 2D layout where similar points stay close. Stochastic optimization.</div>
+                            <div style="margin-top:2px"><b>UMAP:</b> Builds a nearest-neighbor graph and optimizes a 2D layout preserving both local and global structure. Initialized from PCA coordinates.</div>
                         </div>
                     </div>
                 </div>
@@ -620,6 +621,9 @@
                                     <option value="vivid">Vivid</option>
                                     <option value="grayscale">Grayscale</option>
                                     <option value="colorblind">Colorblind-safe</option>
+                                    <option value="earth">Earth</option>
+                                    <option value="ocean">Ocean</option>
+                                    <option value="neon">Neon</option>
                                 </select>
                             </div>
                             <div class="control-group column-only" id="manualColorGroup" style="display:none">

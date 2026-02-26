@@ -38,6 +38,7 @@ class PCARenderer {
             yTickFont: { family: 'Arial', size: 12, bold: false, italic: false },
             legendFont: { family: 'Arial', size: 11, bold: false, italic: false },
             loadingsFont: { family: 'Arial', size: 11, bold: false, italic: false },
+            loadingsColor: '#c0392b',
             // Axis overrides (null = auto)
             xMin: null, xMax: null, yMin: null, yMax: null,
             xTickStep: null, yTickStep: null,
@@ -62,8 +63,8 @@ class PCARenderer {
             pastel: ['#AEC6CF','#FFB7B2','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#F0E6EF','#D4F0F0','#FCE1E4','#DAEAF6'],
             vivid: ['#E63946','#457B9D','#2A9D8F','#E9C46A','#F4A261','#264653','#A8DADC','#F77F00','#D62828','#023E8A'],
             colorblind: ['#0072B2','#E69F00','#009E73','#CC79A7','#56B4E9','#D55E00','#F0E442','#000000'],
-            earth: ['#8B4513','#A0522D','#6B8E23','#556B2F','#B8860B','#D2691E','#CD853F','#DEB887'],
-            ocean: ['#003F5C','#2F4B7C','#665191','#A05195','#D45087','#F95D6A','#FF7C43','#FFA600'],
+            earth: ['#A0522D','#2E8B57','#DAA520','#8B0000','#4682B4','#6B8E23','#CD853F','#556B2F','#B8860B','#704214'],
+            ocean: ['#0077B6','#E76F51','#2A9D8F','#F4A261','#264653','#E9C46A','#023E8A','#D62828','#48CAE4','#006D77'],
             neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166']
         };
         this.symbolCycle = ['circle','square','triangle','diamond','cross','star'];
@@ -598,9 +599,11 @@ class PCARenderer {
         const xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, innerW]).nice();
         const yScale = d3.scaleLinear().domain([yMin, yMax]).range([innerH, 0]).nice();
 
-        // Axes
-        const xAxisGen = d3.axisBottom(xScale);
-        const yAxisGen = d3.axisLeft(yScale);
+        // Axes — limit ticks to avoid overlap on small plots
+        const xTickCount = Math.max(3, Math.floor(innerW / 60));
+        const yTickCount = Math.max(3, Math.floor(innerH / 40));
+        const xAxisGen = d3.axisBottom(xScale).ticks(xTickCount);
+        const yAxisGen = d3.axisLeft(yScale).ticks(yTickCount);
         if (s.xTickStep) xAxisGen.tickValues(d3.range(xScale.domain()[0], xScale.domain()[1] + s.xTickStep * 0.5, s.xTickStep));
         if (s.yTickStep) yAxisGen.tickValues(d3.range(yScale.domain()[0], yScale.domain()[1] + s.yTickStep * 0.5, s.yTickStep));
         const xAxisG = g.append('g').attr('transform', `translate(0,${innerH})`).call(xAxisGen);
@@ -751,7 +754,7 @@ class PCARenderer {
             .attr('refX', 10).attr('refY', 5)
             .attr('markerWidth', 5).attr('markerHeight', 5)
             .attr('orient', 'auto')
-            .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', '#c0392b');
+            .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', s.loadingsColor);
 
         // Collect arrow endpoints and label info
         const fontSize = lf.size || 11;
@@ -804,7 +807,7 @@ class PCARenderer {
             loadG.append('line')
                 .attr('x1', cx).attr('y1', cy)
                 .attr('x2', l.ex).attr('y2', l.ey)
-                .attr('stroke', '#c0392b').attr('stroke-width', 1)
+                .attr('stroke', s.loadingsColor).attr('stroke-width', 1)
                 .attr('stroke-opacity', 0.7)
                 .attr('marker-end', `url(#${markerId})`);
 
@@ -814,7 +817,7 @@ class PCARenderer {
                 loadG.append('line')
                     .attr('x1', l.ex).attr('y1', l.ey)
                     .attr('x2', l.tx + (l.anchor === 'start' ? -2 : 2)).attr('y2', l.ty)
-                    .attr('stroke', '#c0392b').attr('stroke-width', 0.5)
+                    .attr('stroke', s.loadingsColor).attr('stroke-width', 0.5)
                     .attr('stroke-opacity', 0.4)
                     .attr('stroke-dasharray', '2,2');
             }
@@ -826,7 +829,7 @@ class PCARenderer {
                 .attr('font-family', lf.family || 'Arial')
                 .attr('font-weight', lf.bold ? 'bold' : 'normal')
                 .attr('font-style', lf.italic ? 'italic' : 'normal')
-                .attr('fill', '#c0392b')
+                .attr('fill', s.loadingsColor)
                 .style('paint-order', 'stroke')
                 .attr('stroke', 'white').attr('stroke-width', 3)
                 .attr('stroke-linejoin', 'round')
@@ -837,9 +840,11 @@ class PCARenderer {
     _estimateLegendWidth(groupNames) {
         const lf = this.settings.legendFont;
         const ov = this.settings.groupOverrides || {};
-        const charWidth = lf.size * 0.6;
+        const charWidth = lf.size * 0.62;
+        const symbolX = Math.max(6, lf.size * 0.55);
+        const textX = symbolX + Math.max(10, lf.size * 0.9);
         const maxLabelWidth = Math.max(...groupNames.map(n => ((ov[n] && ov[n].label) || n).length * charWidth));
-        return 20 + maxLabelWidth + 12;
+        return textX + maxLabelWidth + 12;
     }
 
     _drawLegend(g, innerW, groupNames) {
@@ -866,11 +871,17 @@ class PCARenderer {
             .attr('transform', `translate(${baseX + loff.x}, ${baseY + loff.y})`)
             .attr('cursor', 'grab');
 
+        // Font-size-aware spacing
+        const rowH = Math.max(18, lf.size * 1.6);
+        const symbolSize = Math.max(40, lf.size * 4);
+        const symbolX = Math.max(6, lf.size * 0.55);
+        const textX = symbolX + Math.max(10, lf.size * 0.9);
+
         // White background rect
         const legendW = this._estimateLegendWidth(orderedNames);
-        const legendH = orderedNames.length * 20 + 8;
+        const legendH = orderedNames.length * rowH + lf.size * 0.5;
         legendG.append('rect')
-            .attr('x', -4).attr('y', -10)
+            .attr('x', -4).attr('y', -lf.size * 0.8)
             .attr('width', legendW)
             .attr('height', legendH)
             .attr('fill', 'white')
@@ -880,7 +891,7 @@ class PCARenderer {
 
         orderedNames.forEach((name, i) => {
             const gi = groupNames.indexOf(name);
-            const ly = i * 20;
+            const ly = i * rowH;
             const color = this._getColor(gi >= 0 ? gi : 0, name);
             const symbolGen = this._d3Symbol(this._getSymbolForGroup(gi >= 0 ? gi : 0, name));
             const isHidden = hiddenGroups.includes(name);
@@ -889,13 +900,13 @@ class PCARenderer {
             const displayName = ov.label || name;
 
             legendG.append('path')
-                .attr('d', symbolGen.size(50)())
-                .attr('transform', `translate(6,${ly})`)
+                .attr('d', symbolGen.size(symbolSize)())
+                .attr('transform', `translate(${symbolX},${ly})`)
                 .attr('fill', color)
                 .attr('opacity', opacity);
 
             legendG.append('text')
-                .attr('x', 16).attr('y', ly + 4)
+                .attr('x', textX).attr('y', ly + lf.size * 0.35)
                 .attr('font-size', lf.size + 'px')
                 .attr('font-family', lf.family)
                 .attr('font-weight', lf.bold ? 'bold' : 'normal')

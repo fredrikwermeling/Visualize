@@ -105,6 +105,21 @@ class GraphRenderer {
                 '#0072B2', '#E69F00', '#009E73', '#CC79A7',
                 '#56B4E9', '#D55E00', '#F0E442', '#000000',
                 '#0072B2', '#E69F00'
+            ],
+            earth: [
+                '#A0522D', '#2E8B57', '#DAA520', '#8B0000',
+                '#4682B4', '#6B8E23', '#CD853F', '#556B2F',
+                '#B8860B', '#704214'
+            ],
+            ocean: [
+                '#0077B6', '#E76F51', '#2A9D8F', '#F4A261',
+                '#264653', '#E9C46A', '#023E8A', '#D62828',
+                '#48CAE4', '#006D77'
+            ],
+            neon: [
+                '#FF006E', '#FB5607', '#FFBE0B', '#3A86FF',
+                '#8338EC', '#06D6A0', '#EF476F', '#FFD166',
+                '#118AB2', '#073B4C'
             ]
         };
 
@@ -291,6 +306,7 @@ class GraphRenderer {
     render(data) {
         // Clear previous graph
         this.container.innerHTML = '';
+        this._lastRenderData = data;
 
         // Keep all columns (including empty ones for spacing)
         let filteredData = data.slice();
@@ -355,10 +371,7 @@ class GraphRenderer {
             this.margin.bottom += this._effectiveAngle === 90 ? 40 : 20;
         }
 
-        // Extra bottom margin for stats legend below graph
-        if (this.settings.showStatsLegend && this.significanceResults.length > 0) {
-            this.margin.bottom += this.settings.statsLegendExtended ? 60 : 45;
-        }
+        // Stats legend is now drawn to the right (no extra bottom margin needed)
 
         // Extra right margin for group color legend
         if (this.settings.showGroupLegend) {
@@ -2336,18 +2349,13 @@ class GraphRenderer {
 
     _drawStatsLegend(g) {
         const off = this.settings.statsLegendOffset;
-        const plotCenterX = this.innerWidth / 2;
-
-        const isH = this.settings.orientation === 'horizontal';
-        // Position below x-axis labels and x-label text
-        let legendY = this.innerHeight + 40;
-        if (!isH && this._effectiveAngle > 0) {
-            legendY += this._effectiveAngle === 90 ? 55 : 35;
-        }
-        // Add extra space for x-axis label if shown
-        if (this.settings.showXLabel !== false) {
-            legendY += 22;
-        }
+        // Position to the right of the plot, below the group legend
+        const data = this._lastRenderData || [];
+        const groupCount = data.length || 0;
+        const lf = this.settings.groupLegendFont || { size: 11 };
+        const lineH = Math.max(8, (lf.size || 11) - 2) + 10;
+        const legendBaseX = this.innerWidth + 15;
+        const legendBaseY = 10 + groupCount * lineH + 20;
 
         // Build legend lines
         const lines = ['* p < 0.05    ** p < 0.01    *** p < 0.001'];
@@ -2361,9 +2369,9 @@ class GraphRenderer {
 
         lines.forEach((text, i) => {
             legendG.append('text')
-                .attr('x', plotCenterX + off.x)
-                .attr('y', legendY + off.y + i * 14)
-                .attr('text-anchor', 'middle')
+                .attr('x', legendBaseX + off.x)
+                .attr('y', legendBaseY + off.y + i * 14)
+                .attr('text-anchor', 'start')
                 .style('font-family', this.settings.fontFamily)
                 .style('font-size', '10px')
                 .style('fill', '#666')
@@ -2379,9 +2387,9 @@ class GraphRenderer {
                 self.settings.statsLegendOffset.x += event.dx;
                 self.settings.statsLegendOffset.y += event.dy;
                 d3.select(this).selectAll('text')
-                    .attr('x', plotCenterX + self.settings.statsLegendOffset.x);
+                    .attr('x', legendBaseX + self.settings.statsLegendOffset.x);
                 d3.select(this).selectAll('text').each(function(d, i) {
-                    d3.select(this).attr('y', legendY + self.settings.statsLegendOffset.y + i * 14);
+                    d3.select(this).attr('y', legendBaseY + self.settings.statsLegendOffset.y + i * 14);
                 });
             })
             .on('end', function() { d3.select(this).style('cursor', 'grab'); })

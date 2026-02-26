@@ -876,8 +876,8 @@ class App {
             this.pcaRenderer._cachedEmbedding = null;
             this.pcaRenderer._nudgeOffsetKey = null;
             document.getElementById('pcaMethod').value = 'pca';
-            document.getElementById('pcaWidth').value = 400;
-            document.getElementById('pcaHeight').value = 400;
+            document.getElementById('pcaWidth').value = 300;
+            document.getElementById('pcaHeight').value = 300;
             document.getElementById('pcaColorTheme').value = 'default';
             document.getElementById('pcaPointSize').value = 6;
             document.getElementById('pcaPCX').value = 1;
@@ -1142,7 +1142,7 @@ class App {
 
         // Hide dimensions section for modes with own controls
         const dimSection = document.getElementById('dimensionsSection');
-        if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn || isOncoprint) ? 'none' : '';
+        if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn || isOncoprint || isGrowth) ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
@@ -1535,7 +1535,7 @@ class App {
                 'yAxisMin','yAxisMax','yAxisTickStep','yAxisScaleType'],
             growth: ['growthWidth','growthHeight','growthSymbolSize','growthMeanLineWidth','growthCapWidth',
                 'growthColorTheme','growthXMin','growthXMax','growthYMin','growthYMax','growthXTickStep','growthYTickStep'],
-            volcano: ['volcanoWidth','volcanoHeight','volcanoPointSize','volcanoLabelSize'],
+            volcano: ['volcanoWidth','volcanoHeight','volcanoPointSize'],
             correlation: ['corrWidth','corrHeight','corrPointSize','corrCapWidth','corrColorTheme',
                 'corrXMin','corrXMax','corrYMin','corrYMax','corrXTickStep','corrYTickStep'],
             heatmap: ['heatmapWidth','heatmapHeight','heatmapColorScheme','heatmapGroupColorTheme','heatmapLegendWidth'],
@@ -1689,7 +1689,6 @@ class App {
                 { label: 'Width', inputId: 'volcanoWidth', type: 'number', min: 100, step: 10 },
                 { label: 'Height', inputId: 'volcanoHeight', type: 'number', min: 100, step: 10 },
                 { label: 'Pt Size', inputId: 'volcanoPointSize', type: 'number', min: 1, max: 20, step: 0.5 },
-                { label: 'Lbl Size', inputId: 'volcanoLabelSize', type: 'number', min: 6, max: 24, step: 1 },
                 { label: 'Up', inputId: 'volcanoUpColor', type: 'color' },
                 { label: 'Down', inputId: 'volcanoDownColor', type: 'color' }
             ];
@@ -1935,7 +1934,7 @@ class App {
                 { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
                 { label: 'X Tick Font', fontKey: 'xTickFont' },
                 { label: 'Y Tick Font', fontKey: 'yTickFont' },
-                { label: 'Loadings', fontKey: 'loadingsFont' }
+                { label: 'Loadings', fontKey: 'loadingsFont', colorKey: 'loadingsColor' }
             ];
             this._pcaGroupRows = true;
         } else if (this.mode === 'venn') {
@@ -2048,6 +2047,19 @@ class App {
                 italicBtn.classList.toggle('active'); this.updateGraph();
             });
             fc.appendChild(italicBtn);
+
+            // Color picker for elements like loadings
+            if (el.colorKey) {
+                const colorInp = document.createElement('input');
+                colorInp.type = 'color';
+                colorInp.value = s[el.colorKey] || '#c0392b';
+                colorInp.style.cssText = 'width:24px;height:24px;padding:0;border:1px solid #d1d5db;border-radius:3px;cursor:pointer;margin-left:4px';
+                colorInp.addEventListener('input', () => {
+                    s[el.colorKey] = colorInp.value;
+                    this.updateGraph();
+                });
+                fc.appendChild(colorInp);
+            }
 
             // Tick step control
             if (el.tickStep) {
@@ -2442,14 +2454,14 @@ class App {
             fcThreshold: parseFloat(document.getElementById('volcanoFCThresh')?.value) || 1.0,
             pointSize: parseFloat(document.getElementById('volcanoPointSize')?.value) || 4,
             showTopLabels: parseInt(document.getElementById('volcanoTopLabels')?.value) ?? 10,
-            labelSize: parseInt(document.getElementById('volcanoLabelSize')?.value) || 10,
+            showLabels: document.getElementById('volcanoShowLabels')?.checked !== false,
             upColor: document.getElementById('volcanoUpColor')?.value || '#E63946',
             downColor: document.getElementById('volcanoDownColor')?.value || '#457B9D'
         };
     }
 
     _bindVolcanoControls() {
-        const ids = ['volcanoWidth', 'volcanoHeight', 'volcanoPThresh', 'volcanoFCThresh', 'volcanoPointSize', 'volcanoTopLabels', 'volcanoLabelSize', 'volcanoUpColor', 'volcanoDownColor'];
+        const ids = ['volcanoWidth', 'volcanoHeight', 'volcanoPThresh', 'volcanoFCThresh', 'volcanoPointSize', 'volcanoTopLabels', 'volcanoUpColor', 'volcanoDownColor', 'volcanoShowLabels'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => this.updateGraph());
@@ -2924,6 +2936,9 @@ class App {
         if (this.mode === 'growth') return this.growthAnnotationManager;
         if (this.mode === 'volcano') return this.volcanoAnnotationManager;
         if (this.mode === 'correlation') return this.correlationAnnotationManager;
+        if (this.mode === 'pca') return this.pcaAnnotationManager;
+        if (this.mode === 'venn') return this.vennAnnotationManager;
+        if (this.mode === 'oncoprint') return this.oncoprintAnnotationManager;
         return this.columnAnnotationManager;
     }
 
@@ -2942,7 +2957,8 @@ class App {
     undo() {
         if (this._undoStack.length === 0) return;
         const snapshot = this._undoStack.pop();
-        const mgr = snapshot.mode === 'heatmap' ? this.heatmapAnnotationManager : snapshot.mode === 'growth' ? this.growthAnnotationManager : snapshot.mode === 'volcano' ? this.volcanoAnnotationManager : snapshot.mode === 'correlation' ? this.correlationAnnotationManager : this.columnAnnotationManager;
+        const mgrMap = { heatmap: this.heatmapAnnotationManager, growth: this.growthAnnotationManager, volcano: this.volcanoAnnotationManager, correlation: this.correlationAnnotationManager, pca: this.pcaAnnotationManager, venn: this.vennAnnotationManager, oncoprint: this.oncoprintAnnotationManager };
+        const mgr = mgrMap[snapshot.mode] || this.columnAnnotationManager;
         mgr.annotations = snapshot.annotations;
         mgr.selectedIndex = -1;
         mgr._selectedBracketIdx = -1;

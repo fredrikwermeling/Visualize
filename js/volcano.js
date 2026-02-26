@@ -39,6 +39,7 @@ class VolcanoRenderer {
             downLegendText: 'Down',
             nsLegendText: 'NS',
             // Gene labels
+            showLabels: true,
             showTopLabels: 10,
             highlightedGenes: [],  // manually added gene names
             excludedGenes: [],     // genes excluded from auto-labeling
@@ -50,8 +51,6 @@ class VolcanoRenderer {
 
     render(volcanoData, settings) {
         if (settings) {
-            // Apply labelSize to labelFont
-            if (settings.labelSize) this.settings.labelFont.size = settings.labelSize;
             Object.assign(this.settings, settings);
         }
         this.container.innerHTML = '';
@@ -63,10 +62,10 @@ class VolcanoRenderer {
 
         const s = this.settings;
         const margin = { top: 50, right: 30, bottom: 65, left: 65 };
-        const width = s.width;
-        const height = s.height;
-        const innerW = width - margin.left - margin.right;
-        const innerH = height - margin.top - margin.bottom;
+        const innerW = s.width;
+        const innerH = s.height;
+        const width = innerW + margin.left + margin.right;
+        const height = innerH + margin.top + margin.bottom;
         this._lastPlotData = null;
 
         const svg = d3.select(this.container)
@@ -176,6 +175,7 @@ class VolcanoRenderer {
             .text(d => `${d.name}\nLog\u2082FC: ${d.logFC.toFixed(2)}\nP: ${d.pval.toExponential(2)}\nClick to toggle label`);
 
         // Draw gene labels with auto-repulsion to avoid overlaps + leader lines
+        if (s.showLabels === false) { /* skip labels entirely */ } else {
         const lf = s.labelFont;
         const labeledPoints = plotData.filter(d => labeledSet.has(d.name));
 
@@ -261,6 +261,7 @@ class VolcanoRenderer {
                 })
             );
         });
+        } // end showLabels check
 
         // Legend
         this._drawLegend(g, innerW, plotData, classify, colorMap);

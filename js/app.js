@@ -880,8 +880,8 @@ class App {
             this.pcaRenderer._cachedEmbedding = null;
             this.pcaRenderer._nudgeOffsetKey = null;
             document.getElementById('pcaMethod').value = 'pca';
-            document.getElementById('pcaWidth').value = 300;
-            document.getElementById('pcaHeight').value = 300;
+            document.getElementById('pcaWidth').value = 200;
+            document.getElementById('pcaHeight').value = 200;
             document.getElementById('pcaColorTheme').value = 'default';
             document.getElementById('pcaPointSize').value = 6;
             document.getElementById('pcaPCX').value = 1;
@@ -2619,8 +2619,8 @@ class App {
         const pf = (id) => { const v = document.getElementById(id)?.value; return v === '' || v == null ? null : parseFloat(v); };
         return {
             method: document.getElementById('pcaMethod')?.value || 'pca',
-            width: parseInt(document.getElementById('pcaWidth')?.value) || 300,
-            height: parseInt(document.getElementById('pcaHeight')?.value) || 300,
+            width: parseInt(document.getElementById('pcaWidth')?.value) || 200,
+            height: parseInt(document.getElementById('pcaHeight')?.value) || 200,
             colorTheme: document.getElementById('pcaColorTheme')?.value || 'default',
             pointSize: parseFloat(document.getElementById('pcaPointSize')?.value) || 6,
             pcX: parseInt(document.getElementById('pcaPCX')?.value) || 1,

@@ -17,6 +17,7 @@ class OncoPrintRenderer {
             showRowBarChart: true,
             showColBarChart: true,
             sortSamples: true,
+            categoryOverrides: {},
             // Fonts
             titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
             rowLabelFont: { family: 'Arial', size: 11, bold: false, italic: false },
@@ -35,9 +36,10 @@ class OncoPrintRenderer {
             vivid: ['#E63946','#457B9D','#2A9D8F','#E9C46A','#F4A261','#264653','#A8DADC','#F77F00','#9B5DE5','#00BBF9'],
             colorblind: ['#0072B2','#E69F00','#009E73','#CC79A7','#56B4E9','#D55E00','#F0E442','#000000','#999999','#661100'],
             mutation: ['#26A65B','#333333','#E74C3C','#3498DB','#9B59B6','#F39C12','#1ABC9C','#E67E22','#95A5A6','#2C3E50'],
-            earth: ['#A0522D','#2E8B57','#DAA520','#8B0000','#4682B4','#6B8E23','#CD853F','#556B2F','#B8860B','#704214'],
-            ocean: ['#0077B6','#E76F51','#2A9D8F','#F4A261','#264653','#E9C46A','#023E8A','#D62828','#48CAE4','#006D77'],
-            neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166','#118AB2','#073B4C']
+            earth: ['#8B4513','#2E7D32','#DAA520','#B71C1C','#1565C0','#558B2F','#E65100','#4E342E','#F9A825','#1B5E20'],
+            ocean: ['#01579B','#FF6F00','#00695C','#D84315','#1A237E','#F57F17','#004D40','#BF360C','#0277BD','#00838F'],
+            neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166','#118AB2','#073B4C'],
+            contrast: ['#E41A1C','#377EB8','#4DAF4A','#984EA3','#FF7F00','#A65628','#F781BF','#999999','#66C2A5','#FC8D62']
         };
 
         // Built-in category-to-color overrides for common genomic terms
@@ -159,10 +161,10 @@ class OncoPrintRenderer {
                     .attr('rx', 1);
                 // Show % above bar
                 const pct = maxCount > 0 ? Math.round(count / maxCount * 100) : 0;
-                if (cw >= 10) {
+                if (cw >= 6) {
                     svg.append('text')
                         .attr('x', bx + cw / 2).attr('y', gridY - barH - 4)
-                        .attr('text-anchor', 'middle').attr('font-size', '7px')
+                        .attr('text-anchor', 'middle').attr('font-size', Math.min(7, cw * 0.7) + 'px')
                         .attr('fill', '#666').text(pct + '%');
                 }
             });
@@ -277,12 +279,19 @@ class OncoPrintRenderer {
                     .attr('width', 12).attr('height', 12)
                     .attr('fill', catColorMap[cat])
                     .attr('rx', 2);
-                legendG.append('text')
+
+                const textEl = legendG.append('text')
                     .attr('x', x + 16).attr('y', y + 10)
                     .attr('font-size', s.legendFont.size + 'px')
                     .attr('font-family', s.legendFont.family)
                     .attr('fill', '#333')
-                    .text(cat);
+                    .text((s.categoryOverrides[cat] && s.categoryOverrides[cat].label) || cat)
+                    .style('cursor', 'pointer');
+
+                textEl.on('dblclick', (event) => {
+                    event.stopPropagation();
+                    this._editLegendLabel(event, cat);
+                });
             });
 
             // Make legend draggable
@@ -463,6 +472,54 @@ class OncoPrintRenderer {
         toolbar.appendChild(italicBtn);
 
         return { toolbar, familySelect, sizeInput };
+    }
+
+    _editLegendLabel(event, category) {
+        const s = this.settings;
+        if (!s.categoryOverrides) s.categoryOverrides = {};
+
+        const existing = document.querySelector('.svg-edit-popup');
+        if (existing) existing.remove();
+
+        const popup = document.createElement('div');
+        popup.className = 'svg-edit-popup';
+        popup.style.left = `${event.clientX + 5}px`;
+        popup.style.top = `${event.clientY - 10}px`;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'svg-inline-edit';
+        input.value = (s.categoryOverrides[category] && s.categoryOverrides[category].label) || category;
+        input.style.cssText = 'width:120px;padding:3px 6px;font-size:12px';
+        popup.appendChild(input);
+
+        const commit = () => {
+            if (!document.body.contains(popup)) return;
+            const val = input.value.trim();
+            if (!s.categoryOverrides[category]) s.categoryOverrides[category] = {};
+            if (val && val !== category) {
+                s.categoryOverrides[category].label = val;
+            } else {
+                delete s.categoryOverrides[category].label;
+            }
+            popup.remove();
+            if (window.app) window.app.updateGraph();
+        };
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); popup.remove(); }
+        });
+
+        document.body.appendChild(popup);
+        input.focus();
+        input.select();
+
+        popup.addEventListener('focusout', () => {
+            setTimeout(() => {
+                if (document.body.contains(popup) && !popup.contains(document.activeElement)) commit();
+            }, 100);
+        });
     }
 
     getSvgElement() {

@@ -1947,7 +1947,7 @@ class App {
                 { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
                 { label: 'X Tick Font', fontKey: 'xTickFont' },
                 { label: 'Y Tick Font', fontKey: 'yTickFont' },
-                { label: 'Gene Labels', fontKey: 'labelFont' }
+                { label: 'Gene Labels', fontKey: 'labelFont', visKey: 'showLabels' }
             ];
         } else if (this.mode === 'correlation') {
             elements = [
@@ -2688,13 +2688,15 @@ class App {
             opacity: parseFloat(document.getElementById('vennOpacity')?.value) || 0.35,
             showCounts: document.getElementById('vennShowCounts')?.checked ?? true,
             showPercentages: document.getElementById('vennShowPercentages')?.checked ?? false,
-            showLabels: document.getElementById('vennShowLabels')?.checked ?? true
+            showLabels: document.getElementById('vennShowLabels')?.checked ?? true,
+            proportional: document.getElementById('vennProportional')?.checked || false,
+            scaleBySize: document.getElementById('vennScaleBySize')?.checked || false
         };
     }
 
     _bindVennControls() {
         const ids = ['vennPlotType', 'vennWidth', 'vennHeight', 'vennColorTheme', 'vennOpacity',
-            'vennShowCounts', 'vennShowPercentages', 'vennShowLabels'];
+            'vennShowCounts', 'vennShowPercentages', 'vennShowLabels', 'vennProportional', 'vennScaleBySize'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => this.updateGraph());

@@ -55,9 +55,10 @@ class CorrelationRenderer {
             pastel: ['#AEC6CF','#FFB7B2','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#F0E6EF','#D4F0F0','#FCE1E4','#DAEAF6'],
             vivid: ['#E63946','#457B9D','#2A9D8F','#E9C46A','#F4A261','#264653','#A8DADC','#F77F00','#D62828','#023E8A'],
             colorblind: ['#0072B2','#E69F00','#009E73','#CC79A7','#56B4E9','#D55E00','#F0E442','#000000'],
-            earth: ['#A0522D','#2E8B57','#DAA520','#8B0000','#4682B4','#6B8E23','#CD853F','#556B2F','#B8860B','#704214'],
-            ocean: ['#0077B6','#E76F51','#2A9D8F','#F4A261','#264653','#E9C46A','#023E8A','#D62828','#48CAE4','#006D77'],
-            neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166']
+            earth: ['#8B4513','#2E7D32','#DAA520','#B71C1C','#1565C0','#558B2F','#E65100','#4E342E','#F9A825','#1B5E20'],
+            ocean: ['#01579B','#FF6F00','#00695C','#D84315','#1A237E','#F57F17','#004D40','#BF360C','#0277BD','#00838F'],
+            neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166'],
+            contrast: ['#E41A1C','#377EB8','#4DAF4A','#984EA3','#FF7F00','#A65628','#F781BF','#999999','#66C2A5','#FC8D62']
         };
         this.symbolCycle = ['circle','square','triangle','diamond','cross','star'];
     }

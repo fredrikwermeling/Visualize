@@ -283,6 +283,11 @@ class HeatmapRenderer {
         if (this.settings.showInfoBox) {
             this._drawInfoBox(svg, marginLeft, height, width);
         }
+
+        // Draw annotations (must be last so it's on top)
+        if (this.annotationManager) {
+            this.annotationManager.drawAnnotations(svg, { top: marginTop, left: marginLeft, right: marginRight, bottom: marginBottom });
+        }
     }
 
     _getAutoLegendTitle() {
@@ -405,6 +410,7 @@ class HeatmapRenderer {
             earth: ['#8B4513', '#6B8E23', '#D2B48C', '#556B2F', '#CD853F', '#BDB76B', '#A0522D', '#DEB887'],
             ocean: ['#03045E', '#0096C7', '#48CAE4', '#023E8A', '#00B4D8', '#90E0EF', '#006994', '#0077B6'],
             neon: ['#FF00FF', '#00FFFF', '#FF6600', '#39FF14', '#FF3131', '#BF00FF', '#FFFF00', '#FF1493'],
+            contrast: ['#E41A1C', '#377EB8', '#4DAF4A', '#984EA3', '#FF7F00', '#A65628', '#F781BF', '#999999'],
             forest: ['#1b5e20', '#a5d6a7', '#2e7d32', '#66bb6a', '#388e3c', '#81c784', '#43a047', '#4caf50']
         };
         let palette;

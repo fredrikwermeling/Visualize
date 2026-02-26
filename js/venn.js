@@ -14,6 +14,8 @@ class VennRenderer {
             showPercentages: false,
             showLabels: true,
             opacity: 0.35,
+            proportional: false,
+            scaleBySize: false,
             // Fonts
             titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
             labelFont: { family: 'Arial', size: 13, bold: true, italic: false },
@@ -21,6 +23,7 @@ class VennRenderer {
             // Offsets
             titleOffset: { x: 0, y: 0 },
             legendOffset: { x: 0, y: 0 },
+            countOffsets: {},
             showTitle: true,
             showLegend: true
         };
@@ -31,9 +34,10 @@ class VennRenderer {
             pastel: ['#AEC6CF','#FFB7B2','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#F0E6EF','#D4F0F0'],
             vivid: ['#E63946','#457B9D','#2A9D8F','#E9C46A','#F4A261','#264653','#A8DADC','#F77F00'],
             colorblind: ['#0072B2','#E69F00','#009E73','#CC79A7','#56B4E9','#D55E00','#F0E442','#000000'],
-            earth: ['#A0522D','#2E8B57','#DAA520','#8B0000','#4682B4','#6B8E23','#CD853F','#556B2F','#B8860B','#704214'],
-            ocean: ['#0077B6','#E76F51','#2A9D8F','#F4A261','#264653','#E9C46A','#023E8A','#D62828','#48CAE4','#006D77'],
-            neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166']
+            earth: ['#8B4513','#2E7D32','#DAA520','#B71C1C','#1565C0','#558B2F','#E65100','#4E342E','#F9A825','#1B5E20'],
+            ocean: ['#01579B','#FF6F00','#00695C','#D84315','#1A237E','#F57F17','#004D40','#BF360C','#0277BD','#00838F'],
+            neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166'],
+            contrast: ['#E41A1C','#377EB8','#4DAF4A','#984EA3','#FF7F00','#A65628','#F781BF','#999999','#66C2A5','#FC8D62']
         };
     }
 
@@ -182,34 +186,80 @@ class VennRenderer {
                     .attr('fill', '#333').text(setNames[0]);
             }
             if (s.showCounts || s.showPercentages) {
-                g.append('text').attr('x', cx).attr('y', cy + 5)
+                const maskKey = '1';
+                const countOff = s.countOffsets[maskKey] || { x: 0, y: 0 };
+                const countText = g.append('text')
+                    .attr('x', cx + countOff.x)
+                    .attr('y', cy + 5 + countOff.y)
                     .attr('text-anchor', 'middle')
                     .attr('font-size', s.countFont.size + 'px')
+                    .attr('font-weight', s.countFont.bold ? 'bold' : 'normal')
+                    .attr('font-style', s.countFont.italic ? 'italic' : 'normal')
+                    .attr('font-family', s.countFont.family || 'Arial')
                     .attr('fill', '#333')
+                    .style('cursor', 'grab')
                     .text(this._fmtCount(sets[setNames[0]].size, totalItems));
+
+                const self = this;
+                countText.call(d3.drag()
+                    .on('start', function(event) {
+                        event.sourceEvent.stopPropagation();
+                        d3.select(this).style('cursor', 'grabbing');
+                    })
+                    .on('drag', function(event) {
+                        if (!self.settings.countOffsets) self.settings.countOffsets = {};
+                        if (!self.settings.countOffsets[maskKey]) self.settings.countOffsets[maskKey] = { x: 0, y: 0 };
+                        self.settings.countOffsets[maskKey].x += event.dx;
+                        self.settings.countOffsets[maskKey].y += event.dy;
+                        d3.select(this)
+                            .attr('x', parseFloat(d3.select(this).attr('x')) + event.dx)
+                            .attr('y', parseFloat(d3.select(this).attr('y')) + event.dy);
+                    })
+                    .on('end', function() {
+                        d3.select(this).style('cursor', 'grab');
+                        if (window.app) window.app.updateGraph();
+                    })
+                );
             }
         } else if (n === 2) {
             // Two overlapping circles
-            const overlap = baseR * 0.6;
-            const x1 = cx - overlap / 2;
-            const x2 = cx + overlap / 2;
+            const setSizes = setNames.map(name => sets[name].size);
+            const maxSetSize = Math.max(...setSizes);
+            const radii = s.scaleBySize
+                ? setSizes.map(sz => baseR * Math.sqrt(sz / maxSetSize))
+                : [baseR, baseR];
+
+            let x1, x2, overlap;
+            if (s.proportional) {
+                const interCount = intersections.find(x => x.mask === 3)?.count || 0;
+                const minSetSize = Math.min(setSizes[0], setSizes[1]);
+                const overlapRatio = minSetSize > 0 ? interCount / minSetSize : 0;
+                const distance = baseR * 2 * (1 - overlapRatio * 0.85);
+                x1 = cx - distance / 2;
+                x2 = cx + distance / 2;
+                overlap = baseR * 2 - distance;
+            } else {
+                overlap = baseR * 0.6;
+                x1 = cx - overlap / 2;
+                x2 = cx + overlap / 2;
+            }
 
             [0, 1].forEach(i => {
                 const color = this._getColor(i);
                 const x = i === 0 ? x1 : x2;
                 g.append('circle')
-                    .attr('cx', x).attr('cy', cy).attr('r', baseR)
+                    .attr('cx', x).attr('cy', cy).attr('r', radii[i])
                     .attr('fill', color).attr('fill-opacity', s.opacity)
                     .attr('stroke', d3.color(color).darker(0.5)).attr('stroke-width', 2);
             });
 
             // Labels
             if (s.showLabels) {
-                g.append('text').attr('x', x1 - baseR * 0.3).attr('y', cy - baseR - 10)
+                g.append('text').attr('x', x1 - radii[0] * 0.3).attr('y', cy - radii[0] - 10)
                     .attr('text-anchor', 'middle').attr('font-size', s.labelFont.size + 'px')
                     .attr('font-weight', s.labelFont.bold ? 'bold' : 'normal')
                     .attr('fill', '#333').text(setNames[0]);
-                g.append('text').attr('x', x2 + baseR * 0.3).attr('y', cy - baseR - 10)
+                g.append('text').attr('x', x2 + radii[1] * 0.3).attr('y', cy - radii[1] - 10)
                     .attr('text-anchor', 'middle').attr('font-size', s.labelFont.size + 'px')
                     .attr('font-weight', s.labelFont.bold ? 'bold' : 'normal')
                     .attr('fill', '#333').text(setNames[1]);
@@ -220,40 +270,76 @@ class VennRenderer {
                 const leftOnly = intersections.find(x => x.mask === 1);
                 const rightOnly = intersections.find(x => x.mask === 2);
                 const both = intersections.find(x => x.mask === 3);
-                g.append('text').attr('x', x1 - overlap * 0.5).attr('y', cy + 5)
-                    .attr('text-anchor', 'middle').attr('font-size', s.countFont.size + 'px')
-                    .attr('fill', '#333').text(this._fmtCount(leftOnly ? leftOnly.count : 0, totalItems));
-                g.append('text').attr('x', cx).attr('y', cy + 5)
-                    .attr('text-anchor', 'middle').attr('font-size', s.countFont.size + 'px')
-                    .attr('font-weight', 'bold').attr('fill', '#333').text(this._fmtCount(both ? both.count : 0, totalItems));
-                g.append('text').attr('x', x2 + overlap * 0.5).attr('y', cy + 5)
-                    .attr('text-anchor', 'middle').attr('font-size', s.countFont.size + 'px')
-                    .attr('fill', '#333').text(this._fmtCount(rightOnly ? rightOnly.count : 0, totalItems));
+
+                const self = this;
+                const addDraggableCount = (maskKey, baseX, baseY, count) => {
+                    const countOff = s.countOffsets[maskKey] || { x: 0, y: 0 };
+                    const countText = g.append('text')
+                        .attr('x', baseX + countOff.x)
+                        .attr('y', baseY + countOff.y)
+                        .attr('text-anchor', 'middle')
+                        .attr('font-size', s.countFont.size + 'px')
+                        .attr('font-weight', s.countFont.bold ? 'bold' : 'normal')
+                        .attr('font-style', s.countFont.italic ? 'italic' : 'normal')
+                        .attr('font-family', s.countFont.family || 'Arial')
+                        .attr('fill', '#333')
+                        .style('cursor', 'grab')
+                        .text(self._fmtCount(count, totalItems));
+
+                    countText.call(d3.drag()
+                        .on('start', function(event) {
+                            event.sourceEvent.stopPropagation();
+                            d3.select(this).style('cursor', 'grabbing');
+                        })
+                        .on('drag', function(event) {
+                            if (!self.settings.countOffsets) self.settings.countOffsets = {};
+                            if (!self.settings.countOffsets[maskKey]) self.settings.countOffsets[maskKey] = { x: 0, y: 0 };
+                            self.settings.countOffsets[maskKey].x += event.dx;
+                            self.settings.countOffsets[maskKey].y += event.dy;
+                            d3.select(this)
+                                .attr('x', parseFloat(d3.select(this).attr('x')) + event.dx)
+                                .attr('y', parseFloat(d3.select(this).attr('y')) + event.dy);
+                        })
+                        .on('end', function() {
+                            d3.select(this).style('cursor', 'grab');
+                            if (window.app) window.app.updateGraph();
+                        })
+                    );
+                };
+
+                addDraggableCount('1', x1 - overlap * 0.6, cy + 5, leftOnly ? leftOnly.count : 0);
+                addDraggableCount('3', cx, cy + 5, both ? both.count : 0);
+                addDraggableCount('2', x2 + overlap * 0.6, cy + 5, rightOnly ? rightOnly.count : 0);
             }
         } else if (n === 3) {
             // Three overlapping circles in triangle arrangement
+            const setSizes = setNames.map(name => sets[name].size);
+            const maxSetSize = Math.max(...setSizes);
             const r = baseR * 0.85;
-            const d = r * 0.65; // distance from center to circle center
+            const radii = s.scaleBySize
+                ? setSizes.map(sz => r * Math.sqrt(sz / maxSetSize))
+                : [r, r, r];
+            const d = r * 0.65;
             const angles = [-Math.PI / 2, Math.PI / 6, 5 * Math.PI / 6];
             const centers = angles.map(a => ({ x: cx + d * Math.cos(a), y: cy + d * Math.sin(a) }));
 
             centers.forEach((c, i) => {
                 const color = this._getColor(i);
                 g.append('circle')
-                    .attr('cx', c.x).attr('cy', c.y).attr('r', r)
+                    .attr('cx', c.x).attr('cy', c.y).attr('r', radii[i])
                     .attr('fill', color).attr('fill-opacity', s.opacity)
                     .attr('stroke', d3.color(color).darker(0.5)).attr('stroke-width', 2);
             });
 
             // Labels outside circles
             if (s.showLabels) {
-                const labelOffsets = [
-                    { x: 0, y: -r - 12 },
-                    { x: r + 5, y: r * 0.5 },
-                    { x: -r - 5, y: r * 0.5 }
-                ];
                 const anchors = ['middle', 'start', 'end'];
                 centers.forEach((c, i) => {
+                    const labelOffsets = [
+                        { x: 0, y: -radii[i] - 12 },
+                        { x: radii[i] + 5, y: radii[i] * 0.5 },
+                        { x: -radii[i] - 5, y: radii[i] * 0.5 }
+                    ];
                     g.append('text')
                         .attr('x', c.x + labelOffsets[i].x)
                         .attr('y', c.y + labelOffsets[i].y)
@@ -268,25 +354,53 @@ class VennRenderer {
             if (s.showCounts || s.showPercentages) {
                 // Region positions (approximate geometric centers)
                 const regionPositions = [
-                    { mask: 1, x: centers[0].x, y: centers[0].y - d * 0.6 },           // A only
-                    { mask: 2, x: centers[1].x + d * 0.5, y: centers[1].y + d * 0.2 }, // B only
-                    { mask: 4, x: centers[2].x - d * 0.5, y: centers[2].y + d * 0.2 }, // C only
+                    { mask: 1, x: centers[0].x, y: centers[0].y - d * 0.75 },          // A only
+                    { mask: 2, x: centers[1].x + d * 0.6, y: centers[1].y + d * 0.3 }, // B only
+                    { mask: 4, x: centers[2].x - d * 0.6, y: centers[2].y + d * 0.3 }, // C only
                     { mask: 3, x: (centers[0].x + centers[1].x) / 2 + d * 0.15, y: (centers[0].y + centers[1].y) / 2 }, // A&B
                     { mask: 5, x: (centers[0].x + centers[2].x) / 2 - d * 0.15, y: (centers[0].y + centers[2].y) / 2 }, // A&C
                     { mask: 6, x: (centers[1].x + centers[2].x) / 2, y: (centers[1].y + centers[2].y) / 2 + d * 0.15 }, // B&C
                     { mask: 7, x: cx, y: cy }  // A&B&C
                 ];
 
+                const self = this;
                 regionPositions.forEach(rp => {
                     const int = intersections.find(x => x.mask === rp.mask);
                     if (!int || int.count === 0) return;
-                    g.append('text')
-                        .attr('x', rp.x).attr('y', rp.y + 4)
+
+                    const maskKey = rp.mask.toString();
+                    const countOff = s.countOffsets[maskKey] || { x: 0, y: 0 };
+                    const countText = g.append('text')
+                        .attr('x', rp.x + countOff.x)
+                        .attr('y', rp.y + 4 + countOff.y)
                         .attr('text-anchor', 'middle')
                         .attr('font-size', (s.countFont.size - 1) + 'px')
-                        .attr('font-weight', rp.mask === 7 ? 'bold' : 'normal')
+                        .attr('font-weight', s.countFont.bold ? 'bold' : 'normal')
+                        .attr('font-style', s.countFont.italic ? 'italic' : 'normal')
+                        .attr('font-family', s.countFont.family || 'Arial')
                         .attr('fill', '#333')
-                        .text(this._fmtCount(int.count, totalItems));
+                        .style('cursor', 'grab')
+                        .text(self._fmtCount(int.count, totalItems));
+
+                    countText.call(d3.drag()
+                        .on('start', function(event) {
+                            event.sourceEvent.stopPropagation();
+                            d3.select(this).style('cursor', 'grabbing');
+                        })
+                        .on('drag', function(event) {
+                            if (!self.settings.countOffsets) self.settings.countOffsets = {};
+                            if (!self.settings.countOffsets[maskKey]) self.settings.countOffsets[maskKey] = { x: 0, y: 0 };
+                            self.settings.countOffsets[maskKey].x += event.dx;
+                            self.settings.countOffsets[maskKey].y += event.dy;
+                            d3.select(this)
+                                .attr('x', parseFloat(d3.select(this).attr('x')) + event.dx)
+                                .attr('y', parseFloat(d3.select(this).attr('y')) + event.dy);
+                        })
+                        .on('end', function() {
+                            d3.select(this).style('cursor', 'grab');
+                            if (window.app) window.app.updateGraph();
+                        })
+                    );
                 });
             }
         }

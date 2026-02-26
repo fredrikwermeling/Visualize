@@ -268,6 +268,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
+                                    <option value="contrast">Contrast</option>
                                     <option value="forest">Forest</option>
                                 </select>
                             </div>
@@ -340,6 +341,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
+                                    <option value="contrast">Contrast</option>
                                     <option value="black">Black (symbols)</option>
                                 </select>
                             </div>
@@ -417,6 +419,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
+                                    <option value="contrast">Contrast</option>
                                 </select>
                             </div>
                             <div class="control-group"><label>Error:</label>
@@ -431,21 +434,21 @@
                         </div>
                         <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
                             <label style="font-size:12px">Regression:</label>
-                            <select id="corrRegressionType" style="font-size:11px;padding:2px 4px;border:1px solid #e5e7eb;border-radius:3px">
+                            <select id="corrRegressionType">
                                 <option value="none">None</option>
                                 <option value="linear" selected>Linear</option>
                                 <option value="poly2">Polynomial (2nd)</option>
                                 <option value="poly3">Polynomial (3rd)</option>
                             </select>
                             <label style="font-size:12px">Fit:</label>
-                            <select id="corrRegressionScope" style="font-size:11px;padding:2px 4px;border:1px solid #e5e7eb;border-radius:3px">
+                            <select id="corrRegressionScope">
                                 <option value="all" selected>All data</option>
                                 <option value="per-group">Per group</option>
                             </select>
                             <label style="font-size:12px"><input type="checkbox" id="corrShowCI" checked> 95% CI</label>
                             <label style="font-size:12px"><input type="checkbox" id="corrShowZeroLines"> Zero lines</label>
                             <label style="font-size:12px">Stats:</label>
-                            <select id="corrStatsContent" style="font-size:11px;padding:2px 4px;border:1px solid #e5e7eb;border-radius:3px">
+                            <select id="corrStatsContent">
                                 <option value="none">None</option>
                                 <option value="simple" selected>Simple</option>
                                 <option value="extended">Extended</option>
@@ -484,6 +487,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
+                                    <option value="contrast">Contrast</option>
                                 </select>
                             </div>
                             <div class="control-group pca-only"><label>PC X:</label><input type="number" id="pcaPCX" value="1" min="1" max="20" step="1"></div>
@@ -528,6 +532,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
+                                    <option value="contrast">Contrast</option>
                                 </select>
                             </div>
                             <div class="control-group"><label>Width:</label><input type="number" id="vennWidth" value="450" min="200" step="10"></div>
@@ -538,6 +543,8 @@
                             <label style="font-size:12px"><input type="checkbox" id="vennShowCounts" checked> Counts</label>
                             <label style="font-size:12px"><input type="checkbox" id="vennShowPercentages"> Percentages</label>
                             <label style="font-size:12px"><input type="checkbox" id="vennShowLabels" checked> Labels</label>
+                            <label style="font-size:12px"><input type="checkbox" id="vennProportional"> Proportional</label>
+                            <label style="font-size:12px"><input type="checkbox" id="vennScaleBySize"> Scale by size</label>
                         </div>
                     </div>
                 </div>
@@ -555,6 +562,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
+                                    <option value="contrast">Contrast</option>
                                 </select>
                             </div>
                             <div class="control-group"><label>Width:</label><input type="number" id="oncoprintWidth" value="600" min="200" step="10"></div>
@@ -585,6 +593,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
+                                    <option value="contrast">Contrast</option>
                                 </select>
                             </div>
                             <div class="control-group"><label>Line Width:</label><input type="number" id="kmLineWidth" value="2" min="0.5" max="6" step="0.5"></div>
@@ -653,6 +662,7 @@
                                     <option value="earth">Earth</option>
                                     <option value="ocean">Ocean</option>
                                     <option value="neon">Neon</option>
+                                    <option value="contrast">Contrast</option>
                                 </select>
                             </div>
                             <div class="control-group column-only" id="manualColorGroup" style="display:none">

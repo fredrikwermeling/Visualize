@@ -63,9 +63,10 @@ class PCARenderer {
             pastel: ['#AEC6CF','#FFB7B2','#B5EAD7','#C7CEEA','#FFDAC1','#E2F0CB','#F0E6EF','#D4F0F0','#FCE1E4','#DAEAF6'],
             vivid: ['#E63946','#457B9D','#2A9D8F','#E9C46A','#F4A261','#264653','#A8DADC','#F77F00','#D62828','#023E8A'],
             colorblind: ['#0072B2','#E69F00','#009E73','#CC79A7','#56B4E9','#D55E00','#F0E442','#000000'],
-            earth: ['#A0522D','#2E8B57','#DAA520','#8B0000','#4682B4','#6B8E23','#CD853F','#556B2F','#B8860B','#704214'],
-            ocean: ['#0077B6','#E76F51','#2A9D8F','#F4A261','#264653','#E9C46A','#023E8A','#D62828','#48CAE4','#006D77'],
-            neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166']
+            earth: ['#8B4513','#2E7D32','#DAA520','#B71C1C','#1565C0','#558B2F','#E65100','#4E342E','#F9A825','#1B5E20'],
+            ocean: ['#01579B','#FF6F00','#00695C','#D84315','#1A237E','#F57F17','#004D40','#BF360C','#0277BD','#00838F'],
+            neon: ['#FF006E','#FB5607','#FFBE0B','#3A86FF','#8338EC','#06D6A0','#EF476F','#FFD166'],
+            contrast: ['#E41A1C','#377EB8','#4DAF4A','#984EA3','#FF7F00','#A65628','#F781BF','#999999','#66C2A5','#FC8D62']
         };
         this.symbolCycle = ['circle','square','triangle','diamond','cross','star'];
     }
@@ -600,10 +601,14 @@ class PCARenderer {
         const yScale = d3.scaleLinear().domain([yMin, yMax]).range([innerH, 0]).nice();
 
         // Axes — limit ticks to avoid overlap on small plots
-        const xTickCount = Math.max(3, Math.floor(innerW / 60));
-        const yTickCount = Math.max(3, Math.floor(innerH / 40));
+        const xRange = xMax - xMin;
+        const yRange = yMax - yMin;
+        const xTickCount = Math.max(2, Math.floor(innerW / 100));
+        const yTickCount = Math.max(2, Math.floor(innerH / 60));
         const xAxisGen = d3.axisBottom(xScale).ticks(xTickCount);
         const yAxisGen = d3.axisLeft(yScale).ticks(yTickCount);
+        if (xRange < 5) xAxisGen.tickFormat(d3.format('.1f'));
+        if (yRange < 5) yAxisGen.tickFormat(d3.format('.1f'));
         if (s.xTickStep) xAxisGen.tickValues(d3.range(xScale.domain()[0], xScale.domain()[1] + s.xTickStep * 0.5, s.xTickStep));
         if (s.yTickStep) yAxisGen.tickValues(d3.range(yScale.domain()[0], yScale.domain()[1] + s.yTickStep * 0.5, s.yTickStep));
         const xAxisG = g.append('g').attr('transform', `translate(0,${innerH})`).call(xAxisGen);
@@ -840,11 +845,12 @@ class PCARenderer {
     _estimateLegendWidth(groupNames) {
         const lf = this.settings.legendFont;
         const ov = this.settings.groupOverrides || {};
-        const charWidth = lf.size * 0.62;
+        const charWidth = lf.size * 0.65;
+        const boldExtra = lf.bold ? 1.1 : 1.0;
         const symbolX = Math.max(6, lf.size * 0.55);
         const textX = symbolX + Math.max(10, lf.size * 0.9);
-        const maxLabelWidth = Math.max(...groupNames.map(n => ((ov[n] && ov[n].label) || n).length * charWidth));
-        return textX + maxLabelWidth + 12;
+        const maxLabelWidth = Math.max(...groupNames.map(n => ((ov[n] && ov[n].label) || n).length * charWidth * boldExtra));
+        return textX + maxLabelWidth + 16;
     }
 
     _drawLegend(g, innerW, groupNames) {
@@ -877,18 +883,7 @@ class PCARenderer {
         const symbolX = Math.max(6, lf.size * 0.55);
         const textX = symbolX + Math.max(10, lf.size * 0.9);
 
-        // White background rect
-        const legendW = this._estimateLegendWidth(orderedNames);
-        const legendH = orderedNames.length * rowH + lf.size * 0.5;
-        legendG.append('rect')
-            .attr('x', -4).attr('y', -lf.size * 0.8)
-            .attr('width', legendW)
-            .attr('height', legendH)
-            .attr('fill', 'white')
-            .attr('stroke', '#ddd')
-            .attr('stroke-width', 1)
-            .attr('rx', 3);
-
+        // Draw items first, then add background rect using getBBox
         orderedNames.forEach((name, i) => {
             const gi = groupNames.indexOf(name);
             const ly = i * rowH;
@@ -915,6 +910,17 @@ class PCARenderer {
                 .attr('opacity', opacity)
                 .text(displayName);
         });
+
+        // White background rect sized from actual content bbox
+        const bbox = legendG.node().getBBox();
+        legendG.insert('rect', ':first-child')
+            .attr('x', bbox.x - 4).attr('y', bbox.y - 4)
+            .attr('width', bbox.width + 8)
+            .attr('height', bbox.height + 8)
+            .attr('fill', 'white')
+            .attr('stroke', '#ddd')
+            .attr('stroke-width', 1)
+            .attr('rx', 3);
 
         const self = this;
         legendG.call(d3.drag()

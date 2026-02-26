@@ -12,6 +12,7 @@ class App {
         this.pcaRenderer = new PCARenderer('graphContainer');
         this.vennRenderer = new VennRenderer('graphContainer');
         this.oncoprintRenderer = new OncoPrintRenderer('graphContainer');
+        this.kaplanMeierRenderer = new KaplanMeierRenderer('graphContainer');
         this.exportManager = new ExportManager(this.graphRenderer);
         this.columnAnnotationManager = new AnnotationManager();
         this.heatmapAnnotationManager = new AnnotationManager();
@@ -21,6 +22,7 @@ class App {
         this.pcaAnnotationManager = new AnnotationManager();
         this.vennAnnotationManager = new AnnotationManager();
         this.oncoprintAnnotationManager = new AnnotationManager();
+        this.kaplanMeierAnnotationManager = new AnnotationManager();
         this.graphRenderer.annotationManager = this.columnAnnotationManager;
         this.growthRenderer.annotationManager = this.growthAnnotationManager;
         this.volcanoRenderer.annotationManager = this.volcanoAnnotationManager;
@@ -28,6 +30,7 @@ class App {
         this.pcaRenderer.annotationManager = this.pcaAnnotationManager;
         this.vennRenderer.annotationManager = this.vennAnnotationManager;
         this.oncoprintRenderer.annotationManager = this.oncoprintAnnotationManager;
+        this.kaplanMeierRenderer.annotationManager = this.kaplanMeierAnnotationManager;
         this._undoStack = [];
         this.mode = 'heatmap';
 
@@ -58,6 +61,7 @@ class App {
         this._bindPCAControls();
         this._bindVennControls();
         this._bindOncoPrintControls();
+        this._bindKaplanMeierControls();
 
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
@@ -926,6 +930,21 @@ class App {
             document.getElementById('oncoprintSortSamples').checked = true;
             this._oncoprintTableData = null;
             this.dataTable.loadOncoPrintSampleData();
+        } else if (this.mode === 'kaplan-meier') {
+            const fresh = new KaplanMeierRenderer('graphContainer');
+            this.kaplanMeierRenderer.settings = fresh.settings;
+            this.kaplanMeierRenderer._nudgeOffsetKey = null;
+            document.getElementById('kmWidth').value = 300;
+            document.getElementById('kmHeight').value = 300;
+            document.getElementById('kmColorTheme').value = 'default';
+            document.getElementById('kmLineWidth').value = 2;
+            document.getElementById('kmShowCensored').checked = true;
+            document.getElementById('kmShowCI').checked = false;
+            document.getElementById('kmShowMedian').checked = false;
+            document.getElementById('kmShowRiskTable').checked = false;
+            document.getElementById('kmShowLogRank').checked = true;
+            this._kaplanMeierTableData = null;
+            this.dataTable.loadKaplanMeierSampleData();
         } else if (this.mode === 'column') {
             this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
             this.graphRenderer._titleOffset = { x: 0, y: 0 };
@@ -1027,6 +1046,8 @@ class App {
                 this.dataTable.loadVennSampleData();
             } else if (mode === 'oncoprint') {
                 this.dataTable.loadOncoPrintSampleData();
+            } else if (mode === 'kaplan-meier') {
+                this.dataTable.loadKaplanMeierSampleData();
             } else {
                 this.dataTable.loadSampleData();
             }
@@ -1133,6 +1154,10 @@ class App {
         const oncoprintControls = document.getElementById('oncoprintControls');
         if (oncoprintControls) oncoprintControls.style.display = isOncoprint ? '' : 'none';
 
+        // Kaplan-Meier controls
+        const kmControls = document.getElementById('kaplanMeierControls');
+        if (kmControls) kmControls.style.display = isKaplanMeier ? '' : 'none';
+
         // Hide graph-controls wrapper for modes that don't use it
         const graphControlsEl = document.querySelector('.graph-controls');
         if (graphControlsEl) graphControlsEl.style.display = (isVolcano || isHeatmap || isKaplanMeier || isPCA || isVenn || isOncoprint) ? 'none' : '';
@@ -1142,7 +1167,7 @@ class App {
 
         // Hide dimensions section for modes with own controls
         const dimSection = document.getElementById('dimensionsSection');
-        if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn || isOncoprint || isGrowth) ? 'none' : '';
+        if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn || isOncoprint || isGrowth || isKaplanMeier) ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
@@ -1540,7 +1565,8 @@ class App {
                 'corrXMin','corrXMax','corrYMin','corrYMax','corrXTickStep','corrYTickStep'],
             heatmap: ['heatmapWidth','heatmapHeight','heatmapColorScheme','heatmapGroupColorTheme','heatmapLegendWidth'],
             venn: ['vennWidth','vennHeight','vennColorTheme','vennOpacity'],
-            oncoprint: ['oncoprintWidth','oncoprintCellWidth','oncoprintCellHeight','oncoprintCellGap','oncoprintColorTheme']
+            oncoprint: ['oncoprintWidth','oncoprintCellWidth','oncoprintCellHeight','oncoprintCellGap','oncoprintColorTheme'],
+            'kaplan-meier': ['kmWidth','kmHeight','kmLineWidth','kmColorTheme']
         };
         const ids = hideMap[this.mode] || [];
         ids.forEach(id => {
@@ -1743,6 +1769,13 @@ class App {
                 { label: 'Gap', inputId: 'oncoprintCellGap', type: 'number', min: 0, max: 5, step: 0.5 },
                 { label: 'Colors', inputId: 'oncoprintColorTheme' }
             ];
+        } else if (this.mode === 'kaplan-meier') {
+            rows = [
+                { label: 'Width', inputId: 'kmWidth', type: 'number', min: 200, step: 10 },
+                { label: 'Height', inputId: 'kmHeight', type: 'number', min: 200, step: 10 },
+                { label: 'Line W', inputId: 'kmLineWidth', type: 'number', min: 0.5, max: 6, step: 0.5 },
+                { label: 'Colors', inputId: 'kmColorTheme' }
+            ];
         }
 
         if (rows.length === 0) {
@@ -1826,6 +1859,7 @@ class App {
         if (this.mode === 'pca') return this.pcaRenderer;
         if (this.mode === 'venn') return this.vennRenderer;
         if (this.mode === 'oncoprint') return this.oncoprintRenderer;
+        if (this.mode === 'kaplan-meier') return this.kaplanMeierRenderer;
         return this.heatmapRenderer;
     }
 
@@ -1949,6 +1983,16 @@ class App {
                 { label: 'Row Labels', fontKey: 'rowLabelFont' },
                 { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' }
             ];
+        } else if (this.mode === 'kaplan-meier') {
+            elements = [
+                { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
+                { label: 'X Axis Label', textKey: 'xLabel', fontKey: 'xLabelFont', visKey: 'showXLabel' },
+                { label: 'Y Axis Label', textKey: 'yLabel', fontKey: 'yLabelFont', visKey: 'showYLabel' },
+                { label: 'Legend', fontKey: 'legendFont', visKey: 'showLegend' },
+                { label: 'X Tick Font', fontKey: 'xTickFont' },
+                { label: 'Y Tick Font', fontKey: 'yTickFont' }
+            ];
+            this._kmGroupRows = true;
         } else {
             elements = [
                 { label: 'Title', textKey: 'title', fontKey: 'titleFont', visKey: 'showTitle' },
@@ -2394,6 +2438,75 @@ class App {
                 }
             }
         }
+
+        if (this._kmGroupRows) {
+            this._kmGroupRows = false;
+            const kmData = this.dataTable.getKaplanMeierData ? this.dataTable.getKaplanMeierData() : null;
+            if (kmData && kmData.groups) {
+                const groupNames = Array.isArray(kmData.groups) ? kmData.groups : Object.keys(kmData.groups);
+                if (groupNames.length > 0) {
+                    const sep = document.createElement('div');
+                    sep.className = 'ts-full-width';
+                    sep.style.cssText = 'grid-column:1/-1;border-top:1px solid #e5e7eb;margin:6px 0 2px;font-size:11px;font-weight:600;color:#374151;padding-top:4px';
+                    sep.textContent = 'Group Colors & Line Styles';
+                    body.appendChild(sep);
+
+                    const gr = this.kaplanMeierRenderer;
+                    if (!gr.settings.groupOverrides) gr.settings.groupOverrides = {};
+                    const dashes = [['solid','Solid'],['dashed','Dashed'],['dotted','Dotted'],['dashdot','Dash-dot'],['longdash','Long dash']];
+
+                    groupNames.forEach((gName, gi) => {
+                        const ov = gr.settings.groupOverrides[gName] || {};
+                        const grow = document.createElement('div');
+                        grow.className = 'text-settings-row ts-full-width';
+                        grow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:2px 0';
+
+                        const colorInp = document.createElement('input');
+                        colorInp.type = 'color';
+                        colorInp.value = ov.color || gr._getColor(gi, gName);
+                        colorInp.style.cssText = 'width:24px;height:20px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0;flex:0 0 24px';
+                        colorInp.addEventListener('input', () => {
+                            if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                            gr.settings.groupOverrides[gName].color = colorInp.value;
+                            this.updateGraph();
+                        });
+                        grow.appendChild(colorInp);
+
+                        const dashSel = document.createElement('select');
+                        dashSel.style.cssText = 'font-size:10px;padding:1px 2px;border:1px solid #ccc;border-radius:3px;flex:0 0 auto;width:68px';
+                        const curDash = ov.lineDash || gr._getLineDash(gi, gName);
+                        dashes.forEach(([val, label]) => {
+                            const opt = document.createElement('option');
+                            opt.value = val; opt.textContent = label;
+                            if (val === curDash) opt.selected = true;
+                            dashSel.appendChild(opt);
+                        });
+                        dashSel.addEventListener('change', () => {
+                            if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                            gr.settings.groupOverrides[gName].lineDash = dashSel.value;
+                            this.updateGraph();
+                        });
+                        grow.appendChild(dashSel);
+
+                        const labelInp = document.createElement('input');
+                        labelInp.type = 'text';
+                        labelInp.value = ov.label || gName;
+                        labelInp.placeholder = gName;
+                        labelInp.style.cssText = 'flex:1;min-width:50px;padding:2px 4px;font-size:11px;border:1px solid #e5e7eb;border-radius:3px';
+                        labelInp.addEventListener('input', () => {
+                            if (!gr.settings.groupOverrides[gName]) gr.settings.groupOverrides[gName] = {};
+                            const val = labelInp.value.trim();
+                            if (val && val !== gName) gr.settings.groupOverrides[gName].label = val;
+                            else delete gr.settings.groupOverrides[gName].label;
+                            this.updateGraph();
+                        });
+                        grow.appendChild(labelInp);
+
+                        body.appendChild(grow);
+                    });
+                }
+            }
+        }
     }
 
     _getHeatmapSettings() {
@@ -2607,6 +2720,32 @@ class App {
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', () => this.updateGraph());
+        });
+    }
+
+    _getKaplanMeierSettings() {
+        return {
+            width: parseInt(document.getElementById('kmWidth')?.value) || 300,
+            height: parseInt(document.getElementById('kmHeight')?.value) || 300,
+            colorTheme: document.getElementById('kmColorTheme')?.value || 'default',
+            lineWidth: parseFloat(document.getElementById('kmLineWidth')?.value) || 2,
+            showCensored: document.getElementById('kmShowCensored')?.checked ?? true,
+            showCI: document.getElementById('kmShowCI')?.checked ?? false,
+            showMedian: document.getElementById('kmShowMedian')?.checked ?? false,
+            showRiskTable: document.getElementById('kmShowRiskTable')?.checked ?? false,
+            showLogRank: document.getElementById('kmShowLogRank')?.checked ?? true
+        };
+    }
+
+    _bindKaplanMeierControls() {
+        const ids = ['kmWidth', 'kmHeight', 'kmColorTheme', 'kmLineWidth',
+            'kmShowCensored', 'kmShowCI', 'kmShowMedian', 'kmShowRiskTable', 'kmShowLogRank'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => this.updateGraph());
+                el.addEventListener('change', () => this.updateGraph());
+            }
         });
     }
 
@@ -2939,6 +3078,7 @@ class App {
         if (this.mode === 'pca') return this.pcaAnnotationManager;
         if (this.mode === 'venn') return this.vennAnnotationManager;
         if (this.mode === 'oncoprint') return this.oncoprintAnnotationManager;
+        if (this.mode === 'kaplan-meier') return this.kaplanMeierAnnotationManager;
         return this.columnAnnotationManager;
     }
 
@@ -3002,8 +3142,9 @@ class App {
 
     updateGraph() {
         if (this.mode === 'kaplan-meier') {
-            const container = document.getElementById('graphContainer');
-            container.innerHTML = '<div class="empty-state"><h3>Kaplan-Meier</h3><p>Coming soon — survival analysis curves</p></div>';
+            const kmData = this.dataTable.getKaplanMeierData ? this.dataTable.getKaplanMeierData() : null;
+            const kmSettings = this._getKaplanMeierSettings();
+            this.kaplanMeierRenderer.render(kmData, kmSettings);
             return;
         }
         const infoEl = document.getElementById('heatmapInfo');

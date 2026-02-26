@@ -1674,4 +1674,50 @@ class DataTable {
         }
         if (window.app) window.app.updateGraph();
     }
+
+    getKaplanMeierData() {
+        // Expects table format: Group | Sample | Time | Event (1=event, 0=censored)
+        const rows = this.tbody.querySelectorAll('tr:not(.row-disabled)');
+        const subjects = [];
+        rows.forEach(row => {
+            const idCells = row.querySelectorAll('td.id-cell');
+            const group = idCells[0] ? idCells[0].textContent.trim() : '';
+            const dataCells = row.querySelectorAll('td:not(.id-cell):not(.row-delete-cell):not(.row-toggle-cell)');
+            const time = dataCells[0] ? parseFloat(dataCells[0].textContent.trim()) : NaN;
+            const event = dataCells[1] ? parseInt(dataCells[1].textContent.trim()) : NaN;
+            if (!isNaN(time) && !isNaN(event) && group) {
+                subjects.push({ group, time, event: event === 1 ? 1 : 0 });
+            }
+        });
+        if (subjects.length === 0) return null;
+        const groups = [...new Set(subjects.map(s => s.group))];
+        return { groups, subjects };
+    }
+
+    loadKaplanMeierSampleData(index = 0) {
+        const datasets = [
+            {
+                headers: ['Time', 'Event'],
+                ids: [
+                    ['Treatment','P1'],['Treatment','P2'],['Treatment','P3'],['Treatment','P4'],['Treatment','P5'],
+                    ['Treatment','P6'],['Treatment','P7'],['Treatment','P8'],['Treatment','P9'],['Treatment','P10'],
+                    ['Treatment','P11'],['Treatment','P12'],['Treatment','P13'],['Treatment','P14'],['Treatment','P15'],
+                    ['Control','C1'],['Control','C2'],['Control','C3'],['Control','C4'],['Control','C5'],
+                    ['Control','C6'],['Control','C7'],['Control','C8'],['Control','C9'],['Control','C10'],
+                    ['Control','C11'],['Control','C12'],['Control','C13'],['Control','C14'],['Control','C15']
+                ],
+                rows: [
+                    ['6','1'],['9','1'],['10','0'],['11','1'],['14','1'],
+                    ['18','0'],['21','1'],['24','0'],['27','1'],['30','0'],
+                    ['32','1'],['36','0'],['40','0'],['42','1'],['48','0'],
+                    ['3','1'],['5','1'],['6','1'],['8','1'],['9','0'],
+                    ['11','1'],['12','1'],['14','0'],['16','1'],['18','1'],
+                    ['20','0'],['22','1'],['24','1'],['26','0'],['28','1']
+                ]
+            }
+        ];
+        const d = datasets[index % datasets.length];
+        this.setupTable(d.headers, Math.max(d.rows.length + 2, 10), d.rows, d.ids);
+        if (window.app) window.app.updateGraph();
+    }
 }

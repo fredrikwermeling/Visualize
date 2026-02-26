@@ -149,13 +149,22 @@ class OncoPrintRenderer {
                 let count = 0;
                 matrix.forEach(row => { if (row[ci] && row[ci].trim()) count++; });
                 const barH = maxCount > 0 ? (count / maxCount) * (topBarH - 5) : 0;
+                const bx = gridX + vi * (cw + gap);
                 svg.append('rect')
-                    .attr('x', gridX + vi * (cw + gap))
+                    .attr('x', bx)
                     .attr('y', gridY - barH - 2)
                     .attr('width', cw)
                     .attr('height', barH)
                     .attr('fill', '#666')
                     .attr('rx', 1);
+                // Show % above bar
+                const pct = maxCount > 0 ? Math.round(count / maxCount * 100) : 0;
+                if (cw >= 10) {
+                    svg.append('text')
+                        .attr('x', bx + cw / 2).attr('y', gridY - barH - 4)
+                        .attr('text-anchor', 'middle').attr('font-size', '7px')
+                        .attr('fill', '#666').text(pct + '%');
+                }
             });
         }
 

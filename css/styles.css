@@ -134,6 +134,7 @@ header {
 .graph-panel .volcano-controls,
 .graph-panel .correlation-controls,
 .graph-panel .pca-controls,
+.graph-panel .kaplan-meier-controls,
 .graph-panel > input[type="hidden"] {
     margin-left: 14px;
     margin-right: 14px;
@@ -148,7 +149,8 @@ header {
 .graph-panel .growth-controls,
 .graph-panel .volcano-controls,
 .graph-panel .correlation-controls,
-.graph-panel .pca-controls {
+.graph-panel .pca-controls,
+.graph-panel .kaplan-meier-controls {
     margin-bottom: 14px;
 }
 
@@ -548,7 +550,8 @@ tr:hover .row-delete-btn {
 .volcano-controls .control-grid-2col,
 .growth-controls .control-grid-2col,
 .correlation-controls .control-grid-2col,
-.pca-controls .control-grid-2col {
+.pca-controls .control-grid-2col,
+.kaplan-meier-controls .control-grid-2col {
     grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
@@ -566,7 +569,8 @@ tr:hover .row-delete-btn {
 .volcano-controls .control-grid-2col .control-group label,
 .growth-controls .control-grid-2col .control-group label,
 .correlation-controls .control-grid-2col .control-group label,
-.pca-controls .control-grid-2col .control-group label {
+.pca-controls .control-grid-2col .control-group label,
+.kaplan-meier-controls .control-grid-2col .control-group label {
     flex: 0 0 70px;
     white-space: nowrap;
     font-size: 10px;

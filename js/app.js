@@ -1260,12 +1260,11 @@ class App {
                 growthStatsWrapper.appendChild(statsSection);
                 statsSection.style.display = '';
                 if (dimSection) { dimSection.style.display = 'none'; }
-            } else if (isCorrelation && corrBottomRow && corrSettingsWrapper && corrStatsWrapper && corrControlsEl) {
-                corrBottomRow.style.display = '';
-                corrSettingsWrapper.appendChild(corrControlsEl);
+            } else if (isCorrelation && corrControlsEl) {
+                // Correlation: show controls only, no Statistics section (stats shown on graph)
+                graphControlsEl2.appendChild(corrControlsEl);
                 corrControlsEl.style.display = '';
-                corrStatsWrapper.appendChild(statsSection);
-                statsSection.style.display = '';
+                statsSection.style.display = 'none';
                 if (dimSection) { dimSection.style.display = 'none'; }
             } else {
                 // Move everything back to graph-controls
@@ -1348,9 +1347,9 @@ class App {
             el.style.display = isHeatmap ? 'inline-block' : 'none';
         });
 
-        // Stats export only for column/growth/correlation
+        // Stats export only for column/growth
         const statsBtn = document.getElementById('exportStats');
-        if (statsBtn) statsBtn.style.display = (isColumn || isGrowth || isCorrelation) ? '' : 'none';
+        if (statsBtn) statsBtn.style.display = (isColumn || isGrowth) ? '' : 'none';
 
         // Filter test type options by mode — remove/re-add optgroups (display:none doesn't work in Safari)
         const testSel = document.getElementById('testType');

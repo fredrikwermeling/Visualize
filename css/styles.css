@@ -1640,7 +1640,7 @@ tr:hover .row-delete-btn {
 }
 
 /* Column Bottom Row — side-by-side graph type + statistics */
-.growth-bottom-row {
+.mode-bottom-row {
     display: flex;
     gap: 10px;
     align-items: flex-start;
@@ -1649,12 +1649,12 @@ tr:hover .row-delete-btn {
     margin-bottom: 14px;
 }
 
-.growth-bottom-row > div {
+.mode-bottom-row > div {
     flex: 1;
     min-width: 0;
 }
 
-.growth-bottom-row .control-section {
+.mode-bottom-row .control-section {
     margin: 0;
 }
 

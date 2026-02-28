@@ -1233,19 +1233,38 @@ class App {
         const dimSection = document.getElementById('dimensionsSection');
         const statsWrapper = document.getElementById('columnStatsWrapper');
         const graphControlsEl2 = document.querySelector('.graph-controls');
+        // Growth bottom row (settings + statistics side-by-side)
+        const growthBottomRow = document.getElementById('growthBottomRow');
+        const growthSettingsWrapper = document.getElementById('growthSettingsWrapper');
+        const growthStatsWrapper = document.getElementById('growthStatsWrapper');
+        const growthControlsEl = document.getElementById('growthControls');
         if (columnBottomRow && statsSection && statsWrapper && graphControlsEl2) {
             if (isColumn) {
                 columnBottomRow.style.display = '';
+                if (growthBottomRow) growthBottomRow.style.display = 'none';
                 // Move dimensions and stats into the right column
                 if (dimSection) { statsWrapper.appendChild(dimSection); dimSection.style.display = ''; }
                 statsWrapper.appendChild(statsSection);
                 statsSection.style.display = '';
+            } else if (isGrowth && growthBottomRow && growthSettingsWrapper && growthStatsWrapper && growthControlsEl) {
+                columnBottomRow.style.display = 'none';
+                growthBottomRow.style.display = '';
+                // Move growth controls and stats into growth bottom row
+                growthSettingsWrapper.appendChild(growthControlsEl);
+                growthControlsEl.style.display = '';
+                growthStatsWrapper.appendChild(statsSection);
+                statsSection.style.display = '';
+                if (dimSection) { dimSection.style.display = 'none'; }
             } else {
                 columnBottomRow.style.display = 'none';
-                // Move both back to graph-controls
+                if (growthBottomRow) growthBottomRow.style.display = 'none';
+                // Move stats back to graph-controls
+                if (growthControlsEl && growthControlsEl.parentNode !== graphControlsEl2) {
+                    graphControlsEl2.appendChild(growthControlsEl);
+                }
                 if (dimSection) { graphControlsEl2.appendChild(dimSection); dimSection.style.display = 'none'; }
                 graphControlsEl2.appendChild(statsSection);
-                statsSection.style.display = (isGrowth || isCorrelation) ? '' : 'none';
+                statsSection.style.display = isCorrelation ? '' : 'none';
             }
         }
 

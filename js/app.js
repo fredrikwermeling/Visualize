@@ -241,7 +241,7 @@ class App {
             } else if (this.mode === 'correlation') {
                 this.dataTable.loadCorrelationSampleData(idx);
             } else if (this.mode === 'pca') {
-                this.dataTable.loadHeatmapSampleData(idx);
+                this.dataTable.loadPCASampleData(idx);
             } else if (this.mode === 'venn') {
                 this.dataTable.loadVennSampleData(idx);
             } else if (this.mode === 'oncoprint') {
@@ -1008,7 +1008,7 @@ class App {
             document.querySelectorAll('.tsne-only').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.umap-only').forEach(el => el.style.display = 'none');
             this._pcaTableData = null;
-            this.dataTable.loadHeatmapSampleData(2);
+            this.dataTable.loadPCASampleData(0);
         } else if (this.mode === 'venn') {
             const fresh = new VennRenderer('graphContainer');
             this.vennRenderer.settings = fresh.settings;
@@ -1144,7 +1144,7 @@ class App {
             if (mode === 'heatmap') {
                 this.dataTable.loadHeatmapSampleData();
             } else if (mode === 'pca') {
-                this.dataTable.loadHeatmapSampleData(2); // immune profiling dataset
+                this.dataTable.loadPCASampleData(0);
             } else if (mode === 'growth') {
                 this.dataTable.loadGrowthSampleData();
             } else if (mode === 'volcano') {

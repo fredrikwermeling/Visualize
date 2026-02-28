@@ -1396,6 +1396,20 @@ tr:hover .row-delete-btn {
     font-weight: 600;
 }
 
+.corr-sub-label {
+    font-size: 10px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 8px 0 3px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 2px;
+}
+
+.corr-sub-label:first-of-type {
+    margin-top: 0;
+}
+
 /* Axis Assignment Row */
 .axis-assignment-row {
     background-color: var(--green-50) !important;

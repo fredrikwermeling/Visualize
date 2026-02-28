@@ -521,7 +521,10 @@ class App {
             't-test-paired': '<b>Paired t-test</b> — Parametric, paired, compares 2 groups. Tests whether the mean difference between matched pairs is zero. Requires equal sample sizes.',
             'mann-whitney': '<b>Mann-Whitney U</b> — Non-parametric, unpaired, compares 2 groups. Rank-based alternative to unpaired t-test. No normality assumption.',
             'wilcoxon': '<b>Wilcoxon signed-rank</b> — Non-parametric, paired, compares 2 groups. Rank-based alternative to paired t-test. Requires equal sample sizes.',
-            'two-way-rm-anova': '<b>Two-way RM ANOVA</b> — Parametric, repeated measures. Tests Group (between-subjects), Time (within-subjects), and Group\u00d7Time interaction. Use with Growth mode data.'
+            'two-way-rm-anova': '<b>Two-way RM ANOVA</b> — Parametric, repeated measures. Tests Group (between-subjects), Time (within-subjects), and Group\u00d7Time interaction. Use with Growth mode data.',
+            'pearson': '<b>Pearson correlation</b> — Measures linear association between two continuous variables. Assumes normality and homoscedasticity. Reports r and p-value.',
+            'spearman': '<b>Spearman rank correlation</b> — Non-parametric rank-based correlation. No normality assumption. Detects monotonic (not just linear) relationships.',
+            'linear-regression': '<b>Linear regression</b> — Fits y = a + bx. Reports slope, intercept, R\u00b2, and F-test p-value. Assumes linearity and normal residuals.'
         };
 
         const desc = descriptions[testType];
@@ -1383,6 +1386,15 @@ class App {
                 testSel.value = 'one-way-anova';
                 testSel.dispatchEvent(new Event('change'));
             }
+            // Always refresh description and growth-specific controls after mode switch
+            this._updateTestDescription();
+            const curTest = testSel.value;
+            this._updateGrowthStatsVisibility(this._isGrowthTest(curTest));
+            const isMulti = this._isMultiGroupTest(curTest);
+            document.getElementById('postHocGroup').style.display = (isMulti && curTest !== 'friedman') ? '' : 'none';
+            // Hide stars/bracket controls for correlation (no significance brackets)
+            const starsEl = document.getElementById('significanceFontSize');
+            if (starsEl) starsEl.closest('.control-group').style.display = isCorrelation ? 'none' : '';
         }
     }
 

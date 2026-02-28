@@ -122,8 +122,7 @@ class App {
         if (!indicator) return;
         const total = this._sampleCounts[this.mode] || 1;
         const idx = this._sampleIndex[this.mode] || 0;
-        const shown = (idx % total) + 1;
-        indicator.textContent = shown + '/' + total;
+        indicator.textContent = (idx + 1) + '/' + total;
     }
 
     // --- Graph Type Picker ---
@@ -231,7 +230,10 @@ class App {
         this._sampleIndex = { column: 0, heatmap: 0, growth: 0, volcano: 0, correlation: 0, pca: 0, venn: 0, oncoprint: 0, 'kaplan-meier': 0 };
         this._sampleCounts = { column: 6, heatmap: 4, growth: 6, volcano: 4, correlation: 5, pca: 4, venn: 4, oncoprint: 4, 'kaplan-meier': 1 };
         document.getElementById('addTestData').addEventListener('click', () => {
-            const idx = this._sampleIndex[this.mode] || 0;
+            const total = this._sampleCounts[this.mode] || 1;
+            const prev = this._sampleIndex[this.mode] || 0;
+            const idx = (prev + 1) % total;
+            this._sampleIndex[this.mode] = idx;
             if (this.mode === 'heatmap') {
                 this.dataTable.loadHeatmapSampleData(idx);
             } else if (this.mode === 'growth') {
@@ -251,7 +253,6 @@ class App {
             } else {
                 this.dataTable.loadSampleData(idx);
             }
-            this._sampleIndex[this.mode] = idx + 1;
             this._updateTestDataIndicator();
         });
 
@@ -1162,8 +1163,7 @@ class App {
             } else {
                 this.dataTable.loadSampleData();
             }
-            // Dataset 0 was just loaded, so next click should load dataset 1
-            this._sampleIndex[mode] = 1;
+            this._sampleIndex[mode] = 0;
         }
     }
 

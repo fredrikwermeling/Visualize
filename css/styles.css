@@ -1650,7 +1650,7 @@ tr:hover .row-delete-btn {
 }
 
 .column-bottom-row .graph-type-picker {
-    flex: 0 0 240px;
+    flex: 1;
     min-width: 0;
 }
 
@@ -1679,6 +1679,9 @@ tr:hover .row-delete-btn {
 }
 
 .gtp-category {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
     margin-bottom: 6px;
 }
 
@@ -1687,6 +1690,7 @@ tr:hover .row-delete-btn {
 }
 
 .gtp-cat-label {
+    grid-column: 1 / -1;
     font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;

@@ -69,7 +69,7 @@
                     </table>
                 </div>
                 
-                <div class="table-hint" style="font-size:10px;color:#9ca3af;padding:2px 4px;margin-top:1px">Click column headers to hide/show them in the graph. Double-click row checkboxes to toggle samples.</div>
+                <div class="table-hint" id="tableHint" style="font-size:10px;color:#9ca3af;padding:2px 4px;margin-top:1px">Click column headers to hide/show them in the graph. Double-click row checkboxes to toggle samples.</div>
                 <div class="table-controls">
                     <button id="addColumn" class="btn btn-secondary">+ Column</button>
                     <button id="addRow" class="btn btn-secondary">+ Row</button>
@@ -513,12 +513,12 @@
                             <div><b>PCA</b> &mdash; Best for exploring linear relationships. Fast, deterministic. Shows which variables (loadings) drive separation. Use when groups separate along linear axes.</div>
                             <div style="margin-top:3px"><b>t-SNE</b> &mdash; Reveals clusters in complex, non-linear data. Good for visualizing distinct groups. Stochastic: re-runs may differ. Adjust <b>Perplexity</b> (lower = tighter clusters, higher = more global view). Try values between 5 and 50.</div>
                             <div style="margin-top:3px"><b>UMAP</b> &mdash; Similar to t-SNE but better preserves global structure. Faster on large datasets. Adjust <b>Neighbors</b> (local detail) and <b>Min Dist</b> (cluster tightness). Lower values give tighter, more separated clusters.</div>
-                            <div style="margin-top:4px;color:#6b7280"><b>Tip:</b> Adjust parameters and observe how the plot changes &mdash; there is no single &ldquo;correct&rdquo; value. Try a few settings until the groups are well separated. Loadings (feature&ndash;embedding correlations) are available for all methods.</div>
+                            <div style="margin-top:4px;color:#6b7280"><b>Tip:</b> There is no single &ldquo;correct&rdquo; parameter value. Try different settings and pick the one that gives the clearest group separation &mdash; this is standard practice.</div>
                             <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Statistics used:</div>
                             <div><b>PCA:</b> Eigendecomposition of the covariance matrix. Data is centered. Variance explained (%) shown per component. Loadings show eigenvector coefficients.</div>
                             <div style="margin-top:2px"><b>t-SNE:</b> Converts pairwise distances to probabilities, then optimizes a 2D layout where similar points stay close. Stochastic optimization.</div>
                             <div style="margin-top:2px"><b>UMAP:</b> Builds a nearest-neighbor graph and optimizes a 2D layout preserving both local and global structure. Initialized from PCA coordinates.</div>
-                            <div style="margin-top:2px"><b>Loadings (t-SNE/UMAP):</b> Shows Pearson correlations between original features and embedding coordinates, indicating which features drive the separation.</div>
+                            <div style="margin-top:2px"><b>Loadings (t-SNE/UMAP):</b> Shows Pearson correlations between original features and embedding coordinates. <b>Note:</b> These are less reliable than PCA loadings because t-SNE/UMAP distort distances non-linearly. Arrows often cluster in similar directions and should be interpreted with caution. PCA loadings are generally preferred for identifying driving variables.</div>
                             <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Implementation:</div>
                             <div>All methods implemented in client-side JavaScript (pca.js). Statistical tests in other modes use jStat.</div>
                             <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Methods text for manuscripts:</div>

@@ -73,6 +73,7 @@ class App {
         this._applyMode();
         this.dataTable.loadHeatmapSampleData();
         this.updateGraph();
+        this._updateTestDataIndicator();
 
         // Mode selection popout (after initial render)
         this._initModePopout();
@@ -114,6 +115,15 @@ class App {
             wrapper.appendChild(input);
             wrapper.appendChild(plus);
         });
+    }
+
+    _updateTestDataIndicator() {
+        const indicator = document.getElementById('testDataIndicator');
+        if (!indicator) return;
+        const total = this._sampleCounts[this.mode] || 1;
+        const idx = this._sampleIndex[this.mode] || 0;
+        const shown = (idx % total) + 1;
+        indicator.textContent = shown + '/' + total;
     }
 
     // --- Graph Type Picker ---
@@ -240,10 +250,7 @@ class App {
                 this.dataTable.loadSampleData(idx);
             }
             this._sampleIndex[this.mode] = idx + 1;
-            const total = this._sampleCounts[this.mode] || 1;
-            const shown = (idx % total) + 1;
-            const indicator = document.getElementById('testDataIndicator');
-            if (indicator) indicator.textContent = shown + '/' + total;
+            this._updateTestDataIndicator();
         });
 
         // Expand table toggle
@@ -858,6 +865,7 @@ class App {
                 // Restore saved data or load sample
                 this._restoreTableData(this.mode);
                 this.updateGraph();
+                this._updateTestDataIndicator();
                 // Rebuild text settings panel if open
                 const tsPanel = document.getElementById('textSettingsPanel');
                 if (tsPanel && tsPanel.style.display !== 'none') this._buildTextSettingsRows();
@@ -1166,10 +1174,6 @@ class App {
         const isOncoprint = this.mode === 'oncoprint';
         const isKaplanMeier = this.mode === 'kaplan-meier';
 
-        // Clear test data indicator on mode switch
-        const indicator = document.getElementById('testDataIndicator');
-        if (indicator) indicator.textContent = '';
-
         // Clean up PCA column toggles when leaving PCA mode
         if (!isPCA) {
             this._cleanupPCAColumnToggles();
@@ -1187,6 +1191,32 @@ class App {
             this.dataTable.showAxisAssignmentRow();
         } else {
             this.dataTable.hideAxisAssignmentRow();
+        }
+
+        // Table hint — context-sensitive
+        const tableHint = document.getElementById('tableHint');
+        if (tableHint) {
+            if (isHeatmap || isPCA || isVenn || isOncoprint) {
+                tableHint.textContent = 'Click column headers to hide/show them in the graph. Double-click row checkboxes to toggle samples.';
+                tableHint.style.display = '';
+            } else if (isColumn) {
+                tableHint.textContent = 'Each column is a group. Paste data from spreadsheets.';
+                tableHint.style.display = '';
+            } else if (isGrowth) {
+                tableHint.textContent = 'First column = time points. Remaining columns = samples (name format: Group_Replicate).';
+                tableHint.style.display = '';
+            } else if (isCorrelation) {
+                tableHint.textContent = 'Assign columns to X or Y axis using the row below headers.';
+                tableHint.style.display = '';
+            } else if (isVolcano) {
+                tableHint.textContent = 'Columns: Gene/Feature, Log2 Fold Change, P-value.';
+                tableHint.style.display = '';
+            } else if (isKaplanMeier) {
+                tableHint.textContent = 'Columns: Time, Status (1=event, 0=censored), Group.';
+                tableHint.style.display = '';
+            } else {
+                tableHint.style.display = 'none';
+            }
         }
 
         // Column-specific controls

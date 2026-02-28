@@ -1162,6 +1162,8 @@ class App {
             } else {
                 this.dataTable.loadSampleData();
             }
+            // Dataset 0 was just loaded, so next click should load dataset 1
+            this._sampleIndex[mode] = 1;
         }
     }
 

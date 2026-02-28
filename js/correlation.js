@@ -245,7 +245,7 @@ class CorrelationRenderer {
         }
 
         const s = this.settings;
-        const margin = { top: 50, right: 30, bottom: 65, left: 65 };
+        const margin = { top: 50, right: 160, bottom: 65, left: 65 };
         const innerW = s.width;
         const innerH = s.height;
         const width = innerW + margin.left + margin.right;
@@ -505,14 +505,12 @@ class CorrelationRenderer {
 
         if (lines.length === 0) return;
 
-        const boxX = innerW - 10 + off.x;
-        const boxY = 10 + off.y;
         const lineH = sf.size + 4;
         const boxH = lines.length * lineH + 8;
         const boxW = Math.max(...lines.map(l => l.length)) * sf.size * 0.55 + 16;
 
         const statsG = g.append('g')
-            .attr('transform', `translate(${boxX - boxW}, ${boxY})`)
+            .attr('transform', `translate(${innerW + 12 + off.x}, ${10 + off.y})`)
             .attr('cursor', 'grab');
 
         statsG.append('rect')
@@ -539,7 +537,7 @@ class CorrelationRenderer {
             .on('drag', function(event) {
                 self.settings.statsOffset.x += event.dx;
                 self.settings.statsOffset.y += event.dy;
-                const newX = innerW - 10 + self.settings.statsOffset.x - boxW;
+                const newX = innerW + 12 + self.settings.statsOffset.x;
                 const newY = 10 + self.settings.statsOffset.y;
                 d3.select(this).attr('transform', `translate(${newX}, ${newY})`);
             })

@@ -1667,13 +1667,14 @@ class DataTable {
                        [0,1,0],[1,0,0],[0,1,1],[0,0,1],[1,1,0],
                        [1,0,0],[0,1,0],[0,0,1],[1,1,1],[0,1,0]]
             },
-            { // Group-based: cell types in tissues (3 sets, Venn)
-                headers: ['Present'],
-                ids: [['Blood','T-cell'],['Blood','B-cell'],['Blood','NK-cell'],['Blood','Monocyte'],['Blood','Neutrophil'],
-                      ['Spleen','T-cell'],['Spleen','B-cell'],['Spleen','Macrophage'],['Spleen','DC'],
-                      ['Lymph Node','T-cell'],['Lymph Node','B-cell'],['Lymph Node','DC'],['Lymph Node','FDC'],
-                      ['Blood','Platelet'],['Spleen','NK-cell'],['Lymph Node','NK-cell']],
-                rows: [[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1]]
+            { // Binary matrix: 4 immune compartments (UpSet)
+                headers: ['Blood', 'Spleen', 'Lymph Node', 'Bone Marrow'],
+                ids: [['','T-cell'],['','B-cell'],['','NK-cell'],['','Monocyte'],['','Macrophage'],
+                      ['','DC'],['','Neutrophil'],['','Platelet'],['','FDC'],['','Plasma cell'],
+                      ['','Basophil'],['','Eosinophil'],['','HSC'],['','MSC'],['','Erythroid']],
+                rows: [[1,1,1,1],[1,1,1,1],[1,1,0,0],[1,0,0,0],[0,1,0,1],
+                       [0,1,1,0],[1,0,0,1],[1,0,0,0],[0,0,1,0],[0,1,1,1],
+                       [1,0,0,0],[1,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]]
             },
             { // Binary matrix: 5 sets (UpSet)
                 headers: ['Set A', 'Set B', 'Set C', 'Set D', 'Set E'],
@@ -1805,7 +1806,7 @@ class DataTable {
 
     loadKaplanMeierSampleData(index = 0) {
         const datasets = [
-            {
+            { // 0: Drug vs Control — 2 groups, clear separation
                 headers: ['Time', 'Event'],
                 ids: [
                     ['Treatment','P1'],['Treatment','P2'],['Treatment','P3'],['Treatment','P4'],['Treatment','P5'],
@@ -1822,6 +1823,63 @@ class DataTable {
                     ['3','1'],['5','1'],['6','1'],['8','1'],['9','0'],
                     ['11','1'],['12','1'],['14','0'],['16','1'],['18','1'],
                     ['20','0'],['22','1'],['24','1'],['26','0'],['28','1']
+                ]
+            },
+            { // 1: 3 treatment arms — dose response survival
+                headers: ['Time', 'Event'],
+                ids: [
+                    ['HighDose','1'],['HighDose','2'],['HighDose','3'],['HighDose','4'],['HighDose','5'],
+                    ['HighDose','6'],['HighDose','7'],['HighDose','8'],['HighDose','9'],['HighDose','10'],
+                    ['LowDose','1'],['LowDose','2'],['LowDose','3'],['LowDose','4'],['LowDose','5'],
+                    ['LowDose','6'],['LowDose','7'],['LowDose','8'],['LowDose','9'],['LowDose','10'],
+                    ['Placebo','1'],['Placebo','2'],['Placebo','3'],['Placebo','4'],['Placebo','5'],
+                    ['Placebo','6'],['Placebo','7'],['Placebo','8'],['Placebo','9'],['Placebo','10']
+                ],
+                rows: [
+                    ['15','0'],['22','1'],['28','0'],['35','1'],['40','0'],
+                    ['42','0'],['48','0'],['50','1'],['55','0'],['60','0'],
+                    ['8','1'],['12','1'],['16','0'],['20','1'],['24','1'],
+                    ['28','0'],['32','1'],['36','0'],['38','1'],['42','0'],
+                    ['3','1'],['5','1'],['7','1'],['9','1'],['12','0'],
+                    ['14','1'],['16','1'],['18','1'],['22','0'],['24','1']
+                ]
+            },
+            { // 2: Surgical outcome — early vs late events
+                headers: ['Time', 'Event'],
+                ids: [
+                    ['Surgery','1'],['Surgery','2'],['Surgery','3'],['Surgery','4'],['Surgery','5'],
+                    ['Surgery','6'],['Surgery','7'],['Surgery','8'],['Surgery','9'],['Surgery','10'],
+                    ['Surgery','11'],['Surgery','12'],
+                    ['Chemo','1'],['Chemo','2'],['Chemo','3'],['Chemo','4'],['Chemo','5'],
+                    ['Chemo','6'],['Chemo','7'],['Chemo','8'],['Chemo','9'],['Chemo','10'],
+                    ['Chemo','11'],['Chemo','12']
+                ],
+                rows: [
+                    ['2','1'],['4','1'],['8','0'],['14','1'],['20','0'],
+                    ['26','0'],['30','0'],['36','0'],['40','0'],['44','0'],
+                    ['48','0'],['52','0'],
+                    ['6','0'],['10','1'],['14','1'],['18','1'],['22','1'],
+                    ['24','0'],['28','1'],['30','1'],['34','0'],['36','1'],
+                    ['40','0'],['44','1']
+                ]
+            },
+            { // 3: Biomarker high vs low — overlapping curves
+                headers: ['Time', 'Event'],
+                ids: [
+                    ['BioHigh','1'],['BioHigh','2'],['BioHigh','3'],['BioHigh','4'],['BioHigh','5'],
+                    ['BioHigh','6'],['BioHigh','7'],['BioHigh','8'],['BioHigh','9'],['BioHigh','10'],
+                    ['BioHigh','11'],['BioHigh','12'],['BioHigh','13'],['BioHigh','14'],['BioHigh','15'],
+                    ['BioLow','1'],['BioLow','2'],['BioLow','3'],['BioLow','4'],['BioLow','5'],
+                    ['BioLow','6'],['BioLow','7'],['BioLow','8'],['BioLow','9'],['BioLow','10'],
+                    ['BioLow','11'],['BioLow','12'],['BioLow','13'],['BioLow','14'],['BioLow','15']
+                ],
+                rows: [
+                    ['4','1'],['7','1'],['10','1'],['12','0'],['15','1'],
+                    ['18','1'],['20','0'],['23','1'],['26','0'],['28','1'],
+                    ['30','0'],['33','1'],['36','0'],['40','0'],['45','0'],
+                    ['2','1'],['4','1'],['6','1'],['8','1'],['10','1'],
+                    ['12','1'],['14','0'],['16','1'],['18','1'],['20','1'],
+                    ['22','0'],['24','1'],['26','1'],['28','0'],['30','1']
                 ]
             }
         ];

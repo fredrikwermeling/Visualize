@@ -228,7 +228,7 @@ class App {
             if (indicator) indicator.textContent = '';
         });
         this._sampleIndex = { column: 0, heatmap: 0, growth: 0, volcano: 0, correlation: 0, pca: 0, venn: 0, oncoprint: 0, 'kaplan-meier': 0 };
-        this._sampleCounts = { column: 6, heatmap: 4, growth: 6, volcano: 4, correlation: 5, pca: 4, venn: 4, oncoprint: 4, 'kaplan-meier': 1 };
+        this._sampleCounts = { column: 6, heatmap: 4, growth: 6, volcano: 4, correlation: 5, pca: 4, venn: 4, oncoprint: 4, 'kaplan-meier': 4 };
         document.getElementById('addTestData').addEventListener('click', () => {
             const total = this._sampleCounts[this.mode] || 1;
             const prev = this._sampleIndex[this.mode] || 0;
@@ -915,8 +915,8 @@ class App {
             this.growthRenderer.settings.groupOverrides = {};
             this.growthRenderer.settings.groupOrder = [];
             this.growthRenderer.settings.hiddenGroups = [];
-            document.getElementById('growthWidth').value = 300;
-            document.getElementById('growthHeight').value = 300;
+            document.getElementById('growthWidth').value = 200;
+            document.getElementById('growthHeight').value = 200;
             document.getElementById('growthXMin').value = '';
             document.getElementById('growthXMax').value = '';
             document.getElementById('growthYMin').value = '';
@@ -949,8 +949,8 @@ class App {
             this.volcanoRenderer.settings = fresh.settings;
             this.volcanoRenderer._nudgeOffsetKey = null;
             this.volcanoRenderer._nudgeGeneName = null;
-            document.getElementById('volcanoWidth').value = 450;
-            document.getElementById('volcanoHeight').value = 400;
+            document.getElementById('volcanoWidth').value = 300;
+            document.getElementById('volcanoHeight').value = 300;
             document.getElementById('volcanoPThresh').value = 0.05;
             document.getElementById('volcanoFCThresh').value = 1.0;
             document.getElementById('volcanoPointSize').value = 4;
@@ -964,8 +964,8 @@ class App {
             const fresh = new CorrelationRenderer('graphContainer');
             this.correlationRenderer.settings = fresh.settings;
             this.correlationRenderer._nudgeOffsetKey = null;
-            document.getElementById('corrWidth').value = 400;
-            document.getElementById('corrHeight').value = 400;
+            document.getElementById('corrWidth').value = 200;
+            document.getElementById('corrHeight').value = 200;
             document.getElementById('corrXMin').value = '';
             document.getElementById('corrXMax').value = '';
             document.getElementById('corrYMin').value = '';
@@ -1241,7 +1241,7 @@ class App {
                 columnBottomRow.style.display = 'none';
                 // Move stats back to graph-controls for growth mode
                 graphControlsEl2.appendChild(statsSection);
-                statsSection.style.display = (isGrowth) ? '' : 'none';
+                statsSection.style.display = (isGrowth || isCorrelation) ? '' : 'none';
             }
         }
 
@@ -2718,7 +2718,9 @@ class App {
         const ids = ['volcanoWidth', 'volcanoHeight', 'volcanoPThresh', 'volcanoFCThresh', 'volcanoPointSize', 'volcanoTopLabels', 'volcanoUpColor', 'volcanoDownColor', 'volcanoShowLabels'];
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.addEventListener('input', () => this.updateGraph());
+            if (!el) return;
+            const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+            el.addEventListener(evt, () => this.updateGraph());
         });
     }
 
@@ -2752,7 +2754,9 @@ class App {
             'corrShowCI', 'corrShowZeroLines', 'corrStatsContent'];
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.addEventListener('input', () => this.updateGraph());
+            if (!el) return;
+            const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+            el.addEventListener(evt, () => this.updateGraph());
         });
     }
 
@@ -2840,7 +2844,9 @@ class App {
             'vennShowCounts', 'vennShowPercentages', 'vennShowLabels', 'vennProportional', 'vennScaleBySize'];
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.addEventListener('input', () => this.updateGraph());
+            if (!el) return;
+            const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+            el.addEventListener(evt, () => this.updateGraph());
         });
     }
 
@@ -2862,7 +2868,9 @@ class App {
             'oncoprintCellGap', 'oncoprintShowRowBar', 'oncoprintShowColBar', 'oncoprintSortSamples'];
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.addEventListener('input', () => this.updateGraph());
+            if (!el) return;
+            const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+            el.addEventListener(evt, () => this.updateGraph());
         });
     }
 
@@ -4461,7 +4469,6 @@ class App {
 
     _selectModeFromPopout(modeId) {
         this._hideModePopout();
-        sessionStorage.setItem('visualize_mode_chosen', '1');
 
         // Click the corresponding mode button
         const btn = document.querySelector(`.mode-btn[data-mode="${modeId}"]`);
@@ -4482,9 +4489,7 @@ class App {
         }
 
         // Show on first load (if not already dismissed this session)
-        if (!sessionStorage.getItem('visualize_mode_chosen')) {
-            this._showModePopout();
-        }
+        this._showModePopout();
     }
 
     _clearStats() {

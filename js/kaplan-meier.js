@@ -739,11 +739,16 @@ class KaplanMeierRenderer {
         const text = `Log-rank: \u03C7\u00B2=${chi2Str}, p=${pStr}`;
 
         const off = s.statsLegendOffset;
+        const lf = s.legendFont || { size: 11 };
+        const rowH = Math.max(14, lf.size + 6);
+        const groups = this._lastGroups || [];
+        const vGroups = groups.filter(gn => !(s.hiddenGroups || []).includes(gn));
+        const baseY = vGroups.length * rowH + 10;
+
         const lrG = g.append('g')
             .attr('class', 'km-logrank')
-            .attr('transform', `translate(${10 + off.x}, ${innerH - 10 + off.y})`);
+            .attr('transform', `translate(${innerW + 12 + off.x}, ${baseY + off.y})`);
 
-        // Background
         const textEl = lrG.append('text')
             .attr('x', 0)
             .attr('y', 0)
@@ -764,14 +769,13 @@ class KaplanMeierRenderer {
             .attr('stroke-width', 0.5)
             .attr('rx', 3);
 
-        // Draggable
         const self = this;
         lrG.call(d3.drag()
             .on('drag', function(event) {
                 self.settings.statsLegendOffset.x += event.dx;
                 self.settings.statsLegendOffset.y += event.dy;
                 d3.select(this).attr('transform',
-                    `translate(${10 + self.settings.statsLegendOffset.x}, ${innerH - 10 + self.settings.statsLegendOffset.y})`);
+                    `translate(${innerW + 12 + self.settings.statsLegendOffset.x}, ${baseY + self.settings.statsLegendOffset.y})`);
             })
         ).style('cursor', 'move');
     }

@@ -61,7 +61,7 @@ class VolcanoRenderer {
         }
 
         const s = this.settings;
-        const margin = { top: 50, right: 30, bottom: 65, left: 65 };
+        const margin = { top: 50, right: 140, bottom: 65, left: 65 };
         const innerW = s.width;
         const innerH = s.height;
         const width = innerW + margin.left + margin.right;
@@ -328,7 +328,7 @@ class VolcanoRenderer {
         const lf = s.legendFont;
 
         const legendG = g.append('g')
-            .attr('transform', `translate(${innerW - 120 + loff.x}, ${5 + loff.y})`)
+            .attr('transform', `translate(${innerW + 12 + loff.x}, ${5 + loff.y})`)
             .attr('cursor', 'grab');
 
         const items = [
@@ -357,7 +357,7 @@ class VolcanoRenderer {
                 self.settings.legendOffset.x += event.dx;
                 self.settings.legendOffset.y += event.dy;
                 d3.select(this).attr('transform',
-                    `translate(${innerW - 120 + self.settings.legendOffset.x}, ${5 + self.settings.legendOffset.y})`);
+                    `translate(${innerW + 12 + self.settings.legendOffset.x}, ${5 + self.settings.legendOffset.y})`);
             })
             .on('end', function() {
                 d3.select(this).style('cursor', 'grab');

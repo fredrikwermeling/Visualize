@@ -228,7 +228,7 @@ class App {
             const indicator = document.getElementById('testDataIndicator');
             if (indicator) indicator.textContent = '';
         });
-        this._sampleIndex = { column: 0, heatmap: 0, growth: 0, volcano: 0, correlation: 0 };
+        this._sampleIndex = { column: 0, heatmap: 0, growth: 0, volcano: 0, correlation: 0, pca: 0, venn: 0, oncoprint: 0, 'kaplan-meier': 0 };
         this._sampleCounts = { column: 6, heatmap: 4, growth: 6, volcano: 4, correlation: 5, pca: 4, venn: 4, oncoprint: 4, 'kaplan-meier': 1 };
         document.getElementById('addTestData').addEventListener('click', () => {
             const idx = this._sampleIndex[this.mode] || 0;
@@ -246,6 +246,8 @@ class App {
                 this.dataTable.loadVennSampleData(idx);
             } else if (this.mode === 'oncoprint') {
                 this.dataTable.loadOncoPrintSampleData(idx);
+            } else if (this.mode === 'kaplan-meier') {
+                this.dataTable.loadKaplanMeierSampleData(idx);
             } else {
                 this.dataTable.loadSampleData(idx);
             }

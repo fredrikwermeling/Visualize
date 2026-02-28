@@ -125,7 +125,29 @@
             <!-- Right Panel: Graph Display -->
             <div class="panel graph-panel">
                 <h2>Graph</h2>
-                
+
+                <!-- Drawing Toolbar -->
+                <div class="drawing-toolbar" id="drawingToolbar">
+                    <button id="drawToolNone" class="draw-tool-btn active" data-tool="none" title="Select / Move"><svg width="16" height="16" viewBox="0 0 16 16" style="vertical-align:middle"><path d="M3 1l10 7.5-4.5.5 2.5 5-2 1-2.5-5L3 13z" fill="currentColor" stroke="currentColor" stroke-width="0.5" stroke-linejoin="round"/></svg></button>
+                    <button id="drawToolText" class="draw-tool-btn" data-tool="text" title="Text">T</button>
+                    <button id="drawToolLine" class="draw-tool-btn" data-tool="line" title="Line">&#9585;</button>
+                    <button id="drawToolArrow" class="draw-tool-btn" data-tool="arrow" title="Arrow">&#8594;</button>
+                    <button id="drawToolBracket" class="draw-tool-btn" data-tool="bracket" title="Bracket">&#9581;</button>
+                    <span class="drawing-separator"></span>
+                    <button id="drawUndo" class="draw-tool-btn" title="Undo last action">&#8630;</button>
+                    <button id="drawDeleteSelected" class="draw-tool-btn" title="Delete selected annotation">&#10005;</button>
+                    <button id="drawClearAll" class="draw-tool-btn" title="Clear all annotations">&#128465;</button>
+                    <span class="drawing-separator"></span>
+                    <button id="textSettingsBtn" class="draw-tool-btn" title="Text Settings">Aa</button>
+                    <button id="graphSettingsBtn" class="draw-tool-btn" title="Graph Settings">&#9881;</button>
+                </div>
+
+                <!-- Graph Container -->
+                <div id="graphContainer" class="graph-container">
+                    <!-- SVG will be inserted here -->
+                </div>
+                <div id="heatmapInfo" class="heatmap-info" style="display:none"></div>
+
                 <!-- Graph Type Selection -->
                 <div class="graph-type-selector">
                     <label>Graph Type:</label>
@@ -153,29 +175,7 @@
                         </optgroup>
                     </select>
                 </div>
-                
-                <!-- Drawing Toolbar -->
-                <div class="drawing-toolbar" id="drawingToolbar">
-                    <button id="drawToolNone" class="draw-tool-btn active" data-tool="none" title="Select / Move"><svg width="16" height="16" viewBox="0 0 16 16" style="vertical-align:middle"><path d="M3 1l10 7.5-4.5.5 2.5 5-2 1-2.5-5L3 13z" fill="currentColor" stroke="currentColor" stroke-width="0.5" stroke-linejoin="round"/></svg></button>
-                    <button id="drawToolText" class="draw-tool-btn" data-tool="text" title="Text">T</button>
-                    <button id="drawToolLine" class="draw-tool-btn" data-tool="line" title="Line">&#9585;</button>
-                    <button id="drawToolArrow" class="draw-tool-btn" data-tool="arrow" title="Arrow">&#8594;</button>
-                    <button id="drawToolBracket" class="draw-tool-btn" data-tool="bracket" title="Bracket">&#9581;</button>
-                    <span class="drawing-separator"></span>
-                    <button id="drawUndo" class="draw-tool-btn" title="Undo last action">&#8630;</button>
-                    <button id="drawDeleteSelected" class="draw-tool-btn" title="Delete selected annotation">&#10005;</button>
-                    <button id="drawClearAll" class="draw-tool-btn" title="Clear all annotations">&#128465;</button>
-                    <span class="drawing-separator"></span>
-                    <button id="textSettingsBtn" class="draw-tool-btn" title="Text Settings">Aa</button>
-                    <button id="graphSettingsBtn" class="draw-tool-btn" title="Graph Settings">&#9881;</button>
-                </div>
 
-                <!-- Graph Container -->
-                <div id="graphContainer" class="graph-container">
-                    <!-- SVG will be inserted here -->
-                </div>
-                <div id="heatmapInfo" class="heatmap-info" style="display:none"></div>
-                
                 <!-- Graph Controls -->
                 <!-- Hidden inputs for title/label sync with inline editing -->
                 <input type="hidden" id="graphTitle" value="Graph Title">
@@ -499,7 +499,8 @@
                         <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
                             <label style="font-size:12px" class="pca-only"><input type="checkbox" id="pcaShowLoadings"> Loadings</label>
                         </div>
-                        <div id="pcaInfoPanel" style="display:none;margin-top:6px;padding:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;line-height:1.5;color:#374151">
+                        <div id="pcaInfoPanel" style="display:none;margin-top:6px;padding:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;line-height:1.5;color:#374151;position:relative">
+                            <span onclick="document.getElementById('pcaInfoPanel').style.display='none'" style="position:absolute;top:4px;right:6px;cursor:pointer;font-size:14px;color:#6b7280;line-height:1" title="Close">&times;</span>
                             <div style="font-weight:600;margin-bottom:4px">When to use each method:</div>
                             <div><b>PCA</b> &mdash; Best for exploring linear relationships. Fast, deterministic. Shows which variables (loadings) drive separation. Use when groups separate along linear axes.</div>
                             <div style="margin-top:3px"><b>t-SNE</b> &mdash; Reveals clusters in complex, non-linear data. Good for visualizing distinct groups. Perplexity controls local vs global focus (5&ndash;50). Stochastic: re-runs may differ.</div>
@@ -508,6 +509,10 @@
                             <div><b>PCA:</b> Eigendecomposition of the covariance matrix. Data is centered. Variance explained (%) shown per component.</div>
                             <div style="margin-top:2px"><b>t-SNE:</b> Converts pairwise distances to probabilities, then optimizes a 2D layout where similar points stay close. Stochastic optimization.</div>
                             <div style="margin-top:2px"><b>UMAP:</b> Builds a nearest-neighbor graph and optimizes a 2D layout preserving both local and global structure. Initialized from PCA coordinates.</div>
+                            <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Implementation:</div>
+                            <div>All methods implemented in client-side JavaScript (pca.js). Statistical tests in other modes use jStat.</div>
+                            <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Methods text for manuscripts:</div>
+                            <div style="font-style:italic">&ldquo;Dimensionality reduction was performed using [PCA / t-SNE (perplexity&nbsp;=&nbsp;X) / UMAP (n_neighbors&nbsp;=&nbsp;X, min_dist&nbsp;=&nbsp;X)]. Data were z-score standardized prior to embedding. Visualizations were generated using Visualize (client-side JavaScript).&rdquo;</div>
                         </div>
                     </div>
                 </div>
@@ -614,7 +619,7 @@
                         <div class="control-grid-2col">
                             <div class="control-group column-only">
                                 <label>Width:</label>
-                                <input type="number" id="graphWidth" value="150" min="50" step="10">
+                                <input type="number" id="graphWidth" value="200" min="50" step="10">
                             </div>
                             <div class="control-group column-only">
                                 <label>Height:</label>

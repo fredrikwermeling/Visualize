@@ -949,7 +949,7 @@ class App {
             this.graphRenderer.settings = new GraphRenderer('graphContainer').settings;
             this.graphRenderer._titleOffset = { x: 0, y: 0 };
             this.graphRenderer._zeroLineAutoSet = false;
-            document.getElementById('graphWidth').value = 150;
+            document.getElementById('graphWidth').value = 200;
             document.getElementById('graphHeight').value = 200;
             document.getElementById('yAxisMin').value = '';
             document.getElementById('yAxisMax').value = '';
@@ -1167,7 +1167,7 @@ class App {
 
         // Hide dimensions section for modes with own controls
         const dimSection = document.getElementById('dimensionsSection');
-        if (dimSection) dimSection.style.display = (isCorrelation || isPCA || isVenn || isOncoprint || isGrowth || isKaplanMeier) ? 'none' : '';
+        if (dimSection) dimSection.style.display = (isColumn || isCorrelation || isPCA || isVenn || isOncoprint || isGrowth || isKaplanMeier) ? 'none' : '';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {

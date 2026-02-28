@@ -1320,18 +1320,25 @@ class App {
         const statsBtn = document.getElementById('exportStats');
         if (statsBtn) statsBtn.style.display = (isColumn || isGrowth || isCorrelation) ? '' : 'none';
 
-        // Filter test type options by mode
+        // Filter test type options by mode — remove/re-add optgroups (display:none doesn't work in Safari)
         const testSel = document.getElementById('testType');
         if (testSel) {
-            testSel.querySelectorAll('optgroup').forEach(og => {
-                const label = og.getAttribute('label') || '';
-                if (label === 'Growth Curves') {
-                    og.style.display = isGrowth ? '' : 'none';
-                } else if (label === 'Correlation') {
-                    og.style.display = isCorrelation ? '' : 'none';
-                } else {
-                    og.style.display = (isGrowth || isVolcano || isCorrelation) ? 'none' : '';
-                }
+            if (!this._testOptgroups) {
+                this._testOptgroups = {};
+                testSel.querySelectorAll('optgroup').forEach(og => {
+                    this._testOptgroups[og.getAttribute('label')] = og;
+                });
+            }
+            // Remove all optgroups first
+            Object.values(this._testOptgroups).forEach(og => { if (og.parentNode) og.remove(); });
+            // Re-add only the relevant ones
+            const noneOpt = testSel.querySelector('option[value="none"]');
+            Object.entries(this._testOptgroups).forEach(([label, og]) => {
+                let show = false;
+                if (label === 'Growth Curves') show = isGrowth;
+                else if (label === 'Correlation') show = isCorrelation;
+                else show = !(isGrowth || isVolcano || isCorrelation);
+                if (show) testSel.appendChild(og);
             });
             // Reset to appropriate default when switching modes
             if (isCorrelation && !['pearson','spearman','linear-regression','none'].includes(testSel.value)) {

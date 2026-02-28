@@ -1663,6 +1663,10 @@ tr:hover .row-delete-btn {
     margin: 0;
 }
 
+.column-bottom-row .column-stats-wrapper .control-section + .control-section {
+    margin-top: 10px;
+}
+
 /* Graph Type Picker */
 .graph-type-picker {
     background: var(--gray-100);

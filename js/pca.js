@@ -1112,7 +1112,12 @@ class PCARenderer {
         undoBtn.addEventListener('click', () => { undoFn(); toast.remove(); });
         toast.appendChild(undoBtn);
         document.body.appendChild(toast);
-        setTimeout(() => { if (document.body.contains(toast)) { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); } }, 5000);
+        // Add dismiss button
+        const dismissBtn = document.createElement('button');
+        dismissBtn.textContent = '×';
+        dismissBtn.style.cssText = 'background:none;border:none;color:rgba(255,255,255,.7);padding:0 0 0 6px;cursor:pointer;font-size:16px;line-height:1;';
+        dismissBtn.addEventListener('click', () => toast.remove());
+        toast.appendChild(dismissBtn);
     }
 
     _startInlineEdit(event, labelType) {

@@ -124,8 +124,11 @@ class App {
         document.getElementById('clearData').addEventListener('click', () => {
             this.dataTable.clearData();
             this._clearStats();
+            const indicator = document.getElementById('testDataIndicator');
+            if (indicator) indicator.textContent = '';
         });
         this._sampleIndex = { column: 0, heatmap: 0, growth: 0, volcano: 0, correlation: 0 };
+        this._sampleCounts = { column: 6, heatmap: 4, growth: 6, volcano: 4, correlation: 5, pca: 4, venn: 4, oncoprint: 4, 'kaplan-meier': 1 };
         document.getElementById('addTestData').addEventListener('click', () => {
             const idx = this._sampleIndex[this.mode] || 0;
             if (this.mode === 'heatmap') {
@@ -146,6 +149,10 @@ class App {
                 this.dataTable.loadSampleData(idx);
             }
             this._sampleIndex[this.mode] = idx + 1;
+            const total = this._sampleCounts[this.mode] || 1;
+            const shown = (idx % total) + 1;
+            const indicator = document.getElementById('testDataIndicator');
+            if (indicator) indicator.textContent = shown + '/' + total;
         });
 
         // Expand table toggle
@@ -1064,6 +1071,10 @@ class App {
         const isVenn = this.mode === 'venn';
         const isOncoprint = this.mode === 'oncoprint';
         const isKaplanMeier = this.mode === 'kaplan-meier';
+
+        // Clear test data indicator on mode switch
+        const indicator = document.getElementById('testDataIndicator');
+        if (indicator) indicator.textContent = '';
 
         // Clean up PCA column toggles when leaving PCA mode
         if (!isPCA) {

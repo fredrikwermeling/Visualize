@@ -23,12 +23,12 @@ class PCARenderer {
             pcX: 1,
             pcY: 2,
             // t-SNE params
-            perplexity: 30,
+            perplexity: 10,
             tsneIterations: 1000,
             tsneLearningRate: 200,
             // UMAP params
-            nNeighbors: 15,
-            minDist: 0.2,
+            nNeighbors: 10,
+            minDist: 0.1,
             umapIterations: 500,
             // Fonts
             titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
@@ -559,7 +559,7 @@ class PCARenderer {
 
         // Layout — width/height = inner plot area (square); total SVG adds margins
         const legendWidth = (s.showLegend && allGroupNames.length > 1) ? this._estimateLegendWidth(allGroupNames) + 16 : 30;
-        const loadingsBoxWidth = (s.method === 'pca' && s.showLoadings) ? 140 : 0;
+        const loadingsBoxWidth = s.showLoadings ? 140 : 0;
         const rightMargin = Math.max(legendWidth, loadingsBoxWidth, 30);
         const margin = { top: 50, right: rightMargin, bottom: 65, left: 65 };
         const innerW = s.width;
@@ -687,9 +687,21 @@ class PCARenderer {
         // Legend
         this._drawLegend(g, innerW, allGroupNames);
 
-        // Loading arrows in external box (PCA only) — positioned below legend
-        if (s.method === 'pca' && s.showLoadings && embedding.eigenvectors && colLabels) {
-            this._drawLoadingsBox(g, svg, innerW, allGroupNames, embedding, xIdx, yIdx, colLabels);
+        // Loading arrows in external box — positioned below legend
+        if (s.showLoadings && colLabels) {
+            let loadX, loadY, isCorrelation = false;
+            if (s.method === 'pca' && embedding.eigenvectors) {
+                loadX = embedding.eigenvectors[xIdx];
+                loadY = embedding.eigenvectors[yIdx];
+            } else if (s.method !== 'pca') {
+                const corr = this._computeCorrelationLoadings(visibleMatrix, embedding.scores);
+                loadX = corr[0];
+                loadY = corr[1];
+                isCorrelation = true;
+            }
+            if (loadX && loadY) {
+                this._drawLoadingsBox(g, svg, innerW, allGroupNames, loadX, loadY, colLabels, isCorrelation);
+            }
         }
 
         // Variance explained info (PCA only)
@@ -738,12 +750,36 @@ class PCARenderer {
         }
     }
 
-    _drawLoadingsBox(g, svg, innerW, allGroupNames, embedding, xIdx, yIdx, colLabels) {
-        const s = this.settings;
-        const loadX = embedding.eigenvectors[xIdx];
-        const loadY = embedding.eigenvectors[yIdx];
-        if (!loadX || !loadY) return;
+    // Compute Pearson correlations between original features and embedding coordinates
+    _computeCorrelationLoadings(matrix, scores) {
+        const n = matrix.length;
+        const p = matrix[0].length;
+        const corrX = new Array(p);
+        const corrY = new Array(p);
+        const sx = scores.map(s => s[0]);
+        const sy = scores.map(s => s[1]);
+        const meanSx = sx.reduce((a, b) => a + b, 0) / n;
+        const meanSy = sy.reduce((a, b) => a + b, 0) / n;
+        const stdSx = Math.sqrt(sx.reduce((a, v) => a + (v - meanSx) ** 2, 0) / n) || 1;
+        const stdSy = Math.sqrt(sy.reduce((a, v) => a + (v - meanSy) ** 2, 0) / n) || 1;
+        for (let j = 0; j < p; j++) {
+            const col = matrix.map(r => r[j]);
+            const meanC = col.reduce((a, b) => a + b, 0) / n;
+            const stdC = Math.sqrt(col.reduce((a, v) => a + (v - meanC) ** 2, 0) / n) || 1;
+            let covX = 0, covY = 0;
+            for (let i = 0; i < n; i++) {
+                covX += (col[i] - meanC) * (sx[i] - meanSx);
+                covY += (col[i] - meanC) * (sy[i] - meanSy);
+            }
+            corrX[j] = covX / (n * stdC * stdSx);
+            corrY[j] = covY / (n * stdC * stdSy);
+        }
+        return [corrX, corrY];
+    }
 
+    _drawLoadingsBox(g, svg, innerW, allGroupNames, loadX, loadY, colLabels, isCorrelation) {
+        if (!loadX || !loadY) return;
+        const s = this.settings;
         const lf = s.loadingsFont;
 
         // Compute legend bottom Y for positioning
@@ -760,10 +796,17 @@ class PCARenderer {
         const loadG = g.append('g').attr('transform', `translate(${boxX}, ${boxY})`).attr('cursor', 'grab');
 
         // Background
+        const titleH = 14;
         loadG.append('rect')
-            .attr('x', -4).attr('y', -4)
-            .attr('width', boxSize + 8).attr('height', boxSize + 8)
+            .attr('x', -4).attr('y', -4 - titleH)
+            .attr('width', boxSize + 8).attr('height', boxSize + 8 + titleH)
             .attr('fill', 'white').attr('stroke', '#ddd').attr('stroke-width', 1).attr('rx', 3);
+        loadG.append('text')
+            .attr('x', boxSize / 2).attr('y', -6)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '9px').attr('font-family', 'Arial')
+            .attr('fill', '#888')
+            .text(isCorrelation ? 'Feature correlations' : 'Loadings');
 
         // Axis cross
         const cx = boxSize / 2, cy = boxSize / 2;

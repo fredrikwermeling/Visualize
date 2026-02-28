@@ -886,9 +886,9 @@ class App {
             document.getElementById('pcaPointSize').value = 6;
             document.getElementById('pcaPCX').value = 1;
             document.getElementById('pcaPCY').value = 2;
-            document.getElementById('pcaPerplexity').value = 30;
-            document.getElementById('pcaNNeighbors').value = 15;
-            document.getElementById('pcaMinDist').value = 0.2;
+            document.getElementById('pcaPerplexity').value = 10;
+            document.getElementById('pcaNNeighbors').value = 10;
+            document.getElementById('pcaMinDist').value = 0.1;
             document.getElementById('pcaShowLoadings').checked = false;
             document.getElementById('pcaXMin').value = '';
             document.getElementById('pcaXMax').value = '';
@@ -2625,9 +2625,9 @@ class App {
             pointSize: parseFloat(document.getElementById('pcaPointSize')?.value) || 6,
             pcX: parseInt(document.getElementById('pcaPCX')?.value) || 1,
             pcY: parseInt(document.getElementById('pcaPCY')?.value) || 2,
-            perplexity: parseInt(document.getElementById('pcaPerplexity')?.value) || 30,
-            nNeighbors: parseInt(document.getElementById('pcaNNeighbors')?.value) || 15,
-            minDist: parseFloat(document.getElementById('pcaMinDist')?.value) || 0.2,
+            perplexity: parseInt(document.getElementById('pcaPerplexity')?.value) || 10,
+            nNeighbors: parseInt(document.getElementById('pcaNNeighbors')?.value) || 10,
+            minDist: parseFloat(document.getElementById('pcaMinDist')?.value) || 0.1,
             showLoadings: document.getElementById('pcaShowLoadings')?.checked ?? false,
             xMin: pf('pcaXMin'), xMax: pf('pcaXMax'),
             yMin: pf('pcaYMin'), yMax: pf('pcaYMax'),

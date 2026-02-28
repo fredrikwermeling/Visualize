@@ -492,23 +492,25 @@
                             </div>
                             <div class="control-group pca-only"><label>PC X:</label><input type="number" id="pcaPCX" value="1" min="1" max="20" step="1"></div>
                             <div class="control-group pca-only"><label>PC Y:</label><input type="number" id="pcaPCY" value="2" min="1" max="20" step="1"></div>
-                            <div class="control-group tsne-only" style="display:none"><label>Perplexity:</label><input type="number" id="pcaPerplexity" value="30" min="2" max="100" step="1"></div>
-                            <div class="control-group umap-only" style="display:none"><label>Neighbors:</label><input type="number" id="pcaNNeighbors" value="15" min="2" max="100" step="1"></div>
-                            <div class="control-group umap-only" style="display:none"><label>Min Dist:</label><input type="number" id="pcaMinDist" value="0.2" min="0.001" max="1" step="0.05"></div>
+                            <div class="control-group tsne-only" style="display:none"><label>Perplexity:</label><input type="number" id="pcaPerplexity" value="10" min="2" max="100" step="1" title="Balance local vs global structure. Lower (5–10) = tighter clusters, higher (20–50) = more global view. Try different values."></div>
+                            <div class="control-group umap-only" style="display:none"><label>Neighbors:</label><input type="number" id="pcaNNeighbors" value="10" min="2" max="100" step="1" title="How many neighbors to consider. Lower = more local detail and tighter clusters, higher = smoother layout. Try 5–30."></div>
+                            <div class="control-group umap-only" style="display:none"><label>Min Dist:</label><input type="number" id="pcaMinDist" value="0.1" min="0.001" max="1" step="0.05" title="Minimum distance between points. Lower = tighter clusters, higher = more spread out. Try 0.05–0.5."></div>
                         </div>
                         <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-                            <label style="font-size:12px" class="pca-only"><input type="checkbox" id="pcaShowLoadings"> Loadings</label>
+                            <label style="font-size:12px"><input type="checkbox" id="pcaShowLoadings"> Loadings</label>
                         </div>
                         <div id="pcaInfoPanel" style="display:none;margin-top:6px;padding:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:10px;line-height:1.5;color:#374151;position:relative">
                             <span onclick="document.getElementById('pcaInfoPanel').style.display='none'" style="position:absolute;top:4px;right:6px;cursor:pointer;font-size:14px;color:#6b7280;line-height:1" title="Close">&times;</span>
                             <div style="font-weight:600;margin-bottom:4px">When to use each method:</div>
                             <div><b>PCA</b> &mdash; Best for exploring linear relationships. Fast, deterministic. Shows which variables (loadings) drive separation. Use when groups separate along linear axes.</div>
-                            <div style="margin-top:3px"><b>t-SNE</b> &mdash; Reveals clusters in complex, non-linear data. Good for visualizing distinct groups. Perplexity controls local vs global focus (5&ndash;50). Stochastic: re-runs may differ.</div>
-                            <div style="margin-top:3px"><b>UMAP</b> &mdash; Similar to t-SNE but better preserves global structure. Faster on large datasets. Neighbors controls local detail; Min Dist controls point packing.</div>
+                            <div style="margin-top:3px"><b>t-SNE</b> &mdash; Reveals clusters in complex, non-linear data. Good for visualizing distinct groups. Stochastic: re-runs may differ. Adjust <b>Perplexity</b> (lower = tighter clusters, higher = more global view). Try values between 5 and 50.</div>
+                            <div style="margin-top:3px"><b>UMAP</b> &mdash; Similar to t-SNE but better preserves global structure. Faster on large datasets. Adjust <b>Neighbors</b> (local detail) and <b>Min Dist</b> (cluster tightness). Lower values give tighter, more separated clusters.</div>
+                            <div style="margin-top:4px;color:#6b7280"><b>Tip:</b> Adjust parameters and observe how the plot changes &mdash; there is no single &ldquo;correct&rdquo; value. Try a few settings until the groups are well separated. Loadings (feature&ndash;embedding correlations) are available for all methods.</div>
                             <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Statistics used:</div>
-                            <div><b>PCA:</b> Eigendecomposition of the covariance matrix. Data is centered. Variance explained (%) shown per component.</div>
+                            <div><b>PCA:</b> Eigendecomposition of the covariance matrix. Data is centered. Variance explained (%) shown per component. Loadings show eigenvector coefficients.</div>
                             <div style="margin-top:2px"><b>t-SNE:</b> Converts pairwise distances to probabilities, then optimizes a 2D layout where similar points stay close. Stochastic optimization.</div>
                             <div style="margin-top:2px"><b>UMAP:</b> Builds a nearest-neighbor graph and optimizes a 2D layout preserving both local and global structure. Initialized from PCA coordinates.</div>
+                            <div style="margin-top:2px"><b>Loadings (t-SNE/UMAP):</b> Shows Pearson correlations between original features and embedding coordinates, indicating which features drive the separation.</div>
                             <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Implementation:</div>
                             <div>All methods implemented in client-side JavaScript (pca.js). Statistical tests in other modes use jStat.</div>
                             <div style="font-weight:600;margin-top:6px;margin-bottom:2px">Methods text for manuscripts:</div>

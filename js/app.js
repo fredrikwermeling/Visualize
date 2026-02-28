@@ -1227,19 +1227,23 @@ class App {
         const groupMgr = document.getElementById('groupManager');
         if (groupMgr) groupMgr.style.display = isColumn ? '' : 'none';
 
-        // Column bottom row (graph type picker + statistics side-by-side)
+        // Column bottom row (graph type picker + dimensions + statistics side-by-side)
         const columnBottomRow = document.getElementById('columnBottomRow');
         const statsSection = document.getElementById('statisticsSection');
+        const dimSection = document.getElementById('dimensionsSection');
         const statsWrapper = document.getElementById('columnStatsWrapper');
         const graphControlsEl2 = document.querySelector('.graph-controls');
         if (columnBottomRow && statsSection && statsWrapper && graphControlsEl2) {
             if (isColumn) {
                 columnBottomRow.style.display = '';
+                // Move dimensions and stats into the right column
+                if (dimSection) { statsWrapper.appendChild(dimSection); dimSection.style.display = ''; }
                 statsWrapper.appendChild(statsSection);
                 statsSection.style.display = '';
             } else {
                 columnBottomRow.style.display = 'none';
-                // Move stats back to graph-controls for growth mode
+                // Move both back to graph-controls
+                if (dimSection) { graphControlsEl2.appendChild(dimSection); dimSection.style.display = 'none'; }
                 graphControlsEl2.appendChild(statsSection);
                 statsSection.style.display = (isGrowth || isCorrelation) ? '' : 'none';
             }
@@ -1305,9 +1309,7 @@ class App {
         // Hide appearance controls that are now in the gear popout
         this._hideMovedControls();
 
-        // Show dimensions section only in column mode
-        const dimSection = document.getElementById('dimensionsSection');
-        if (dimSection) dimSection.style.display = isColumn ? '' : 'none';
+
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {

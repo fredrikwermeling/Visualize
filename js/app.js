@@ -66,12 +66,16 @@ class App {
         this._bindGroupToggleButtons();
         this._bindTextSettingsPanel();
         this._bindGraphSettingsPanel();
+        this._buildGraphTypePicker();
         this._wrapNumberInputs();
 
         // Load sample data and draw initial graph
         this._applyMode();
         this.dataTable.loadHeatmapSampleData();
         this.updateGraph();
+
+        // Mode selection popout (after initial render)
+        this._initModePopout();
     }
 
     _wrapNumberInputs() {
@@ -109,6 +113,93 @@ class App {
             wrapper.appendChild(minus);
             wrapper.appendChild(input);
             wrapper.appendChild(plus);
+        });
+    }
+
+    // --- Graph Type Picker ---
+
+    _buildGraphTypePicker() {
+        const container = document.getElementById('graphTypePicker');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const h4 = document.createElement('h4');
+        h4.textContent = 'Graph Type';
+        container.appendChild(h4);
+
+        const categories = [
+            { name: 'Scatter', items: [
+                { value: 'scatter-only', label: 'Points only', icon: '<svg viewBox="0 0 20 16"><circle cx="5" cy="4" r="1.5" fill="#4a8f32"/><circle cx="10" cy="10" r="1.5" fill="#4a8f32"/><circle cx="15" cy="6" r="1.5" fill="#4a8f32"/><circle cx="8" cy="12" r="1.5" fill="#4a8f32"/><circle cx="14" cy="3" r="1.5" fill="#4a8f32"/></svg>' },
+                { value: 'column-points-mean', label: 'Points + Mean', icon: '<svg viewBox="0 0 20 16"><circle cx="5" cy="5" r="1.3" fill="#4a8f32"/><circle cx="5" cy="9" r="1.3" fill="#4a8f32"/><circle cx="5" cy="12" r="1.3" fill="#4a8f32"/><line x1="3" y1="8.5" x2="7" y2="8.5" stroke="#333" stroke-width="1.5"/><circle cx="14" cy="4" r="1.3" fill="#e67e22"/><circle cx="14" cy="7" r="1.3" fill="#e67e22"/><circle cx="14" cy="11" r="1.3" fill="#e67e22"/><line x1="12" y1="7" x2="16" y2="7" stroke="#333" stroke-width="1.5"/></svg>' },
+                { value: 'column-points-median', label: 'Points + Median', icon: '<svg viewBox="0 0 20 16"><circle cx="5" cy="5" r="1.3" fill="#4a8f32"/><circle cx="5" cy="9" r="1.3" fill="#4a8f32"/><circle cx="5" cy="13" r="1.3" fill="#4a8f32"/><line x1="3" y1="9" x2="7" y2="9" stroke="#333" stroke-width="1.5"/><circle cx="14" cy="3" r="1.3" fill="#e67e22"/><circle cx="14" cy="7" r="1.3" fill="#e67e22"/><circle cx="14" cy="10" r="1.3" fill="#e67e22"/><line x1="12" y1="7" x2="16" y2="7" stroke="#333" stroke-width="1.5"/></svg>' },
+            ]},
+            { name: 'Bar', items: [
+                { value: 'scatter-bar', label: 'Scatter + Bar', icon: '<svg viewBox="0 0 20 16"><rect x="2" y="6" width="6" height="10" rx="1" fill="#4a8f32" opacity="0.4"/><circle cx="5" cy="5" r="1.2" fill="#4a8f32"/><circle cx="5" cy="9" r="1.2" fill="#4a8f32"/><rect x="12" y="4" width="6" height="12" rx="1" fill="#e67e22" opacity="0.4"/><circle cx="15" cy="3" r="1.2" fill="#e67e22"/><circle cx="15" cy="8" r="1.2" fill="#e67e22"/></svg>' },
+                { value: 'column-bar-mean', label: 'Bar + SD', icon: '<svg viewBox="0 0 20 16"><rect x="2" y="5" width="6" height="11" rx="1" fill="#4a8f32"/><line x1="5" y1="2" x2="5" y2="5" stroke="#333" stroke-width="1"/><line x1="3.5" y1="2" x2="6.5" y2="2" stroke="#333" stroke-width="1"/><rect x="12" y="3" width="6" height="13" rx="1" fill="#e67e22"/><line x1="15" y1="0.5" x2="15" y2="3" stroke="#333" stroke-width="1"/><line x1="13.5" y1="0.5" x2="16.5" y2="0.5" stroke="#333" stroke-width="1"/></svg>' },
+                { value: 'column-bar-sem', label: 'Bar + SEM', icon: '<svg viewBox="0 0 20 16"><rect x="2" y="5" width="6" height="11" rx="1" fill="#4a8f32"/><line x1="5" y1="3" x2="5" y2="5" stroke="#333" stroke-width="1"/><line x1="3.5" y1="3" x2="6.5" y2="3" stroke="#333" stroke-width="1"/><rect x="12" y="3" width="6" height="13" rx="1" fill="#e67e22"/><line x1="15" y1="1.5" x2="15" y2="3" stroke="#333" stroke-width="1"/><line x1="13.5" y1="1.5" x2="16.5" y2="1.5" stroke="#333" stroke-width="1"/></svg>' },
+                { value: 'column-bar-median', label: 'Bar + IQR', icon: '<svg viewBox="0 0 20 16"><rect x="2" y="6" width="6" height="10" rx="1" fill="#4a8f32"/><line x1="5" y1="3" x2="5" y2="6" stroke="#333" stroke-width="1"/><line x1="5" y1="12" x2="5" y2="16" stroke="#333" stroke-width="1"/><rect x="12" y="4" width="6" height="12" rx="1" fill="#e67e22"/><line x1="15" y1="1" x2="15" y2="4" stroke="#333" stroke-width="1"/><line x1="15" y1="12" x2="15" y2="16" stroke="#333" stroke-width="1"/></svg>' },
+                { value: 'scatter-bar-mean-sd', label: 'Scatter+Bar+SD', icon: '<svg viewBox="0 0 20 16"><rect x="2" y="6" width="6" height="10" rx="1" fill="#4a8f32" opacity="0.4"/><circle cx="4" cy="5" r="1" fill="#4a8f32"/><circle cx="6" cy="9" r="1" fill="#4a8f32"/><line x1="5" y1="3" x2="5" y2="6" stroke="#333" stroke-width="0.8"/><rect x="12" y="4" width="6" height="12" rx="1" fill="#e67e22" opacity="0.4"/><circle cx="14" cy="3" r="1" fill="#e67e22"/><circle cx="16" cy="7" r="1" fill="#e67e22"/><line x1="15" y1="1" x2="15" y2="4" stroke="#333" stroke-width="0.8"/></svg>' },
+                { value: 'scatter-bar-mean-sem', label: 'Scatter+Bar+SEM', icon: '<svg viewBox="0 0 20 16"><rect x="2" y="6" width="6" height="10" rx="1" fill="#4a8f32" opacity="0.4"/><circle cx="4" cy="5" r="1" fill="#4a8f32"/><circle cx="6" cy="9" r="1" fill="#4a8f32"/><line x1="5" y1="4" x2="5" y2="6" stroke="#333" stroke-width="0.8"/><rect x="12" y="4" width="6" height="12" rx="1" fill="#e67e22" opacity="0.4"/><circle cx="14" cy="3" r="1" fill="#e67e22"/><circle cx="16" cy="7" r="1" fill="#e67e22"/><line x1="15" y1="2" x2="15" y2="4" stroke="#333" stroke-width="0.8"/></svg>' },
+            ]},
+            { name: 'Distribution', items: [
+                { value: 'box-plot', label: 'Box Plot', icon: '<svg viewBox="0 0 20 16"><rect x="3" y="4" width="5" height="8" rx="0.5" fill="none" stroke="#4a8f32" stroke-width="1.2"/><line x1="5.5" y1="1" x2="5.5" y2="4" stroke="#4a8f32" stroke-width="1"/><line x1="5.5" y1="12" x2="5.5" y2="15" stroke="#4a8f32" stroke-width="1"/><line x1="3" y1="8" x2="8" y2="8" stroke="#4a8f32" stroke-width="1.5"/><rect x="12" y="3" width="5" height="9" rx="0.5" fill="none" stroke="#e67e22" stroke-width="1.2"/><line x1="14.5" y1="0.5" x2="14.5" y2="3" stroke="#e67e22" stroke-width="1"/><line x1="14.5" y1="12" x2="14.5" y2="15.5" stroke="#e67e22" stroke-width="1"/><line x1="12" y1="7" x2="17" y2="7" stroke="#e67e22" stroke-width="1.5"/></svg>' },
+                { value: 'violin-plot', label: 'Violin Plot', icon: '<svg viewBox="0 0 20 16"><path d="M5.5 1 C3 4,2 6,2 8 C2 10,3 12,5.5 15 C8 12,9 10,9 8 C9 6,8 4,5.5 1Z" fill="#4a8f32" opacity="0.5" stroke="#4a8f32" stroke-width="0.8"/><path d="M14.5 1 C12 4,11 6,11 8 C11 10,12 12,14.5 15 C17 12,18 10,18 8 C18 6,17 4,14.5 1Z" fill="#e67e22" opacity="0.5" stroke="#e67e22" stroke-width="0.8"/></svg>' },
+                { value: 'violin-box', label: 'Violin + Box', icon: '<svg viewBox="0 0 20 16"><path d="M5.5 1 C3 4,2 6,2 8 C2 10,3 12,5.5 15 C8 12,9 10,9 8 C9 6,8 4,5.5 1Z" fill="#4a8f32" opacity="0.35" stroke="#4a8f32" stroke-width="0.8"/><rect x="4" y="5" width="3" height="6" rx="0.3" fill="none" stroke="#333" stroke-width="0.8"/><line x1="4" y1="8" x2="7" y2="8" stroke="#333" stroke-width="1.2"/><path d="M14.5 1 C12 4,11 6,11 8 C11 10,12 12,14.5 15 C17 12,18 10,18 8 C18 6,17 4,14.5 1Z" fill="#e67e22" opacity="0.35" stroke="#e67e22" stroke-width="0.8"/><rect x="13" y="4" width="3" height="7" rx="0.3" fill="none" stroke="#333" stroke-width="0.8"/><line x1="13" y1="7" x2="16" y2="7" stroke="#333" stroke-width="1.2"/></svg>' },
+            ]},
+            { name: 'Paired', items: [
+                { value: 'before-after', label: 'Before\u2013After', icon: '<svg viewBox="0 0 20 16"><circle cx="5" cy="4" r="1.5" fill="#4a8f32"/><circle cx="15" cy="8" r="1.5" fill="#4a8f32"/><line x1="5" y1="4" x2="15" y2="8" stroke="#4a8f32" stroke-width="1"/><circle cx="5" cy="10" r="1.5" fill="#e67e22"/><circle cx="15" cy="5" r="1.5" fill="#e67e22"/><line x1="5" y1="10" x2="15" y2="5" stroke="#e67e22" stroke-width="1"/><circle cx="5" cy="13" r="1.5" fill="#457b9d"/><circle cx="15" cy="12" r="1.5" fill="#457b9d"/><line x1="5" y1="13" x2="15" y2="12" stroke="#457b9d" stroke-width="1"/></svg>' },
+            ]},
+        ];
+
+        const hiddenSel = document.getElementById('graphType');
+        const currentVal = hiddenSel ? hiddenSel.value : 'column-points-mean';
+
+        categories.forEach(cat => {
+            const catDiv = document.createElement('div');
+            catDiv.className = 'gtp-category';
+            const catLabel = document.createElement('div');
+            catLabel.className = 'gtp-cat-label';
+            catLabel.textContent = cat.name;
+            catDiv.appendChild(catLabel);
+
+            cat.items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'gtp-item' + (item.value === currentVal ? ' active' : '');
+                row.dataset.value = item.value;
+
+                const iconDiv = document.createElement('span');
+                iconDiv.className = 'gtp-icon';
+                iconDiv.innerHTML = item.icon;
+                row.appendChild(iconDiv);
+
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'gtp-label';
+                labelSpan.textContent = item.label;
+                row.appendChild(labelSpan);
+
+                row.addEventListener('click', () => {
+                    container.querySelectorAll('.gtp-item').forEach(r => r.classList.remove('active'));
+                    row.classList.add('active');
+                    if (hiddenSel) {
+                        hiddenSel.value = item.value;
+                        hiddenSel.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+
+                catDiv.appendChild(row);
+            });
+
+            container.appendChild(catDiv);
+        });
+    }
+
+    _syncGraphTypePicker() {
+        const hiddenSel = document.getElementById('graphType');
+        const container = document.getElementById('graphTypePicker');
+        if (!hiddenSel || !container) return;
+        const val = hiddenSel.value;
+        container.querySelectorAll('.gtp-item').forEach(r => {
+            r.classList.toggle('active', r.dataset.value === val);
         });
     }
 
@@ -177,6 +268,7 @@ class App {
     _bindGraphControls() {
         document.getElementById('graphType').addEventListener('change', (e) => {
             this.graphRenderer.updateSettings({ graphType: e.target.value });
+            this._syncGraphTypePicker();
             this.updateGraph();
         });
     }
@@ -963,6 +1055,8 @@ class App {
             document.getElementById('yAxisTickStep').value = '';
             document.getElementById('colorTheme').value = 'default';
             document.getElementById('showGroupLegend').checked = false;
+            const gtSel = document.getElementById('graphType');
+            if (gtSel) { gtSel.value = 'column-points-mean'; gtSel.dispatchEvent(new Event('change')); }
             this._columnTableData = null;
             this.dataTable.loadSampleData();
         } else {
@@ -1095,12 +1189,27 @@ class App {
             this.dataTable.hideAxisAssignmentRow();
         }
 
-        // Column-specific controls (top-level elements)
-        const columnEls = [
-            document.querySelector('.graph-type-selector'),
-            document.getElementById('groupManager')
-        ];
-        columnEls.forEach(el => { if (el) el.style.display = isColumn ? '' : 'none'; });
+        // Column-specific controls
+        const groupMgr = document.getElementById('groupManager');
+        if (groupMgr) groupMgr.style.display = isColumn ? '' : 'none';
+
+        // Column bottom row (graph type picker + statistics side-by-side)
+        const columnBottomRow = document.getElementById('columnBottomRow');
+        const statsSection = document.getElementById('statisticsSection');
+        const statsWrapper = document.getElementById('columnStatsWrapper');
+        const graphControlsEl2 = document.querySelector('.graph-controls');
+        if (columnBottomRow && statsSection && statsWrapper && graphControlsEl2) {
+            if (isColumn) {
+                columnBottomRow.style.display = '';
+                statsWrapper.appendChild(statsSection);
+                statsSection.style.display = '';
+            } else {
+                columnBottomRow.style.display = 'none';
+                // Move stats back to graph-controls for growth mode
+                graphControlsEl2.appendChild(statsSection);
+                statsSection.style.display = (isGrowth) ? '' : 'none';
+            }
+        }
 
         // Growth-specific: group order manager
         const growthGrpMgr = document.getElementById('growthGroupManager');
@@ -1113,20 +1222,6 @@ class App {
         // Hide all .column-only elements except in column mode
         document.querySelectorAll('.column-only').forEach(el => {
             el.style.display = isColumn ? '' : 'none';
-        });
-
-        // Control sections inside .graph-controls
-        const controlSections = document.querySelectorAll('.graph-controls .control-section');
-        controlSections.forEach(section => {
-            const h3 = section.querySelector('h3');
-            if (!h3) return;
-            const title = h3.textContent.trim();
-            if (title === 'Dimensions & Style') {
-                section.style.display = isColumn ? '' : 'none';
-            }
-            if (title === 'Statistics') {
-                section.style.display = (isColumn || isGrowth) ? '' : 'none';
-            }
         });
 
         // Heatmap controls
@@ -1176,9 +1271,9 @@ class App {
         // Hide appearance controls that are now in the gear popout
         this._hideMovedControls();
 
-        // Hide dimensions section for modes with own controls
+        // Show dimensions section only in column mode
         const dimSection = document.getElementById('dimensionsSection');
-        if (dimSection) dimSection.style.display = (isColumn || isCorrelation || isPCA || isVenn || isOncoprint || isGrowth || isKaplanMeier) ? 'none' : '';
+        if (dimSection) dimSection.style.display = isColumn ? '' : 'none';
 
         // Show/hide heatmap-only export buttons
         document.querySelectorAll('.heatmap-only').forEach(el => {
@@ -2116,8 +2211,9 @@ class App {
                 fc.appendChild(colorInp);
             }
 
-            // Tick step control
+            // Tick step control — make row full-width so it doesn't overflow
             if (el.tickStep) {
+                row.classList.add('ts-full-width');
                 const stepLabel = document.createElement('span');
                 stepLabel.textContent = 'every';
                 stepLabel.style.cssText = 'font-size:10px;color:#6b7280;margin-left:4px';
@@ -4265,13 +4361,90 @@ class App {
         } else if (this.mode === 'column') {
             const data = this.dataTable.getData();
             const filled = data.filter(d => d.values.length > 0);
-            if (filled.length === 2) {
-                testSel.value = 'unpaired-t';
+            const graphType = document.getElementById('graphType')?.value;
+            if (graphType === 'before-after' && filled.length === 2) {
+                testSel.value = 't-test-paired';
+            } else if (filled.length === 2) {
+                testSel.value = 't-test-unpaired';
             } else if (filled.length > 2) {
                 testSel.value = 'one-way-anova';
             }
         }
         testSel.dispatchEvent(new Event('change'));
+    }
+
+    // --- Mode Selection Popout ---
+
+    _buildModePopout() {
+        const grid = document.getElementById('modePopoutGrid');
+        if (!grid) return;
+
+        const modes = [
+            { id: 'column', name: 'Column', desc: 'Bar charts, scatter, box & violin plots', icon: '<svg viewBox="0 0 40 32"><rect x="4" y="14" width="7" height="14" rx="1" fill="#4a8f32"/><rect x="16" y="8" width="7" height="20" rx="1" fill="#3a7d28"/><rect x="28" y="18" width="7" height="10" rx="1" fill="#6aab4a"/></svg>' },
+            { id: 'heatmap', name: 'Heatmap', desc: 'Clustered heatmaps with dendrograms', icon: '<svg viewBox="0 0 40 32"><rect x="4" y="4" width="7" height="7" fill="#c0392b"/><rect x="12" y="4" width="7" height="7" fill="#e67e22"/><rect x="20" y="4" width="7" height="7" fill="#f1c40f"/><rect x="28" y="4" width="7" height="7" fill="#27ae60"/><rect x="4" y="12" width="7" height="7" fill="#f1c40f"/><rect x="12" y="12" width="7" height="7" fill="#c0392b"/><rect x="20" y="12" width="7" height="7" fill="#27ae60"/><rect x="28" y="12" width="7" height="7" fill="#e67e22"/><rect x="4" y="20" width="7" height="7" fill="#27ae60"/><rect x="12" y="20" width="7" height="7" fill="#f1c40f"/><rect x="20" y="20" width="7" height="7" fill="#c0392b"/><rect x="28" y="20" width="7" height="7" fill="#f1c40f"/></svg>' },
+            { id: 'pca', name: 'PCA', desc: 'PCA, t-SNE & UMAP reduction', icon: '<svg viewBox="0 0 40 32"><circle cx="12" cy="10" r="2.5" fill="#4a8f32"/><circle cx="16" cy="13" r="2.5" fill="#4a8f32"/><circle cx="10" cy="14" r="2.5" fill="#4a8f32"/><circle cx="28" cy="20" r="2.5" fill="#e67e22"/><circle cx="25" cy="23" r="2.5" fill="#e67e22"/><circle cx="30" cy="24" r="2.5" fill="#e67e22"/><circle cx="20" cy="8" r="2.5" fill="#457b9d"/><circle cx="24" cy="10" r="2.5" fill="#457b9d"/></svg>' },
+            { id: 'growth', name: 'Time Series', desc: 'Longitudinal data with means & error bars', icon: '<svg viewBox="0 0 40 32"><polyline points="4,24 12,18 20,20 28,10 36,12" fill="none" stroke="#4a8f32" stroke-width="2"/><polyline points="4,26 12,22 20,24 28,16 36,18" fill="none" stroke="#e67e22" stroke-width="2" stroke-dasharray="3,2"/></svg>' },
+            { id: 'kaplan-meier', name: 'Kaplan-Meier', desc: 'Survival curves with log-rank test', icon: '<svg viewBox="0 0 40 32"><polyline points="4,6 12,6 12,12 20,12 20,18 28,18 28,24 36,24" fill="none" stroke="#4a8f32" stroke-width="2"/><polyline points="4,8 10,8 10,14 18,14 18,22 24,22 24,28 36,28" fill="none" stroke="#e67e22" stroke-width="2"/></svg>' },
+            { id: 'volcano', name: 'Volcano', desc: 'Fold-change vs p-value scatter', icon: '<svg viewBox="0 0 40 32"><circle cx="8" cy="8" r="2" fill="#457b9d"/><circle cx="10" cy="12" r="2" fill="#457b9d"/><circle cx="32" cy="6" r="2" fill="#c0392b"/><circle cx="30" cy="10" r="2" fill="#c0392b"/><circle cx="18" cy="22" r="1.5" fill="#999"/><circle cx="20" cy="20" r="1.5" fill="#999"/><circle cx="22" cy="24" r="1.5" fill="#999"/><circle cx="16" cy="26" r="1.5" fill="#999"/><circle cx="24" cy="26" r="1.5" fill="#999"/></svg>' },
+            { id: 'correlation', name: 'Correlation', desc: 'Scatter plots with regression', icon: '<svg viewBox="0 0 40 32"><circle cx="8" cy="24" r="2" fill="#4a8f32"/><circle cx="14" cy="20" r="2" fill="#4a8f32"/><circle cx="18" cy="16" r="2" fill="#4a8f32"/><circle cx="24" cy="14" r="2" fill="#4a8f32"/><circle cx="30" cy="8" r="2" fill="#4a8f32"/><line x1="6" y1="26" x2="34" y2="6" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="3,2"/></svg>' },
+            { id: 'venn', name: 'Venn / UpSet', desc: 'Set overlaps & intersections', icon: '<svg viewBox="0 0 40 32"><circle cx="15" cy="14" r="10" fill="#4a8f32" opacity="0.35" stroke="#4a8f32" stroke-width="1"/><circle cx="25" cy="14" r="10" fill="#e67e22" opacity="0.35" stroke="#e67e22" stroke-width="1"/></svg>' },
+            { id: 'oncoprint', name: 'OncoPrint', desc: 'Mutation landscape plots', icon: '<svg viewBox="0 0 40 32"><rect x="4" y="4" width="5" height="6" fill="#ddd"/><rect x="5.5" y="5" width="2" height="4" fill="#c0392b"/><rect x="10" y="4" width="5" height="6" fill="#ddd"/><rect x="16" y="4" width="5" height="6" fill="#ddd"/><rect x="17.5" y="5" width="2" height="4" fill="#4a8f32"/><rect x="22" y="4" width="5" height="6" fill="#ddd"/><rect x="23.5" y="5" width="2" height="4" fill="#c0392b"/><rect x="28" y="4" width="5" height="6" fill="#ddd"/><rect x="4" y="12" width="5" height="6" fill="#ddd"/><rect x="10" y="12" width="5" height="6" fill="#ddd"/><rect x="11.5" y="13" width="2" height="4" fill="#457b9d"/><rect x="16" y="12" width="5" height="6" fill="#ddd"/><rect x="17.5" y="13" width="2" height="4" fill="#c0392b"/><rect x="22" y="12" width="5" height="6" fill="#ddd"/><rect x="28" y="12" width="5" height="6" fill="#ddd"/><rect x="29.5" y="13" width="2" height="4" fill="#4a8f32"/><rect x="4" y="22" width="5" height="6" fill="#ddd"/><rect x="5.5" y="23" width="2" height="4" fill="#4a8f32"/><rect x="10" y="22" width="5" height="6" fill="#ddd"/><rect x="16" y="22" width="5" height="6" fill="#ddd"/><rect x="22" y="22" width="5" height="6" fill="#ddd"/><rect x="23.5" y="23" width="2" height="4" fill="#457b9d"/><rect x="28" y="22" width="5" height="6" fill="#ddd"/><rect x="29.5" y="23" width="2" height="4" fill="#c0392b"/></svg>' },
+        ];
+
+        modes.forEach(m => {
+            const card = document.createElement('div');
+            card.className = 'mode-popout-card';
+            card.dataset.mode = m.id;
+            card.innerHTML = `<div class="mp-icon">${m.icon}</div><div class="mp-name">${m.name}</div><div class="mp-desc">${m.desc}</div>`;
+            card.addEventListener('click', () => {
+                this._selectModeFromPopout(m.id);
+            });
+            grid.appendChild(card);
+        });
+
+        // "Choose Mode" button
+        const chooseBtn = document.getElementById('chooseModeBtn');
+        if (chooseBtn) {
+            chooseBtn.addEventListener('click', () => this._showModePopout());
+        }
+    }
+
+    _showModePopout() {
+        const popout = document.getElementById('modePopout');
+        if (popout) popout.style.display = '';
+    }
+
+    _hideModePopout() {
+        const popout = document.getElementById('modePopout');
+        if (popout) popout.style.display = 'none';
+    }
+
+    _selectModeFromPopout(modeId) {
+        this._hideModePopout();
+        sessionStorage.setItem('visualize_mode_chosen', '1');
+
+        // Click the corresponding mode button
+        const btn = document.querySelector(`.mode-btn[data-mode="${modeId}"]`);
+        if (btn && !btn.classList.contains('active')) {
+            btn.click();
+        }
+    }
+
+    _initModePopout() {
+        this._buildModePopout();
+
+        // Close on background click
+        const popout = document.getElementById('modePopout');
+        if (popout) {
+            popout.addEventListener('click', (e) => {
+                if (e.target === popout) this._hideModePopout();
+            });
+        }
+
+        // Show on first load (if not already dismissed this session)
+        if (!sessionStorage.getItem('visualize_mode_chosen')) {
+            this._showModePopout();
+        }
     }
 
     _clearStats() {

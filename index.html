@@ -46,6 +46,7 @@
                     <button class="mode-btn" data-mode="venn">Venn/UpSet</button>
                     <button class="mode-btn" data-mode="oncoprint">OncoPrint</button>
                     <button id="resetMode" class="mode-reset-btn" title="Reset current mode settings to defaults">&#8635;</button>
+                    <button id="chooseModeBtn" type="button">Choose Mode</button>
                 </div>
                 <h2>Data Input</h2>
                 
@@ -148,32 +149,39 @@
                 </div>
                 <div id="heatmapInfo" class="heatmap-info" style="display:none"></div>
 
-                <!-- Graph Type Selection -->
-                <div class="graph-type-selector">
-                    <label>Graph Type:</label>
-                    <select id="graphType">
-                        <optgroup label="Scatter / Points">
-                            <option value="scatter-only">Scatter (points only)</option>
-                            <option value="column-points-mean" selected>Points with Mean line</option>
-                            <option value="column-points-median">Points with Median line</option>
-                        </optgroup>
-                        <optgroup label="Bar Charts">
-                            <option value="scatter-bar">Scatter + Bar</option>
-                            <option value="column-bar-mean">Bar + Mean ± SD</option>
-                            <option value="column-bar-sem">Bar + Mean ± SEM</option>
-                            <option value="column-bar-median">Bar + Median ± IQR</option>
-                            <option value="scatter-bar-mean-sd">Scatter + Bar + SD</option>
-                            <option value="scatter-bar-mean-sem">Scatter + Bar + SEM</option>
-                        </optgroup>
-                        <optgroup label="Distribution">
-                            <option value="box-plot">Box Plot</option>
-                            <option value="violin-plot">Violin Plot</option>
-                            <option value="violin-box">Violin + Box Plot</option>
-                        </optgroup>
-                        <optgroup label="Paired Data">
-                            <option value="before-after">Before–After (connected dots)</option>
-                        </optgroup>
-                    </select>
+                <!-- Graph Type Selection (hidden select for render pipeline) -->
+                <select id="graphType" style="display:none">
+                    <optgroup label="Scatter / Points">
+                        <option value="scatter-only">Scatter (points only)</option>
+                        <option value="column-points-mean" selected>Points with Mean line</option>
+                        <option value="column-points-median">Points with Median line</option>
+                    </optgroup>
+                    <optgroup label="Bar Charts">
+                        <option value="scatter-bar">Scatter + Bar</option>
+                        <option value="column-bar-mean">Bar + Mean ± SD</option>
+                        <option value="column-bar-sem">Bar + Mean ± SEM</option>
+                        <option value="column-bar-median">Bar + Median ± IQR</option>
+                        <option value="scatter-bar-mean-sd">Scatter + Bar + SD</option>
+                        <option value="scatter-bar-mean-sem">Scatter + Bar + SEM</option>
+                    </optgroup>
+                    <optgroup label="Distribution">
+                        <option value="box-plot">Box Plot</option>
+                        <option value="violin-plot">Violin Plot</option>
+                        <option value="violin-box">Violin + Box Plot</option>
+                    </optgroup>
+                    <optgroup label="Paired Data">
+                        <option value="before-after">Before–After (connected dots)</option>
+                    </optgroup>
+                </select>
+
+                <!-- Side-by-side: Graph Type Picker + Statistics (column mode) -->
+                <div id="columnBottomRow" class="column-bottom-row" style="display:none">
+                    <div class="graph-type-picker" id="graphTypePicker">
+                        <!-- Built by JS -->
+                    </div>
+                    <div class="column-stats-wrapper" id="columnStatsWrapper">
+                        <!-- Statistics section will be moved here by JS in column mode -->
+                    </div>
                 </div>
 
                 <!-- Graph Controls -->
@@ -741,7 +749,7 @@
                         </div>
                     </div>
 
-                    <div class="control-section">
+                    <div class="control-section" id="statisticsSection">
                         <h3>Statistics</h3>
                         <div class="control-grid-2col">
                             <div class="control-group">
@@ -880,6 +888,17 @@
             <button id="graphSettingsClose" class="svg-edit-btn" title="Close">&times;</button>
         </div>
         <div id="graphSettingsBody" class="text-settings-body"></div>
+    </div>
+
+    <!-- Mode Selection Popout -->
+    <div id="modePopout" style="display:none">
+        <div class="mode-popout-content">
+            <h2>Choose a Graph Mode</h2>
+            <p>Select a visualization type to get started</p>
+            <div class="mode-popout-grid" id="modePopoutGrid">
+                <!-- Built by JS -->
+            </div>
+        </div>
     </div>
 
     <!-- JavaScript Modules -->

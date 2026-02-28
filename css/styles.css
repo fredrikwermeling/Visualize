@@ -1639,6 +1639,219 @@ tr:hover .row-delete-btn {
     font-family: 'Open Sans', sans-serif;
 }
 
+/* Column Bottom Row — side-by-side graph type + statistics */
+.column-bottom-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-left: 14px;
+    margin-right: 14px;
+    margin-bottom: 14px;
+}
+
+.column-bottom-row .graph-type-picker {
+    flex: 0 0 240px;
+    min-width: 0;
+}
+
+.column-bottom-row .column-stats-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.column-bottom-row .column-stats-wrapper .control-section {
+    margin: 0;
+}
+
+/* Graph Type Picker */
+.graph-type-picker {
+    background: var(--gray-100);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    border-left: 4px solid var(--green-500);
+}
+
+.graph-type-picker h4 {
+    font-size: 0.95em;
+    font-weight: 600;
+    color: var(--green-800);
+    margin: 0 0 6px;
+}
+
+.gtp-category {
+    margin-bottom: 6px;
+}
+
+.gtp-category:last-child {
+    margin-bottom: 0;
+}
+
+.gtp-cat-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    margin-bottom: 2px;
+    padding-left: 2px;
+}
+
+.gtp-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-primary);
+    transition: background 0.15s;
+    border: 1px solid transparent;
+}
+
+.gtp-item:hover {
+    background: var(--green-50);
+}
+
+.gtp-item.active {
+    background: var(--green-600);
+    color: white;
+    border-color: var(--green-600);
+}
+
+.gtp-item.active .gtp-icon svg {
+    fill: white;
+    stroke: white;
+}
+
+.gtp-icon {
+    flex: 0 0 20px;
+    width: 20px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gtp-icon svg {
+    width: 20px;
+    height: 16px;
+}
+
+.gtp-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mode Selection Popout */
+#modePopout {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+}
+
+.mode-popout-content {
+    background: var(--bg-white);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    padding: 28px 32px 24px;
+    max-width: 620px;
+    width: 90%;
+}
+
+.mode-popout-content h2 {
+    text-align: center;
+    font-size: 1.3em;
+    color: var(--green-800);
+    margin-bottom: 6px;
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+.mode-popout-content p {
+    text-align: center;
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-bottom: 16px;
+}
+
+.mode-popout-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.mode-popout-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 10px 12px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    text-align: center;
+}
+
+.mode-popout-card:hover {
+    border-color: var(--green-500);
+    background: var(--green-50);
+    box-shadow: 0 2px 8px rgba(58,125,40,0.15);
+}
+
+.mode-popout-card .mp-icon {
+    width: 40px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mode-popout-card .mp-icon svg {
+    width: 40px;
+    height: 32px;
+}
+
+.mode-popout-card .mp-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.mode-popout-card .mp-desc {
+    font-size: 10px;
+    color: var(--gray-500);
+    line-height: 1.3;
+}
+
+/* Choose Mode button in mode-selector bar */
+#chooseModeBtn {
+    grid-column: 1 / -1;
+    padding: 4px 8px;
+    border: none;
+    background: var(--green-50);
+    color: var(--green-700);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: 'Open Sans', sans-serif;
+    border-top: 1px solid var(--gray-200);
+}
+
+#chooseModeBtn:hover {
+    background: var(--green-100);
+}
+
 /* Table controls uniform sizing */
 .table-controls .btn {
     white-space: nowrap;

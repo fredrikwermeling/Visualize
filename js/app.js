@@ -4380,9 +4380,9 @@ class App {
         if (!grid) return;
 
         const modes = [
+            { id: 'heatmap', name: 'Heatmap*', desc: 'Clustered heatmaps with dendrograms', icon: '<svg viewBox="0 0 40 32"><rect x="4" y="4" width="7" height="7" fill="#c0392b"/><rect x="12" y="4" width="7" height="7" fill="#e67e22"/><rect x="20" y="4" width="7" height="7" fill="#f1c40f"/><rect x="28" y="4" width="7" height="7" fill="#27ae60"/><rect x="4" y="12" width="7" height="7" fill="#f1c40f"/><rect x="12" y="12" width="7" height="7" fill="#c0392b"/><rect x="20" y="12" width="7" height="7" fill="#27ae60"/><rect x="28" y="12" width="7" height="7" fill="#e67e22"/><rect x="4" y="20" width="7" height="7" fill="#27ae60"/><rect x="12" y="20" width="7" height="7" fill="#f1c40f"/><rect x="20" y="20" width="7" height="7" fill="#c0392b"/><rect x="28" y="20" width="7" height="7" fill="#f1c40f"/></svg>' },
+            { id: 'pca', name: 'PCA*', desc: 'PCA, t-SNE & UMAP reduction', icon: '<svg viewBox="0 0 40 32"><circle cx="12" cy="10" r="2.5" fill="#4a8f32"/><circle cx="16" cy="13" r="2.5" fill="#4a8f32"/><circle cx="10" cy="14" r="2.5" fill="#4a8f32"/><circle cx="28" cy="20" r="2.5" fill="#e67e22"/><circle cx="25" cy="23" r="2.5" fill="#e67e22"/><circle cx="30" cy="24" r="2.5" fill="#e67e22"/><circle cx="20" cy="8" r="2.5" fill="#457b9d"/><circle cx="24" cy="10" r="2.5" fill="#457b9d"/></svg>' },
             { id: 'column', name: 'Column', desc: 'Bar charts, scatter, box & violin plots', icon: '<svg viewBox="0 0 40 32"><rect x="4" y="14" width="7" height="14" rx="1" fill="#4a8f32"/><rect x="16" y="8" width="7" height="20" rx="1" fill="#3a7d28"/><rect x="28" y="18" width="7" height="10" rx="1" fill="#6aab4a"/></svg>' },
-            { id: 'heatmap', name: 'Heatmap', desc: 'Clustered heatmaps with dendrograms', icon: '<svg viewBox="0 0 40 32"><rect x="4" y="4" width="7" height="7" fill="#c0392b"/><rect x="12" y="4" width="7" height="7" fill="#e67e22"/><rect x="20" y="4" width="7" height="7" fill="#f1c40f"/><rect x="28" y="4" width="7" height="7" fill="#27ae60"/><rect x="4" y="12" width="7" height="7" fill="#f1c40f"/><rect x="12" y="12" width="7" height="7" fill="#c0392b"/><rect x="20" y="12" width="7" height="7" fill="#27ae60"/><rect x="28" y="12" width="7" height="7" fill="#e67e22"/><rect x="4" y="20" width="7" height="7" fill="#27ae60"/><rect x="12" y="20" width="7" height="7" fill="#f1c40f"/><rect x="20" y="20" width="7" height="7" fill="#c0392b"/><rect x="28" y="20" width="7" height="7" fill="#f1c40f"/></svg>' },
-            { id: 'pca', name: 'PCA', desc: 'PCA, t-SNE & UMAP reduction', icon: '<svg viewBox="0 0 40 32"><circle cx="12" cy="10" r="2.5" fill="#4a8f32"/><circle cx="16" cy="13" r="2.5" fill="#4a8f32"/><circle cx="10" cy="14" r="2.5" fill="#4a8f32"/><circle cx="28" cy="20" r="2.5" fill="#e67e22"/><circle cx="25" cy="23" r="2.5" fill="#e67e22"/><circle cx="30" cy="24" r="2.5" fill="#e67e22"/><circle cx="20" cy="8" r="2.5" fill="#457b9d"/><circle cx="24" cy="10" r="2.5" fill="#457b9d"/></svg>' },
             { id: 'growth', name: 'Time Series', desc: 'Longitudinal data with means & error bars', icon: '<svg viewBox="0 0 40 32"><polyline points="4,24 12,18 20,20 28,10 36,12" fill="none" stroke="#4a8f32" stroke-width="2"/><polyline points="4,26 12,22 20,24 28,16 36,18" fill="none" stroke="#e67e22" stroke-width="2" stroke-dasharray="3,2"/></svg>' },
             { id: 'kaplan-meier', name: 'Kaplan-Meier', desc: 'Survival curves with log-rank test', icon: '<svg viewBox="0 0 40 32"><polyline points="4,6 12,6 12,12 20,12 20,18 28,18 28,24 36,24" fill="none" stroke="#4a8f32" stroke-width="2"/><polyline points="4,8 10,8 10,14 18,14 18,22 24,22 24,28 36,28" fill="none" stroke="#e67e22" stroke-width="2"/></svg>' },
             { id: 'volcano', name: 'Volcano', desc: 'Fold-change vs p-value scatter', icon: '<svg viewBox="0 0 40 32"><circle cx="8" cy="8" r="2" fill="#457b9d"/><circle cx="10" cy="12" r="2" fill="#457b9d"/><circle cx="32" cy="6" r="2" fill="#c0392b"/><circle cx="30" cy="10" r="2" fill="#c0392b"/><circle cx="18" cy="22" r="1.5" fill="#999"/><circle cx="20" cy="20" r="1.5" fill="#999"/><circle cx="22" cy="24" r="1.5" fill="#999"/><circle cx="16" cy="26" r="1.5" fill="#999"/><circle cx="24" cy="26" r="1.5" fill="#999"/></svg>' },
@@ -4401,6 +4401,12 @@ class App {
             });
             grid.appendChild(card);
         });
+
+        // Footnote
+        const footnote = document.createElement('div');
+        footnote.style.cssText = 'grid-column:1/-1;font-size:10px;color:#6b7280;text-align:center;margin-top:4px';
+        footnote.textContent = '* = optimized for FlowJo output data';
+        grid.appendChild(footnote);
 
         // "Choose Mode" button
         const chooseBtn = document.getElementById('chooseModeBtn');

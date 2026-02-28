@@ -28,7 +28,7 @@ class PCARenderer {
             tsneLearningRate: 200,
             // UMAP params
             nNeighbors: 15,
-            minDist: 0.1,
+            minDist: 0.2,
             umapIterations: 500,
             // Fonts
             titleFont: { family: 'Arial', size: 18, bold: true, italic: false },
@@ -47,6 +47,7 @@ class PCARenderer {
             xLabelOffset: { x: 0, y: 0 },
             yLabelOffset: { x: 0, y: 0 },
             legendOffset: { x: 0, y: 0 },
+            loadingsOffset: { x: 0, y: 0 },
             // Group
             groupOverrides: {},
             hiddenGroups: [],
@@ -444,7 +445,7 @@ class PCARenderer {
             }
 
             // Repulsive forces (sample negative edges)
-            const nNeg = Math.min(5, n - 1);
+            const nNeg = Math.min(10, n - 1);
             for (let i = 0; i < n; i++) {
                 for (let s = 0; s < nNeg; s++) {
                     const j = Math.floor(rand() * n);
@@ -455,8 +456,8 @@ class PCARenderer {
                     const d2 = dx * dx + dy * dy + 1e-6;
                     const grad = 2 * umapB / ((0.001 + d2) * (1 + umapA * Math.pow(d2, umapB)));
                     const clip = Math.min(grad, 4);
-                    Y[i][0] += clip * dx * alpha * 1.0;
-                    Y[i][1] += clip * dy * alpha * 1.0;
+                    Y[i][0] += clip * dx * alpha * 1.5;
+                    Y[i][1] += clip * dy * alpha * 1.5;
                 }
             }
         }
@@ -630,8 +631,28 @@ class PCARenderer {
                 .attr('stroke', d3.color(color).darker(0.5))
                 .attr('stroke-width', 1)
                 .attr('cursor', 'pointer');
-            pointEl.append('title')
-                .text(`${pt.label} (${pt.group})`);
+            pointEl.on('mouseenter', (event) => {
+                let tt = document.getElementById('pca-tooltip');
+                if (!tt) {
+                    tt = document.createElement('div');
+                    tt.id = 'pca-tooltip';
+                    tt.style.cssText = 'position:absolute;background:white;border:1px solid #ddd;padding:4px 8px;font-size:11px;pointer-events:none;z-index:1000;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.15);display:none;white-space:nowrap;';
+                    document.body.appendChild(tt);
+                }
+                tt.textContent = `${pt.label} (${pt.group})`;
+                tt.style.display = 'block';
+                tt.style.left = (event.pageX + 12) + 'px';
+                tt.style.top = (event.pageY - 10) + 'px';
+            }).on('mousemove', (event) => {
+                const tt = document.getElementById('pca-tooltip');
+                if (tt) {
+                    tt.style.left = (event.pageX + 12) + 'px';
+                    tt.style.top = (event.pageY - 10) + 'px';
+                }
+            }).on('mouseleave', () => {
+                const tt = document.getElementById('pca-tooltip');
+                if (tt) tt.style.display = 'none';
+            });
 
             pointEl.on('dblclick', () => {
                 if (!window.app || !window.app.dataTable) return;
@@ -651,6 +672,11 @@ class PCARenderer {
                         if (cb) {
                             cb.checked = !cb.checked;
                             cb.dispatchEvent(new Event('change'));
+                            const wasHidden = !cb.checked;
+                            this._showPcaToast(
+                                wasHidden ? `Sample '${pt.label}' hidden` : `Sample '${pt.label}' restored`,
+                                () => { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+                            );
                         }
                         break;
                     }
@@ -725,13 +751,13 @@ class PCARenderer {
             ? s.groupOrder.filter(gn => allGroupNames.includes(gn)).concat(allGroupNames.filter(gn => !(s.groupOrder || []).includes(gn)))
             : [...allGroupNames];
         const legendH = (s.showLegend && allGroupNames.length > 1) ? orderedNames.length * 20 + 8 : 0;
-        const loff = s.legendOffset;
+        const loadOff = s.loadingsOffset;
 
         const boxSize = 120;
-        const boxX = innerW + 12 + (loff.x || 0);
-        const boxY = (loff.y || 0) + legendH + 12;
+        const boxX = innerW + 12 + (loadOff.x || 0);
+        const boxY = legendH + 12 + (loadOff.y || 0);
 
-        const loadG = g.append('g').attr('transform', `translate(${boxX}, ${boxY})`);
+        const loadG = g.append('g').attr('transform', `translate(${boxX}, ${boxY})`).attr('cursor', 'grab');
 
         // Background
         loadG.append('rect')
@@ -840,6 +866,25 @@ class PCARenderer {
                 .attr('stroke-linejoin', 'round')
                 .text(l.text);
         }
+
+        // Drag + click-to-nudge for loadings box (independent from legend)
+        const self = this;
+        loadG.call(d3.drag()
+            .on('start', function() { d3.select(this).style('cursor', 'grabbing'); })
+            .on('drag', function(event) {
+                self.settings.loadingsOffset.x += event.dx;
+                self.settings.loadingsOffset.y += event.dy;
+                const baseX = innerW + 12;
+                const baseY = legendH + 12;
+                d3.select(this).attr('transform',
+                    `translate(${baseX + self.settings.loadingsOffset.x}, ${baseY + self.settings.loadingsOffset.y})`);
+            })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                if (window.app) window.app.updateGraph();
+                self._selectLabelForNudge('loadingsOffset');
+            })
+        );
     }
 
     _estimateLegendWidth(groupNames) {
@@ -1009,6 +1054,22 @@ class PCARenderer {
             if (window.app) window.app.updateGraph();
         };
         document.addEventListener('keydown', this._labelNudgeHandler);
+    }
+
+    _showPcaToast(message, undoFn) {
+        let toast = document.getElementById('pca-toast');
+        if (toast) toast.remove();
+        toast = document.createElement('div');
+        toast.id = 'pca-toast';
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;z-index:2000;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.25);transition:opacity 0.3s;';
+        toast.textContent = message;
+        const undoBtn = document.createElement('button');
+        undoBtn.textContent = 'Undo';
+        undoBtn.style.cssText = 'background:none;border:1px solid rgba(255,255,255,.5);color:#fff;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:12px;';
+        undoBtn.addEventListener('click', () => { undoFn(); toast.remove(); });
+        toast.appendChild(undoBtn);
+        document.body.appendChild(toast);
+        setTimeout(() => { if (document.body.contains(toast)) { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); } }, 5000);
     }
 
     _startInlineEdit(event, labelType) {

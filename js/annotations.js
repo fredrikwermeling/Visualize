@@ -75,6 +75,20 @@ class AnnotationManager {
         this._svgRef = svg;
         this._marginRef = margin;
 
+        // Expand SVG interaction area beyond visible bounds for annotations
+        const svgNode = svg.node();
+        const pad = 100;
+        const svgW = parseFloat(svg.attr('width')) || svgNode.clientWidth || 600;
+        const svgH = parseFloat(svg.attr('height')) || svgNode.clientHeight || 400;
+        svg.select('.annotation-overlay-bg').remove();
+        svg.insert('rect', ':first-child')
+            .attr('class', 'annotation-overlay-bg')
+            .attr('x', -pad).attr('y', -pad)
+            .attr('width', svgW + pad * 2).attr('height', svgH + pad * 2)
+            .attr('fill', 'none')
+            .attr('pointer-events', 'all');
+        svgNode.style.overflow = 'visible';
+
         // Add arrow marker defs if not present
         let defs = svg.select('defs');
         if (defs.empty()) {

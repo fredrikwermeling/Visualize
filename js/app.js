@@ -765,9 +765,9 @@ class App {
             });
         });
 
-        // Reset button
+        // Reset button — full page reload
         const resetBtn = document.getElementById('resetMode');
-        if (resetBtn) resetBtn.addEventListener('click', () => this._resetCurrentMode());
+        if (resetBtn) resetBtn.addEventListener('click', () => location.reload());
 
         // Per-section "Defaults" buttons
         document.querySelectorAll('.settings-default-btn').forEach(btn => {
@@ -888,7 +888,7 @@ class App {
             document.getElementById('pcaPCY').value = 2;
             document.getElementById('pcaPerplexity').value = 30;
             document.getElementById('pcaNNeighbors').value = 15;
-            document.getElementById('pcaMinDist').value = 0.1;
+            document.getElementById('pcaMinDist').value = 0.2;
             document.getElementById('pcaShowLoadings').checked = false;
             document.getElementById('pcaXMin').value = '';
             document.getElementById('pcaXMax').value = '';
@@ -2627,7 +2627,7 @@ class App {
             pcY: parseInt(document.getElementById('pcaPCY')?.value) || 2,
             perplexity: parseInt(document.getElementById('pcaPerplexity')?.value) || 30,
             nNeighbors: parseInt(document.getElementById('pcaNNeighbors')?.value) || 15,
-            minDist: parseFloat(document.getElementById('pcaMinDist')?.value) || 0.1,
+            minDist: parseFloat(document.getElementById('pcaMinDist')?.value) || 0.2,
             showLoadings: document.getElementById('pcaShowLoadings')?.checked ?? false,
             xMin: pf('pcaXMin'), xMax: pf('pcaXMax'),
             yMin: pf('pcaYMin'), yMax: pf('pcaYMax'),

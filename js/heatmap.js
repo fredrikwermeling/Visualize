@@ -698,7 +698,7 @@ class HeatmapRenderer {
                 .style('cursor', 'pointer')
                 .text(displayName);
 
-            el.append('title').text('Double-click to edit');
+            el.append('title').text('Click to hide, double-click to edit');
 
             if (angle === 0) {
                 el.attr('x', cx).attr('y', cy)
@@ -717,8 +717,23 @@ class HeatmapRenderer {
             }
 
             ((origLabel, textEl) => {
+                let clickTimer = null;
+                textEl.on('click', (event) => {
+                    event.stopPropagation();
+                    if (clickTimer) return; // already waiting
+                    clickTimer = setTimeout(() => {
+                        clickTimer = null;
+                        // Single click: toggle column visibility
+                        if (!self.settings.hiddenCols) self.settings.hiddenCols = [];
+                        const idx = self.settings.hiddenCols.indexOf(origLabel);
+                        if (idx >= 0) self.settings.hiddenCols.splice(idx, 1);
+                        else self.settings.hiddenCols.push(origLabel);
+                        if (window.app) window.app.updateGraph();
+                    }, 250);
+                });
                 textEl.on('dblclick', (event) => {
                     event.stopPropagation();
+                    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
                     const existing = document.querySelector('.svg-edit-popup');
                     if (existing) existing.remove();
                     const bbox = textEl.node().getBoundingClientRect();
@@ -782,7 +797,8 @@ class HeatmapRenderer {
         const oy = this._groupLegendOffset.y;
         const g = svg.append('g')
             .attr('class', 'heatmap-group-legend')
-            .attr('transform', `translate(${x + ox}, ${y + oy})`);
+            .attr('transform', `translate(${x + ox}, ${y + oy})`)
+            .style('cursor', 'grab');
 
         const self = this;
         const itemOffsets = this.settings.groupLabelItemOffsets || {};
@@ -933,6 +949,30 @@ class HeatmapRenderer {
 
             baseXOff += 13 + displayName.length * (glf.size * 0.6) + 12;
             if (baseXOff > maxWidth) break;
+        }
+
+        // Overall group legend drag + nudge
+        let groupLegDragged = false;
+        g.call(d3.drag()
+            .filter(function(event) { return !event.ctrlKey && !event.button && event.detail < 2; })
+            .on('start', function() { groupLegDragged = false; d3.select(this).style('cursor', 'grabbing'); })
+            .on('drag', function(event) {
+                groupLegDragged = true;
+                self._groupLegendOffset.x += event.dx;
+                self._groupLegendOffset.y += event.dy;
+                d3.select(this).attr('transform',
+                    `translate(${x + self._groupLegendOffset.x}, ${y + self._groupLegendOffset.y})`);
+            })
+            .on('end', function() {
+                d3.select(this).style('cursor', 'grab');
+                if (!groupLegDragged) {
+                    self._selectForNudge(self._groupLegendOffset, svg);
+                }
+            })
+        );
+
+        if (this._selectedNudgeOffset === this._groupLegendOffset) {
+            this._drawSelectionHighlight(svg, g);
         }
     }
 

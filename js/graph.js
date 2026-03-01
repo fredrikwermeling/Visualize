@@ -507,6 +507,9 @@ class GraphRenderer {
             case 'box-plot':
                 this._drawBoxPlot(g, filteredData, groupScale, valueScale, isHorizontal);
                 break;
+            case 'box-points':
+                this._drawBoxPoints(g, filteredData, groupScale, valueScale, isHorizontal);
+                break;
             case 'violin-only':
                 this._drawViolinOnly(g, filteredData, groupScale, valueScale, isHorizontal);
                 break;
@@ -559,6 +562,7 @@ class GraphRenderer {
                         case 'scatter-bar-mean-sd': this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sd', isHorizontal); break;
                         case 'scatter-bar-mean-sem': this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sem', isHorizontal); break;
                         case 'box-plot': this._drawBoxPlot(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        case 'box-points': this._drawBoxPoints(g, filteredData, groupScale, valueScale, isHorizontal); break;
                         case 'violin-only': this._drawViolinOnly(g, filteredData, groupScale, valueScale, isHorizontal); break;
                         case 'violin-plot': this._drawViolinPlot(g, filteredData, groupScale, valueScale, isHorizontal); break;
                         case 'violin-box': this._drawViolinBox(g, filteredData, groupScale, valueScale, isHorizontal); break;
@@ -1489,6 +1493,33 @@ class GraphRenderer {
         });
     }
 
+    _drawBoxPoints(g, data, groupScale, valueScale, isH) {
+        // Draw box plot first, then overlay jittered data points
+        this._drawBoxPlot(g, data, groupScale, valueScale, isH);
+        const ps = this.settings.pointSize;
+        data.forEach((group, i) => {
+            if (group.values.length === 0) return;
+            const bw = groupScale.bandwidth();
+            const jitterWidth = bw * 0.2;
+
+            if (isH) {
+                const cy = groupScale(group.label) + bw / 2;
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
+                this._drawDataPoints(g, group.values,
+                    d => valueScale(d),
+                    (d, j) => cy + jitters[j],
+                    '#333', { r: ps, opacity: 0.45, cssClass: `bpdot-${i}` });
+            } else {
+                const cx = groupScale(group.label) + bw / 2;
+                const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
+                this._drawDataPoints(g, group.values,
+                    (d, j) => cx + jitters[j],
+                    d => valueScale(d),
+                    '#333', { r: ps, opacity: 0.45, cssClass: `bpdot-${i}` });
+            }
+        });
+    }
+
     _drawViolinOnly(g, data, groupScale, valueScale, isH) {
         data.forEach((group, i) => {
             if (group.values.length === 0) return;
@@ -2020,7 +2051,7 @@ class GraphRenderer {
             } else if (graphType === 'column-bar-median') {
                 const q = Statistics.quartiles(vals);
                 topValue = Math.max(topValue, q.q3);
-            } else if (graphType === 'box-plot' || graphType === 'violin-box' || graphType === 'violin-only' || graphType === 'violin-plot') {
+            } else if (graphType === 'box-plot' || graphType === 'box-points' || graphType === 'violin-box' || graphType === 'violin-only' || graphType === 'violin-plot') {
                 const q = Statistics.quartiles(vals);
                 const iqr = q.q3 - q.q1;
                 const sorted = [...vals].sort((a, b) => a - b);

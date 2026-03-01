@@ -1770,38 +1770,6 @@ tr:hover .row-delete-btn {
     height: 20px;
 }
 
-/* Color palette picker */
-.cp-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 6px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: border-color 0.15s;
-}
-.cp-item:hover {
-    border-color: var(--green-300, #86efac);
-}
-.cp-item.active {
-    border-color: var(--green-600);
-}
-.cp-item .cp-swatches {
-    display: flex;
-    gap: 1px;
-}
-.cp-item .cp-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-}
-.cp-item .cp-name {
-    font-size: 10px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-}
-
 .gtp-label {
     flex: 1;
     white-space: nowrap;

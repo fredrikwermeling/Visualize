@@ -67,7 +67,6 @@ class App {
         this._bindTextSettingsPanel();
         this._bindGraphSettingsPanel();
         this._buildGraphTypePicker();
-        this._buildColorPalettePicker();
         this._wrapNumberInputs();
 
         // Load sample data and draw initial graph
@@ -209,54 +208,6 @@ class App {
         const val = hiddenSel.value;
         container.querySelectorAll('.gtp-item').forEach(r => {
             r.classList.toggle('active', r.dataset.value === val);
-        });
-    }
-
-    _buildColorPalettePicker() {
-        const container = document.getElementById('colorPalettePicker');
-        if (!container) return;
-        container.innerHTML = '';
-        const themes = this.graphRenderer.colorThemes;
-        const names = {
-            default: 'Default', pastel: 'Pastel', vivid: 'Vivid',
-            grayscale: 'Gray', colorblind: 'Colorblind', earth: 'Earth',
-            ocean: 'Ocean', neon: 'Neon', contrast: 'Contrast'
-        };
-        const current = document.getElementById('colorTheme').value;
-        Object.keys(themes).forEach(key => {
-            const item = document.createElement('div');
-            item.className = 'cp-item' + (key === current ? ' active' : '');
-            item.dataset.value = key;
-            item.title = names[key] || key;
-            const swatches = document.createElement('div');
-            swatches.className = 'cp-swatches';
-            themes[key].slice(0, 5).forEach(c => {
-                const dot = document.createElement('div');
-                dot.className = 'cp-dot';
-                dot.style.background = c;
-                swatches.appendChild(dot);
-            });
-            const name = document.createElement('span');
-            name.className = 'cp-name';
-            name.textContent = names[key] || key;
-            item.appendChild(swatches);
-            item.appendChild(name);
-            item.addEventListener('click', () => {
-                const sel = document.getElementById('colorTheme');
-                sel.value = key;
-                sel.dispatchEvent(new Event('change'));
-                this._syncColorPalettePicker();
-            });
-            container.appendChild(item);
-        });
-    }
-
-    _syncColorPalettePicker() {
-        const container = document.getElementById('colorPalettePicker');
-        if (!container) return;
-        const val = document.getElementById('colorTheme').value;
-        container.querySelectorAll('.cp-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.value === val);
         });
     }
 
@@ -1150,7 +1101,6 @@ class App {
             document.getElementById('yAxisMax').value = '';
             document.getElementById('yAxisTickStep').value = '';
             document.getElementById('colorTheme').value = 'default';
-            this._syncColorPalettePicker();
             document.getElementById('showGroupLegend').checked = false;
             const gtSel = document.getElementById('graphType');
             if (gtSel) { gtSel.value = 'column-points-mean'; gtSel.dispatchEvent(new Event('change')); }

@@ -431,7 +431,10 @@ class App {
         const guidePopup = document.getElementById('statsGuidePopup');
         const guideClose = document.getElementById('statsGuideClose');
         if (guideBtn && guidePopup) {
-            guideBtn.addEventListener('click', () => { guidePopup.style.display = ''; });
+            guideBtn.addEventListener('click', () => {
+                const mode = this.mode === 'growth' ? 'growth' : 'column';
+                this._filterStatsGuide(mode);
+            });
             guideClose.addEventListener('click', () => { guidePopup.style.display = 'none'; });
             guidePopup.addEventListener('click', (e) => { if (e.target === guidePopup) guidePopup.style.display = 'none'; });
         }
@@ -439,6 +442,12 @@ class App {
         // Methods export
         const methodsBtn = document.getElementById('exportMethods');
         if (methodsBtn) methodsBtn.addEventListener('click', () => this._exportMethodsText());
+
+        // Normality and outlier check buttons
+        const normBtn = document.getElementById('checkNormality');
+        if (normBtn) normBtn.addEventListener('click', () => this._runNormalityCheck());
+        const outlierBtn = document.getElementById('checkOutliers');
+        if (outlierBtn) outlierBtn.addEventListener('click', () => this._runOutlierCheck());
 
         document.getElementById('significanceFontSize').addEventListener('input', (e) => {
             const val = e.target.value.trim();
@@ -1365,6 +1374,17 @@ class App {
         const statsBtn = document.getElementById('exportStats');
         if (statsBtn) statsBtn.style.display = (isColumn || isGrowth) ? '' : 'none';
 
+        // Normality/outlier check buttons only for column mode
+        const normBtn = document.getElementById('checkNormality');
+        const outlierBtn = document.getElementById('checkOutliers');
+        if (normBtn) normBtn.style.display = isColumn ? '' : 'none';
+        if (outlierBtn) outlierBtn.style.display = isColumn ? '' : 'none';
+        // Clear normality/outlier results on mode switch
+        const normRes = document.getElementById('normalityResults');
+        const outlierRes = document.getElementById('outlierResults');
+        if (normRes) { normRes.innerHTML = ''; normRes.style.display = 'none'; }
+        if (outlierRes) { outlierRes.innerHTML = ''; outlierRes.style.display = 'none'; }
+
         // Filter test type options by mode — remove/re-add optgroups (display:none doesn't work in Safari)
         const testSel = document.getElementById('testType');
         if (testSel) {
@@ -1442,6 +1462,12 @@ class App {
         if (viewColBtn) viewColBtn.addEventListener('click', () => {
             this._viewHeatmapAsColumn();
         });
+
+        // Heatmap ? button opens mode-filtered stats guide
+        const heatmapGuide = document.getElementById('heatmapStatsGuideBtn');
+        if (heatmapGuide) {
+            heatmapGuide.addEventListener('click', () => this._filterStatsGuide('heatmap'));
+        }
     }
 
     _bindGrowthControls() {
@@ -2821,11 +2847,15 @@ class App {
             const evt = el.tagName === 'SELECT' ? 'change' : 'input';
             el.addEventListener(evt, () => this.updateGraph());
         });
-        // Correlation ? button opens same stats guide
+        // Correlation ? button opens mode-filtered stats guide
         const corrGuide = document.getElementById('corrStatsGuideBtn');
-        const guidePopup = document.getElementById('statsGuidePopup');
-        if (corrGuide && guidePopup) {
-            corrGuide.addEventListener('click', () => { guidePopup.style.display = ''; });
+        if (corrGuide) {
+            corrGuide.addEventListener('click', () => this._filterStatsGuide('correlation'));
+        }
+        // Correlation Methods button
+        const corrMethods = document.getElementById('corrExportMethods');
+        if (corrMethods) {
+            corrMethods.addEventListener('click', () => this._exportCorrelationMethods());
         }
     }
 
@@ -2967,6 +2997,17 @@ class App {
                 el.addEventListener('change', () => this.updateGraph());
             }
         });
+
+        // KM ? button opens mode-filtered stats guide
+        const kmGuide = document.getElementById('kmStatsGuideBtn');
+        if (kmGuide) {
+            kmGuide.addEventListener('click', () => this._filterStatsGuide('kaplan-meier'));
+        }
+        // KM Methods button
+        const kmMethods = document.getElementById('kmExportMethods');
+        if (kmMethods) {
+            kmMethods.addEventListener('click', () => this._exportKaplanMeierMethods());
+        }
     }
 
     _updatePCAGroupManager(matrixData) {
@@ -4561,6 +4602,148 @@ class App {
         this._showModePopout();
     }
 
+    _showToast(message, duration = 3000) {
+        const el = document.createElement('div');
+        el.className = 'toast-notification';
+        el.textContent = message;
+        el.style.animationDelay = `0s, ${(duration - 400) / 1000}s`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), duration + 100);
+    }
+
+    _filterStatsGuide(mode) {
+        const guidePopup = document.getElementById('statsGuidePopup');
+        if (!guidePopup) return;
+        guidePopup.querySelectorAll('.sg-section[data-mode]').forEach(sec => {
+            const modes = sec.getAttribute('data-mode').split(',');
+            sec.style.display = modes.includes(mode) ? '' : 'none';
+        });
+        guidePopup.style.display = '';
+    }
+
+    _runNormalityCheck() {
+        const data = this.dataTable.getData();
+        const filledGroups = data.filter(d => d.values.length >= 3);
+        const container = document.getElementById('normalityResults');
+        if (!container) return;
+
+        if (filledGroups.length === 0) {
+            container.innerHTML = '<div class="normality-panel"><em>Need at least one group with 3+ values.</em></div>';
+            container.style.display = '';
+            return;
+        }
+
+        let html = '<div class="normality-panel"><h4>Normality (Anderson-Darling)</h4>';
+        let anyNonNormal = false;
+        const currentTest = document.getElementById('testType')?.value || 'none';
+
+        filledGroups.forEach(g => {
+            const result = Statistics.andersonDarling(g.values);
+            const cls = result.normal ? 'normal' : 'non-normal';
+            if (!result.normal) anyNonNormal = true;
+            html += `<div class="normality-result"><span class="normality-indicator ${cls}"></span><strong>${g.label}:</strong> ${result.msg} (n=${g.values.length})</div>`;
+        });
+
+        if (anyNonNormal) {
+            let rec = 'Some groups may not be normally distributed.';
+            if (['t-test-unpaired', 't-test-paired'].includes(currentTest)) {
+                rec += ' Consider using Mann-Whitney U or Wilcoxon signed-rank instead.';
+            } else if (currentTest === 'one-way-anova') {
+                rec += ' Consider using Kruskal-Wallis instead of ANOVA.';
+            }
+            html += `<div class="normality-recommendation">${rec}</div>`;
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+        container.style.display = '';
+    }
+
+    _runOutlierCheck() {
+        const data = this.dataTable.getData();
+        const filledGroups = data.filter(d => d.values.length >= 4);
+        const container = document.getElementById('outlierResults');
+        if (!container) return;
+
+        if (filledGroups.length === 0) {
+            container.innerHTML = '<div class="outlier-panel"><em>Need at least one group with 4+ values.</em></div>';
+            container.style.display = '';
+            return;
+        }
+
+        let html = '<div class="outlier-panel"><h4>Outlier Detection (IQR &times; 1.5)</h4>';
+        let totalOutliers = 0;
+
+        filledGroups.forEach(g => {
+            const result = Statistics.detectOutliersIQR(g.values);
+            totalOutliers += result.outliers.length;
+            if (result.outliers.length > 0) {
+                const vals = result.outliers.map(v => v.toFixed(2)).join(', ');
+                html += `<div class="outlier-result"><strong>${g.label}:</strong> ${result.outliers.length} outlier${result.outliers.length > 1 ? 's' : ''} <span class="outlier-values">(${vals})</span> | bounds: [${result.bounds.lower.toFixed(2)}, ${result.bounds.upper.toFixed(2)}]</div>`;
+            } else {
+                html += `<div class="outlier-result"><strong>${g.label}:</strong> No outliers detected | bounds: [${result.bounds.lower.toFixed(2)}, ${result.bounds.upper.toFixed(2)}]</div>`;
+            }
+        });
+
+        if (totalOutliers === 0) {
+            html += '<div style="color:#22c55e;margin-top:4px;font-style:italic">No outliers detected in any group.</div>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+        container.style.display = '';
+    }
+
+    _exportCorrelationMethods() {
+        const statsContent = document.getElementById('corrStatsContent')?.value || 'simple';
+        const regType = document.getElementById('corrRegressionType')?.value || 'none';
+        const regScope = document.getElementById('corrRegressionScope')?.value || 'all';
+        const showCI = document.getElementById('corrShowCI')?.checked;
+
+        let text = 'Statistical analysis was performed using Visualize (https://github.com/fredrikwermeling/Visualize) with jStat for computation. ';
+        text += 'Association between variables was assessed using Pearson correlation coefficient (r). ';
+        if (statsContent === 'extended') {
+            text += 'Spearman rank correlation (\u03c1) was also computed as a non-parametric measure of monotonic association. ';
+        }
+        if (regType !== 'none') {
+            const regNames = { linear: 'linear', poly2: 'second-order polynomial', poly3: 'third-order polynomial' };
+            text += `A ${regNames[regType] || regType} regression line was fitted to ${regScope === 'per-group' ? 'each group separately' : 'all data combined'}. `;
+            if (showCI) text += '95% confidence intervals for the regression are shown. ';
+        }
+        text += 'P-values < 0.05 were considered statistically significant.';
+
+        navigator.clipboard.writeText(text).then(() => {
+            this._showToast('Methods text copied to clipboard');
+        }).catch(() => {
+            prompt('Methods text (copy manually):', text);
+        });
+    }
+
+    _exportKaplanMeierMethods() {
+        const showLogRank = document.getElementById('kmShowLogRank')?.checked;
+        const showCI = document.getElementById('kmShowCI')?.checked;
+        const showMedian = document.getElementById('kmShowMedian')?.checked;
+
+        let text = 'Statistical analysis was performed using Visualize (https://github.com/fredrikwermeling/Visualize). ';
+        text += 'Survival probabilities were estimated using the Kaplan-Meier method. ';
+        if (showLogRank) {
+            text += 'Differences between survival curves were assessed using the log-rank test. ';
+        }
+        if (showMedian) {
+            text += 'Median survival times are reported. ';
+        }
+        if (showCI) {
+            text += '95% confidence intervals are shown. ';
+        }
+        text += 'P-values < 0.05 were considered statistically significant.';
+
+        navigator.clipboard.writeText(text).then(() => {
+            this._showToast('Methods text copied to clipboard');
+        }).catch(() => {
+            prompt('Methods text (copy manually):', text);
+        });
+    }
+
     _clearStats() {
         const container = document.getElementById('statsResults');
         container.innerHTML = '';
@@ -4640,12 +4823,8 @@ class App {
         }
 
         navigator.clipboard.writeText(text).then(() => {
-            const btn = document.getElementById('exportMethods');
-            const orig = btn.textContent;
-            btn.textContent = 'Copied!';
-            setTimeout(() => { btn.textContent = orig; }, 1500);
+            this._showToast('Methods text copied to clipboard');
         }).catch(() => {
-            // Fallback: show in prompt
             prompt('Methods text (copy manually):', text);
         });
     }

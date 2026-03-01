@@ -739,6 +739,74 @@ class Statistics {
         return { slope, intercept, rSquared, slopeStdErr, interceptStdErr, residualSE, df, n, meanX: mx, ssXX };
     }
 
+    static andersonDarling(values) {
+        const n = values.length;
+        if (n < 3) return { A2: NaN, p: NaN, normal: true, msg: 'Too few values (n < 3)' };
+
+        const sorted = [...values].sort((a, b) => a - b);
+        const mu = this.mean(sorted);
+        const sigma = this.std(sorted, true);
+        if (sigma === 0) return { A2: 0, p: 1, normal: true, msg: 'No variance' };
+
+        // Compute z-scores and their normal CDF values
+        const z = sorted.map(v => (v - mu) / sigma);
+        const F = z.map(zi => jStat.normal.cdf(zi, 0, 1));
+
+        // Clamp F to avoid log(0) or log(1)
+        const eps = 1e-10;
+        const Fc = F.map(fi => Math.max(eps, Math.min(1 - eps, fi)));
+
+        // A-D statistic
+        let S = 0;
+        for (let i = 0; i < n; i++) {
+            S += (2 * (i + 1) - 1) * (Math.log(Fc[i]) + Math.log(1 - Fc[n - 1 - i]));
+        }
+        let A2 = -n - S / n;
+
+        // Stephens' correction for estimated parameters
+        A2 = A2 * (1 + 0.75 / n + 2.25 / (n * n));
+
+        // Approximate p-value (D'Agostino & Stephens 1986 Table 4.9)
+        let p;
+        if (A2 >= 0.6) {
+            p = Math.exp(1.2937 - 5.709 * A2 + 0.0186 * A2 * A2);
+        } else if (A2 >= 0.34) {
+            p = Math.exp(0.9177 - 4.279 * A2 - 1.38 * A2 * A2);
+        } else if (A2 >= 0.2) {
+            p = 1 - Math.exp(-8.318 + 42.796 * A2 - 59.938 * A2 * A2);
+        } else {
+            p = 1 - Math.exp(-13.436 + 101.14 * A2 - 223.73 * A2 * A2);
+        }
+        p = Math.max(0, Math.min(1, p));
+
+        const normal = p >= 0.05;
+        const msg = normal
+            ? `Normal (A\u00B2=${A2.toFixed(3)}, ${this.formatPValue(p)})`
+            : `Non-normal (A\u00B2=${A2.toFixed(3)}, ${this.formatPValue(p)})`;
+
+        return { A2, p, normal, msg };
+    }
+
+    static detectOutliersIQR(values, multiplier = 1.5) {
+        if (values.length < 4) return { outliers: [], indices: [], bounds: { lower: NaN, upper: NaN } };
+
+        const q = this.quartiles(values);
+        const iqr = q.q3 - q.q1;
+        const lower = q.q1 - multiplier * iqr;
+        const upper = q.q3 + multiplier * iqr;
+
+        const outliers = [];
+        const indices = [];
+        values.forEach((v, i) => {
+            if (v < lower || v > upper) {
+                outliers.push(v);
+                indices.push(i);
+            }
+        });
+
+        return { outliers, indices, bounds: { lower, upper } };
+    }
+
     static growthPostHoc(growthData, options = {}) {
         const { timepoints, groups, subjects, groupMap } = growthData;
         const correction = options.correction || 'holm';

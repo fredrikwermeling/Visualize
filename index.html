@@ -208,7 +208,7 @@
 
                 <div id="heatmapControls" class="heatmap-controls" style="display:none">
                     <div class="control-section">
-                        <h3 style="display:flex;align-items:center;justify-content:space-between">Heatmap Settings <button class="settings-default-btn" data-reset-mode="heatmap" title="Reset to defaults">Defaults</button></h3>
+                        <h3 style="display:flex;align-items:center;gap:6px">Heatmap Settings <button id="heatmapStatsGuideBtn" class="stats-guide-btn" title="Clustering &amp; normalization guide">?</button><button class="settings-default-btn" data-reset-mode="heatmap" title="Reset to defaults" style="margin-left:auto">Defaults</button></h3>
                         <div class="heatmap-grid">
                             <div class="hm-ctrl">
                                 <label>Cluster</label>
@@ -424,7 +424,7 @@
 
                 <div id="correlationControls" class="correlation-controls" style="display:none">
                     <div class="control-section">
-                        <h3 style="display:flex;align-items:center;gap:6px">Correlation Plot Settings <button id="corrStatsGuideBtn" class="stats-guide-btn" title="Statistical test guide">?</button><button class="settings-default-btn" data-reset-mode="correlation" title="Reset to defaults" style="margin-left:auto">Defaults</button></h3>
+                        <h3 style="display:flex;align-items:center;gap:6px">Correlation Plot Settings <button id="corrStatsGuideBtn" class="stats-guide-btn" title="Statistical test guide">?</button><button id="corrExportMethods" class="btn btn-secondary" style="padding:2px 8px;font-size:10px" title="Copy methods text">Methods</button><button class="settings-default-btn" data-reset-mode="correlation" title="Reset to defaults" style="margin-left:auto">Defaults</button></h3>
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Width:</label><input type="number" id="corrWidth" value="200" min="100" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="corrHeight" value="200" min="100" step="10"></div>
@@ -614,7 +614,7 @@
 
                 <div id="kaplanMeierControls" class="kaplan-meier-controls" style="display:none">
                     <div class="control-section">
-                        <h3 style="display:flex;align-items:center;justify-content:space-between">Kaplan-Meier Settings <button class="settings-default-btn" data-reset-mode="kaplan-meier" title="Reset to defaults">Defaults</button></h3>
+                        <h3 style="display:flex;align-items:center;gap:6px">Kaplan-Meier Settings <button id="kmStatsGuideBtn" class="stats-guide-btn" title="Statistical test guide">?</button><button id="kmExportMethods" class="btn btn-secondary" style="padding:2px 8px;font-size:10px" title="Copy methods text">Methods</button><button class="settings-default-btn" data-reset-mode="kaplan-meier" title="Reset to defaults" style="margin-left:auto">Defaults</button></h3>
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Width:</label><input type="number" id="kmWidth" value="300" min="200" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="kmHeight" value="300" min="200" step="10"></div>
@@ -859,6 +859,12 @@
                                 </select>
                             </label>
                         </div>
+                        <div style="display:flex;gap:6px;margin:2px 0 4px">
+                            <button id="checkNormality" class="btn btn-secondary" style="padding:4px 10px;font-size:11px" title="Anderson-Darling normality test per group">Check Normality</button>
+                            <button id="checkOutliers" class="btn btn-secondary" style="padding:4px 10px;font-size:11px" title="IQR-based outlier detection per group">Check Outliers</button>
+                        </div>
+                        <div id="normalityResults" style="display:none"></div>
+                        <div id="outlierResults" style="display:none"></div>
                         <div id="statsResults" class="stats-results"></div>
                     </div>
 
@@ -929,7 +935,7 @@
                 <button id="statsGuideClose" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666;padding:0 4px">&times;</button>
             </div>
             <div class="stats-guide-body">
-                <div class="sg-section">
+                <div class="sg-section" data-mode="column,growth">
                     <h3>How to choose a test</h3>
                     <table class="sg-decision-table">
                         <thead><tr><th>Groups</th><th>Paired?</th><th>Normal data?</th><th>Recommended test</th></tr></thead>
@@ -945,7 +951,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="sg-section">
+                <div class="sg-section" data-mode="column">
                     <h3>Comparing two groups</h3>
                     <dl>
                         <dt>Unpaired t-test (Welch's)</dt>
@@ -958,7 +964,7 @@
                         <dd>Non-parametric alternative to paired t-test. Compares ranks of paired differences. Use for paired data that is not normally distributed.</dd>
                     </dl>
                 </div>
-                <div class="sg-section">
+                <div class="sg-section" data-mode="column">
                     <h3>Comparing three or more groups</h3>
                     <dl>
                         <dt>One-way ANOVA</dt>
@@ -969,14 +975,14 @@
                         <dd>Non-parametric test for 3+ paired/repeated groups. Rank-based alternative to repeated-measures ANOVA. Requires equal sample sizes.</dd>
                     </dl>
                 </div>
-                <div class="sg-section">
+                <div class="sg-section" data-mode="growth">
                     <h3>Time series / longitudinal</h3>
                     <dl>
                         <dt>Two-way RM ANOVA</dt>
                         <dd>Tests Group effect (between-subjects), Time effect (within-subjects), and Group&times;Time interaction. Use for longitudinal data with repeated measurements at multiple time points.</dd>
                     </dl>
                 </div>
-                <div class="sg-section">
+                <div class="sg-section" data-mode="correlation">
                     <h3>Correlation</h3>
                     <dl>
                         <dt>Pearson correlation (r)</dt>
@@ -985,7 +991,27 @@
                         <dd>Non-parametric measure of <em>monotonic</em> association. No normality assumption. Use when data is ordinal, has outliers, or the relationship is monotonic but not necessarily linear. Shown in Extended stats mode.</dd>
                     </dl>
                 </div>
-                <div class="sg-section">
+                <div class="sg-section" data-mode="kaplan-meier">
+                    <h3>Survival analysis</h3>
+                    <dl>
+                        <dt>Log-rank test</dt>
+                        <dd>Compares survival distributions between two or more groups. Tests whether survival curves differ significantly. Non-parametric; makes no assumption about the shape of the survival curve. Most commonly used in clinical research for time-to-event data.</dd>
+                        <dt>Kaplan-Meier estimator</dt>
+                        <dd>Non-parametric method for estimating survival probability over time. Handles right-censored data (subjects lost to follow-up or study end). Produces step-function survival curves.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section" data-mode="heatmap">
+                    <h3>Clustering &amp; outlier detection</h3>
+                    <dl>
+                        <dt>Hierarchical clustering</dt>
+                        <dd>Groups rows and/or columns by similarity using agglomerative clustering. Linkage methods: Average (UPGMA), Complete (furthest neighbor), Single (nearest neighbor). Euclidean distance is used.</dd>
+                        <dt>Normalization</dt>
+                        <dd>Z-score (mean/SD) or robust (median/MAD) normalization can be applied per row, per column, or across the whole dataset to make values comparable across different scales.</dd>
+                        <dt>Winsorization</dt>
+                        <dd>Clips extreme values to reduce the impact of outliers on the color scale, improving visual contrast for the majority of data.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section" data-mode="column,growth">
                     <h3>Post-hoc corrections</h3>
                     <dl>
                         <dt>Tukey HSD</dt>
@@ -998,8 +1024,8 @@
                         <dd>Compares each group to a single control group only. More powerful than all-pairwise methods when only control comparisons are needed.</dd>
                     </dl>
                 </div>
-                <div class="sg-section sg-tip">
-                    <strong>Tip:</strong> If unsure about normality with small samples (n &lt; 30), non-parametric tests are a safe choice. They are slightly less powerful but make fewer assumptions.
+                <div class="sg-section sg-tip" data-mode="column,growth">
+                    <strong>Tip:</strong> If unsure about normality with small samples (n &lt; 30), non-parametric tests are a safe choice. They are slightly less powerful but make fewer assumptions. Use the "Check Normality" button to run an Anderson-Darling test on your data.
                 </div>
             </div>
         </div>

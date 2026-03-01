@@ -1974,7 +1974,6 @@ class App {
                 { label: 'Pt Size', inputId: 'pointSize', type: 'number', min: 1, max: 30, step: 1 },
                 { label: 'Bar W', inputId: 'centerLineWidth', type: 'number', min: 0.1, step: 0.1 },
                 { label: 'Err Cap', inputId: 'errorBarWidth', type: 'number', min: 0, step: 0.5 },
-                { label: 'Colors', inputId: 'colorTheme' },
                 { label: 'Orient', inputId: 'orientation' },
                 { label: 'Spread', inputId: 'pointSpread' },
                 { label: 'X-angle', inputId: 'xTickAngle' },

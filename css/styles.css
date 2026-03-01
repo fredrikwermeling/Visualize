@@ -1884,6 +1884,97 @@ tr:hover .row-delete-btn {
     background: var(--green-100);
 }
 
+/* Stats guide button */
+.stats-guide-btn {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--green-600);
+    background: none;
+    color: var(--green-600);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.stats-guide-btn:hover {
+    background: var(--green-100);
+}
+
+/* Stats guide popup */
+.stats-guide-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 510;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+.stats-guide-content {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px 24px;
+    max-width: 620px;
+    width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.stats-guide-body h3 {
+    font-size: 13px;
+    color: var(--green-800);
+    margin: 14px 0 6px;
+    border-bottom: 1px solid var(--gray-200);
+    padding-bottom: 3px;
+}
+.stats-guide-body h3:first-child { margin-top: 0; }
+.sg-section { margin-bottom: 8px; }
+.sg-section dl { margin: 0; }
+.sg-section dt {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 6px;
+}
+.sg-section dd {
+    font-size: 11px;
+    color: #555;
+    margin: 1px 0 0 0;
+    line-height: 1.45;
+}
+.sg-tip {
+    font-size: 11px;
+    color: #555;
+    background: #f0f8e8;
+    border: 1px solid #d4e8c4;
+    border-radius: 4px;
+    padding: 8px 10px;
+    line-height: 1.45;
+}
+.sg-decision-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 4px;
+}
+.sg-decision-table th {
+    background: var(--green-100);
+    color: var(--green-800);
+    font-weight: 600;
+    padding: 4px 8px;
+    text-align: left;
+    border-bottom: 1.5px solid var(--green-300);
+}
+.sg-decision-table td {
+    padding: 3px 8px;
+    border-bottom: 1px solid var(--gray-200);
+}
+.sg-decision-table tr:last-child td { border-bottom: none; }
+
 /* Table controls uniform sizing */
 .table-controls .btn {
     white-space: nowrap;

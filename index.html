@@ -424,7 +424,7 @@
 
                 <div id="correlationControls" class="correlation-controls" style="display:none">
                     <div class="control-section">
-                        <h3 style="display:flex;align-items:center;justify-content:space-between">Correlation Plot Settings <button class="settings-default-btn" data-reset-mode="correlation" title="Reset to defaults">Defaults</button></h3>
+                        <h3 style="display:flex;align-items:center;gap:6px">Correlation Plot Settings <button id="corrStatsGuideBtn" class="stats-guide-btn" title="Statistical test guide">?</button><button class="settings-default-btn" data-reset-mode="correlation" title="Reset to defaults" style="margin-left:auto">Defaults</button></h3>
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Width:</label><input type="number" id="corrWidth" value="200" min="100" step="10"></div>
                             <div class="control-group"><label>Height:</label><input type="number" id="corrHeight" value="200" min="100" step="10"></div>
@@ -769,7 +769,7 @@
                     </div>
 
                     <div class="control-section" id="statisticsSection">
-                        <h3>Statistics</h3>
+                        <h3 style="display:flex;align-items:center;gap:6px">Statistics <button id="statsGuideBtn" class="stats-guide-btn" title="Statistical test guide">?</button></h3>
                         <div class="control-grid-2col">
                             <div class="control-group">
                                 <label>Test:</label>
@@ -847,9 +847,10 @@
                             <strong>Warning:</strong> With &gt;2 groups, a two-group test only compares the selected pair. Consider using ANOVA/Kruskal-Wallis with post-hoc testing for proper multiple comparison correction.
                         </div>
                         <div id="testDescription" style="font-size:11px;color:#666;margin:4px 0;padding:4px 6px;background:#f0f8e8;border:1px solid #d4e8c4;border-radius:3px;display:none"></div>
-                        <div style="display:flex;gap:8px;align-items:center;margin:4px 0">
+                        <div style="display:flex;gap:8px;align-items:center;margin:4px 0;flex-wrap:wrap">
                             <button id="runStats" class="btn btn-primary" style="padding:6px 14px">Run Test</button>
                             <button id="clearStats" class="btn btn-secondary" style="padding:6px 14px">Clear</button>
+                            <button id="exportMethods" class="btn btn-secondary" style="padding:6px 10px;font-size:11px" title="Copy a methods paragraph to clipboard">Methods</button>
                             <label style="font-size:12px;display:flex;align-items:center;gap:3px;margin-left:auto">Legend:
                                 <select id="statsLegendMode" style="padding:1px 3px;font-size:11px;border:1px solid #d1d5db;border-radius:3px">
                                     <option value="none">None</option>
@@ -916,6 +917,90 @@
             <p>Select a visualization type to get started</p>
             <div class="mode-popout-grid" id="modePopoutGrid">
                 <!-- Built by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Guide Popup -->
+    <div id="statsGuidePopup" class="stats-guide-popup" style="display:none">
+        <div class="stats-guide-content">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <h2 style="margin:0;font-size:16px;color:#2d5016">Statistical Test Guide</h2>
+                <button id="statsGuideClose" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666;padding:0 4px">&times;</button>
+            </div>
+            <div class="stats-guide-body">
+                <div class="sg-section">
+                    <h3>How to choose a test</h3>
+                    <table class="sg-decision-table">
+                        <thead><tr><th>Groups</th><th>Paired?</th><th>Normal data?</th><th>Recommended test</th></tr></thead>
+                        <tbody>
+                            <tr><td>2</td><td>No</td><td>Yes</td><td>Unpaired t-test</td></tr>
+                            <tr><td>2</td><td>No</td><td>No / unsure</td><td>Mann-Whitney U</td></tr>
+                            <tr><td>2</td><td>Yes</td><td>Yes</td><td>Paired t-test</td></tr>
+                            <tr><td>2</td><td>Yes</td><td>No / unsure</td><td>Wilcoxon signed-rank</td></tr>
+                            <tr><td>3+</td><td>No</td><td>Yes</td><td>One-way ANOVA</td></tr>
+                            <tr><td>3+</td><td>No</td><td>No / unsure</td><td>Kruskal-Wallis</td></tr>
+                            <tr><td>3+</td><td>Yes</td><td>No / unsure</td><td>Friedman</td></tr>
+                            <tr><td>Time series</td><td>Yes (repeated)</td><td>Yes</td><td>Two-way RM ANOVA</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="sg-section">
+                    <h3>Comparing two groups</h3>
+                    <dl>
+                        <dt>Unpaired t-test (Welch's)</dt>
+                        <dd>Compares means of two independent groups. Assumes normality but not equal variances. Most common choice for two-group comparison with reasonably normal data.</dd>
+                        <dt>Paired t-test</dt>
+                        <dd>Compares means of matched/repeated measurements (e.g., before vs after). Requires equal sample sizes. Use when each observation in one group has a corresponding observation in the other.</dd>
+                        <dt>Mann-Whitney U</dt>
+                        <dd>Non-parametric alternative to unpaired t-test. Compares rank distributions. Use when data is not normally distributed, ordinal, or has outliers.</dd>
+                        <dt>Wilcoxon signed-rank</dt>
+                        <dd>Non-parametric alternative to paired t-test. Compares ranks of paired differences. Use for paired data that is not normally distributed.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section">
+                    <h3>Comparing three or more groups</h3>
+                    <dl>
+                        <dt>One-way ANOVA</dt>
+                        <dd>Tests whether means differ across 3+ groups. Assumes normality and homogeneity of variances. Follow with post-hoc tests (Tukey, Bonferroni, Holm, or Dunnett) to identify which pairs differ.</dd>
+                        <dt>Kruskal-Wallis</dt>
+                        <dd>Non-parametric alternative to one-way ANOVA. Compares rank distributions. Follow with Dunn's test for pairwise comparisons.</dd>
+                        <dt>Friedman</dt>
+                        <dd>Non-parametric test for 3+ paired/repeated groups. Rank-based alternative to repeated-measures ANOVA. Requires equal sample sizes.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section">
+                    <h3>Time series / longitudinal</h3>
+                    <dl>
+                        <dt>Two-way RM ANOVA</dt>
+                        <dd>Tests Group effect (between-subjects), Time effect (within-subjects), and Group&times;Time interaction. Use for longitudinal data with repeated measurements at multiple time points.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section">
+                    <h3>Correlation</h3>
+                    <dl>
+                        <dt>Pearson correlation (r)</dt>
+                        <dd>Measures strength of <em>linear</em> association. Assumes both variables are normally distributed. Values range from &minus;1 (perfect negative) to +1 (perfect positive). Use when data appears linearly related.</dd>
+                        <dt>Spearman rank correlation (&rho;)</dt>
+                        <dd>Non-parametric measure of <em>monotonic</em> association. No normality assumption. Use when data is ordinal, has outliers, or the relationship is monotonic but not necessarily linear. Shown in Extended stats mode.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section">
+                    <h3>Post-hoc corrections</h3>
+                    <dl>
+                        <dt>Tukey HSD</dt>
+                        <dd>Standard choice for all pairwise comparisons after ANOVA. Controls family-wise error rate. Balanced in power vs. strictness.</dd>
+                        <dt>Bonferroni</dt>
+                        <dd>Most conservative. Divides &alpha; by the number of comparisons. Use when strict Type I error control is critical.</dd>
+                        <dt>Holm-Bonferroni</dt>
+                        <dd>Step-down method. Less conservative than Bonferroni, more powerful. Generally preferred over Bonferroni.</dd>
+                        <dt>Dunnett</dt>
+                        <dd>Compares each group to a single control group only. More powerful than all-pairwise methods when only control comparisons are needed.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section sg-tip">
+                    <strong>Tip:</strong> If unsure about normality with small samples (n &lt; 30), non-parametric tests are a safe choice. They are slightly less powerful but make fewer assumptions.
+                </div>
             </div>
         </div>
     </div>

@@ -426,6 +426,20 @@ class App {
             this.updateGraph();
         });
 
+        // Stats guide popup
+        const guideBtn = document.getElementById('statsGuideBtn');
+        const guidePopup = document.getElementById('statsGuidePopup');
+        const guideClose = document.getElementById('statsGuideClose');
+        if (guideBtn && guidePopup) {
+            guideBtn.addEventListener('click', () => { guidePopup.style.display = ''; });
+            guideClose.addEventListener('click', () => { guidePopup.style.display = 'none'; });
+            guidePopup.addEventListener('click', (e) => { if (e.target === guidePopup) guidePopup.style.display = 'none'; });
+        }
+
+        // Methods export
+        const methodsBtn = document.getElementById('exportMethods');
+        if (methodsBtn) methodsBtn.addEventListener('click', () => this._exportMethodsText());
+
         document.getElementById('significanceFontSize').addEventListener('input', (e) => {
             const val = e.target.value.trim();
             this.graphRenderer.updateSettings({ significanceFontSize: val === '' ? null : parseInt(val) });
@@ -2807,6 +2821,12 @@ class App {
             const evt = el.tagName === 'SELECT' ? 'change' : 'input';
             el.addEventListener(evt, () => this.updateGraph());
         });
+        // Correlation ? button opens same stats guide
+        const corrGuide = document.getElementById('corrStatsGuideBtn');
+        const guidePopup = document.getElementById('statsGuidePopup');
+        if (corrGuide && guidePopup) {
+            corrGuide.addEventListener('click', () => { guidePopup.style.display = ''; });
+        }
     }
 
     _getPCASettings() {
@@ -4548,6 +4568,86 @@ class App {
         this.graphRenderer.setSignificance([]);
         this.growthRenderer.setSignificance([]);
         this._statsInfoText = null;
+    }
+
+    _exportMethodsText() {
+        const testType = document.getElementById('testType').value;
+        if (testType === 'none') {
+            alert('No statistical test selected. Run a test first.');
+            return;
+        }
+
+        const testNames = {
+            'one-way-anova': 'one-way analysis of variance (ANOVA)',
+            'kruskal-wallis': 'Kruskal-Wallis H test',
+            'friedman': 'Friedman test',
+            't-test-unpaired': "Welch's unpaired t-test",
+            't-test-paired': 'paired t-test',
+            'mann-whitney': 'Mann-Whitney U test',
+            'wilcoxon': 'Wilcoxon signed-rank test',
+            'two-way-rm-anova': 'two-way repeated measures ANOVA (Group × Time)',
+            'pearson': 'Pearson correlation',
+            'spearman': 'Spearman rank correlation',
+            'linear-regression': 'linear regression'
+        };
+        const testName = testNames[testType] || testType;
+
+        const postHocNames = {
+            tukey: 'Tukey HSD',
+            bonferroni: 'Bonferroni',
+            holm: 'Holm-Bonferroni',
+            dunnett: "Dunnett's test"
+        };
+
+        const correctionNames = {
+            holm: 'Holm-Bonferroni',
+            bonferroni: 'Bonferroni',
+            sidak: 'Šidák',
+            none: 'uncorrected'
+        };
+
+        let text = '';
+        const isGrowth = testType === 'two-way-rm-anova';
+        const isMultiGroup = ['one-way-anova', 'kruskal-wallis', 'friedman'].includes(testType);
+        const isCorr = ['pearson', 'spearman', 'linear-regression'].includes(testType);
+
+        if (isGrowth) {
+            const corrMethod = document.getElementById('growthCorrectionMethod')?.value || 'holm';
+            const compareMode = document.getElementById('growthCompareMode')?.value || 'all';
+            const corrName = correctionNames[corrMethod] || corrMethod;
+            text = `Statistical analysis was performed using Visualize (https://github.com/fredrikwermeling/Visualize) with jStat for computation. ` +
+                `Group differences over time were assessed using ${testName}. ` +
+                `Post-hoc pairwise comparisons were conducted at each time point using per-timepoint one-way ANOVA as a gatekeeper, ` +
+                `followed by ${compareMode === 'control' ? 'comparisons to the control group' : 'all pairwise comparisons'} ` +
+                `with ${corrName} correction for multiple testing. ` +
+                `P-values < 0.05 were considered statistically significant.`;
+        } else if (isMultiGroup) {
+            const postHoc = document.getElementById('postHocMethod')?.value || 'tukey';
+            const postHocName = postHocNames[postHoc] || postHoc;
+            text = `Statistical analysis was performed using Visualize (https://github.com/fredrikwermeling/Visualize) with jStat for computation. ` +
+                `Group differences were assessed using ${testName}. ` +
+                `Post-hoc pairwise comparisons were performed using ${postHocName} correction. ` +
+                `P-values < 0.05 were considered statistically significant.`;
+        } else if (isCorr) {
+            text = `Statistical analysis was performed using Visualize (https://github.com/fredrikwermeling/Visualize) with jStat for computation. ` +
+                `Association between variables was assessed using ${testName}. ` +
+                `P-values < 0.05 were considered statistically significant.`;
+        } else {
+            // Two-group tests
+            text = `Statistical analysis was performed using Visualize (https://github.com/fredrikwermeling/Visualize) with jStat for computation. ` +
+                `Group differences were assessed using ${testName}. ` +
+                `P-values < 0.05 were considered statistically significant.`;
+        }
+
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('exportMethods');
+            const orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = orig; }, 1500);
+        }).catch(() => {
+            // Fallback: show in prompt
+            prompt('Methods text (copy manually):', text);
+        });
     }
 }
 

@@ -1380,6 +1380,7 @@ tr:hover .row-delete-btn {
 /* Correlation Controls */
 .correlation-controls {
     margin-bottom: 10px;
+    grid-column: 1 / -1;
 }
 
 .correlation-controls .control-section {

@@ -977,7 +977,7 @@ class App {
             document.getElementById('corrYTickStep').value = '';
             document.getElementById('corrColorTheme').value = 'default';
             document.getElementById('corrErrorType').value = 'sem';
-            document.getElementById('corrPointSize').value = 6;
+            document.getElementById('corrPointSize').value = 5;
             document.getElementById('corrCapWidth').value = 5;
             document.getElementById('corrRegressionType').value = 'linear';
             document.getElementById('corrRegressionScope').value = 'all';
@@ -2786,7 +2786,7 @@ class App {
             yTickStep: parseOpt('corrYTickStep'),
             colorTheme: document.getElementById('corrColorTheme')?.value || 'default',
             errorType: document.getElementById('corrErrorType')?.value || 'sem',
-            pointSize: parseFloat(document.getElementById('corrPointSize')?.value) || 6,
+            pointSize: parseFloat(document.getElementById('corrPointSize')?.value) || 5,
             capWidth: parseFloat(document.getElementById('corrCapWidth')?.value) || 5,
             regressionType: document.getElementById('corrRegressionType')?.value || 'linear',
             regressionScope: document.getElementById('corrRegressionScope')?.value || 'all',

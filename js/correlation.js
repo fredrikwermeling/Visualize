@@ -294,11 +294,13 @@ class CorrelationRenderer {
         const xScale = d3.scaleLinear().domain([xMin, xMax]).range([0, innerW]).nice();
         const yScale = d3.scaleLinear().domain([yMin, yMax]).range([innerH, 0]).nice();
 
-        // Axes
+        // Axes — limit auto tick count based on available space
         const xAxisGen = d3.axisBottom(xScale);
         const yAxisGen = d3.axisLeft(yScale);
         if (s.xTickStep) xAxisGen.tickValues(d3.range(xScale.domain()[0], xScale.domain()[1] + s.xTickStep * 0.5, s.xTickStep));
+        else xAxisGen.ticks(Math.max(3, Math.floor(innerW / 50)));
         if (s.yTickStep) yAxisGen.tickValues(d3.range(yScale.domain()[0], yScale.domain()[1] + s.yTickStep * 0.5, s.yTickStep));
+        else yAxisGen.ticks(Math.max(3, Math.floor(innerH / 40)));
 
         const xAxisG = g.append('g').attr('transform', `translate(0,${innerH})`).call(xAxisGen);
         this._styleAxisTicks(xAxisG, s.xTickFont);
@@ -816,10 +818,10 @@ class CorrelationRenderer {
 
     _styleAxisTicks(axisG, tickFont) {
         axisG.selectAll('text')
-            .attr('font-size', tickFont.size + 'px')
-            .attr('font-family', tickFont.family)
-            .attr('font-weight', tickFont.bold ? 'bold' : 'normal')
-            .attr('font-style', tickFont.italic ? 'italic' : 'normal');
+            .style('font-size', tickFont.size + 'px')
+            .style('font-family', tickFont.family)
+            .style('font-weight', tickFont.bold ? 'bold' : 'normal')
+            .style('font-style', tickFont.italic ? 'italic' : 'normal');
     }
 
     _getColor(groupIndex) {

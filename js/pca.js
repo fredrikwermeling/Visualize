@@ -1243,10 +1243,10 @@ class PCARenderer {
 
     _styleAxisTicks(axisG, tickFont) {
         axisG.selectAll('text')
-            .attr('font-size', tickFont.size + 'px')
-            .attr('font-family', tickFont.family)
-            .attr('font-weight', tickFont.bold ? 'bold' : 'normal')
-            .attr('font-style', tickFont.italic ? 'italic' : 'normal');
+            .style('font-size', tickFont.size + 'px')
+            .style('font-family', tickFont.family)
+            .style('font-weight', tickFont.bold ? 'bold' : 'normal')
+            .style('font-style', tickFont.italic ? 'italic' : 'normal');
     }
 
     _getColor(groupIndex, groupName) {

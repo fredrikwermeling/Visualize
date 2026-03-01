@@ -357,15 +357,33 @@
                             <div class="control-group"><label>Y-Step:</label><input type="number" id="growthYTickStep" placeholder="Auto" min="0.1" step="any"></div>
                             <div class="control-group"><label>Colors:</label>
                                 <select id="growthColorTheme">
-                                    <option value="default">Default</option>
-                                    <option value="pastel">Pastel</option>
-                                    <option value="vivid">Vivid</option>
-                                    <option value="colorblind">Colorblind-safe</option>
-                                    <option value="earth">Earth</option>
-                                    <option value="ocean">Ocean</option>
-                                    <option value="neon">Neon</option>
-                                    <option value="contrast">Contrast</option>
-                                    <option value="black">Black (symbols)</option>
+                                    <optgroup label="General">
+                                        <option value="default">Default</option>
+                                        <option value="pastel">Pastel</option>
+                                        <option value="vivid">Vivid</option>
+                                        <option value="grayscale">Grayscale</option>
+                                        <option value="tableau">Tableau</option>
+                                        <option value="black">Black (symbols)</option>
+                                    </optgroup>
+                                    <optgroup label="Colorblind-safe">
+                                        <option value="okabe-ito">Okabe-Ito</option>
+                                        <option value="tol-bright">Tol Bright</option>
+                                        <option value="tol-muted">Tol Muted</option>
+                                    </optgroup>
+                                    <optgroup label="Journal">
+                                        <option value="nature">Nature (NPG)</option>
+                                        <option value="science">Science (AAAS)</option>
+                                        <option value="lancet">Lancet</option>
+                                        <option value="nejm">NEJM</option>
+                                        <option value="jama">JAMA</option>
+                                        <option value="jco">JCO</option>
+                                    </optgroup>
+                                    <optgroup label="Classic">
+                                        <option value="set1">Set 1</option>
+                                        <option value="set2">Set 2</option>
+                                        <option value="dark2">Dark 2</option>
+                                        <option value="paired">Paired</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="control-group"><label>Error:</label>
@@ -435,14 +453,32 @@
                             <div class="control-group"><label>Y-Step:</label><input type="number" id="corrYTickStep" placeholder="Auto" min="0.1" step="any"></div>
                             <div class="control-group"><label>Colors:</label>
                                 <select id="corrColorTheme">
-                                    <option value="default">Default</option>
-                                    <option value="pastel">Pastel</option>
-                                    <option value="vivid">Vivid</option>
-                                    <option value="colorblind">Colorblind-safe</option>
-                                    <option value="earth">Earth</option>
-                                    <option value="ocean">Ocean</option>
-                                    <option value="neon">Neon</option>
-                                    <option value="contrast">Contrast</option>
+                                    <optgroup label="General">
+                                        <option value="default">Default</option>
+                                        <option value="pastel">Pastel</option>
+                                        <option value="vivid">Vivid</option>
+                                        <option value="grayscale">Grayscale</option>
+                                        <option value="tableau">Tableau</option>
+                                    </optgroup>
+                                    <optgroup label="Colorblind-safe">
+                                        <option value="okabe-ito">Okabe-Ito</option>
+                                        <option value="tol-bright">Tol Bright</option>
+                                        <option value="tol-muted">Tol Muted</option>
+                                    </optgroup>
+                                    <optgroup label="Journal">
+                                        <option value="nature">Nature (NPG)</option>
+                                        <option value="science">Science (AAAS)</option>
+                                        <option value="lancet">Lancet</option>
+                                        <option value="nejm">NEJM</option>
+                                        <option value="jama">JAMA</option>
+                                        <option value="jco">JCO</option>
+                                    </optgroup>
+                                    <optgroup label="Classic">
+                                        <option value="set1">Set 1</option>
+                                        <option value="set2">Set 2</option>
+                                        <option value="dark2">Dark 2</option>
+                                        <option value="paired">Paired</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="control-group"><label>Error bars:</label>
@@ -506,14 +542,32 @@
                             </div>
                             <div class="control-group"><label>Colors:</label>
                                 <select id="pcaColorTheme">
-                                    <option value="default">Default</option>
-                                    <option value="pastel">Pastel</option>
-                                    <option value="vivid">Vivid</option>
-                                    <option value="colorblind">Colorblind-safe</option>
-                                    <option value="earth">Earth</option>
-                                    <option value="ocean">Ocean</option>
-                                    <option value="neon">Neon</option>
-                                    <option value="contrast">Contrast</option>
+                                    <optgroup label="General">
+                                        <option value="default">Default</option>
+                                        <option value="pastel">Pastel</option>
+                                        <option value="vivid">Vivid</option>
+                                        <option value="grayscale">Grayscale</option>
+                                        <option value="tableau">Tableau</option>
+                                    </optgroup>
+                                    <optgroup label="Colorblind-safe">
+                                        <option value="okabe-ito">Okabe-Ito</option>
+                                        <option value="tol-bright">Tol Bright</option>
+                                        <option value="tol-muted">Tol Muted</option>
+                                    </optgroup>
+                                    <optgroup label="Journal">
+                                        <option value="nature">Nature (NPG)</option>
+                                        <option value="science">Science (AAAS)</option>
+                                        <option value="lancet">Lancet</option>
+                                        <option value="nejm">NEJM</option>
+                                        <option value="jama">JAMA</option>
+                                        <option value="jco">JCO</option>
+                                    </optgroup>
+                                    <optgroup label="Classic">
+                                        <option value="set1">Set 1</option>
+                                        <option value="set2">Set 2</option>
+                                        <option value="dark2">Dark 2</option>
+                                        <option value="paired">Paired</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="control-group pca-only"><label>PC X:</label><input type="number" id="pcaPCX" value="1" min="1" max="20" step="1"></div>
@@ -558,14 +612,32 @@
                             </div>
                             <div class="control-group"><label>Colors:</label>
                                 <select id="vennColorTheme">
-                                    <option value="default">Default</option>
-                                    <option value="pastel">Pastel</option>
-                                    <option value="vivid">Vivid</option>
-                                    <option value="colorblind">Colorblind-safe</option>
-                                    <option value="earth">Earth</option>
-                                    <option value="ocean">Ocean</option>
-                                    <option value="neon">Neon</option>
-                                    <option value="contrast">Contrast</option>
+                                    <optgroup label="General">
+                                        <option value="default">Default</option>
+                                        <option value="pastel">Pastel</option>
+                                        <option value="vivid">Vivid</option>
+                                        <option value="grayscale">Grayscale</option>
+                                        <option value="tableau">Tableau</option>
+                                    </optgroup>
+                                    <optgroup label="Colorblind-safe">
+                                        <option value="okabe-ito">Okabe-Ito</option>
+                                        <option value="tol-bright">Tol Bright</option>
+                                        <option value="tol-muted">Tol Muted</option>
+                                    </optgroup>
+                                    <optgroup label="Journal">
+                                        <option value="nature">Nature (NPG)</option>
+                                        <option value="science">Science (AAAS)</option>
+                                        <option value="lancet">Lancet</option>
+                                        <option value="nejm">NEJM</option>
+                                        <option value="jama">JAMA</option>
+                                        <option value="jco">JCO</option>
+                                    </optgroup>
+                                    <optgroup label="Classic">
+                                        <option value="set1">Set 1</option>
+                                        <option value="set2">Set 2</option>
+                                        <option value="dark2">Dark 2</option>
+                                        <option value="paired">Paired</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="control-group"><label>Width:</label><input type="number" id="vennWidth" value="450" min="200" step="10"></div>
@@ -588,14 +660,33 @@
                         <div class="control-grid-2col">
                             <div class="control-group"><label>Colors:</label>
                                 <select id="oncoprintColorTheme">
-                                    <option value="default">Default</option>
-                                    <option value="mutation">Mutation</option>
-                                    <option value="pastel">Pastel</option>
-                                    <option value="colorblind">Colorblind-safe</option>
-                                    <option value="earth">Earth</option>
-                                    <option value="ocean">Ocean</option>
-                                    <option value="neon">Neon</option>
-                                    <option value="contrast">Contrast</option>
+                                    <optgroup label="General">
+                                        <option value="default">Default</option>
+                                        <option value="mutation">Mutation</option>
+                                        <option value="pastel">Pastel</option>
+                                        <option value="vivid">Vivid</option>
+                                        <option value="grayscale">Grayscale</option>
+                                        <option value="tableau">Tableau</option>
+                                    </optgroup>
+                                    <optgroup label="Colorblind-safe">
+                                        <option value="okabe-ito">Okabe-Ito</option>
+                                        <option value="tol-bright">Tol Bright</option>
+                                        <option value="tol-muted">Tol Muted</option>
+                                    </optgroup>
+                                    <optgroup label="Journal">
+                                        <option value="nature">Nature (NPG)</option>
+                                        <option value="science">Science (AAAS)</option>
+                                        <option value="lancet">Lancet</option>
+                                        <option value="nejm">NEJM</option>
+                                        <option value="jama">JAMA</option>
+                                        <option value="jco">JCO</option>
+                                    </optgroup>
+                                    <optgroup label="Classic">
+                                        <option value="set1">Set 1</option>
+                                        <option value="set2">Set 2</option>
+                                        <option value="dark2">Dark 2</option>
+                                        <option value="paired">Paired</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="control-group"><label>Width:</label><input type="number" id="oncoprintWidth" value="600" min="200" step="10"></div>
@@ -619,14 +710,32 @@
                             <div class="control-group"><label>Height:</label><input type="number" id="kmHeight" value="300" min="200" step="10"></div>
                             <div class="control-group"><label>Colors:</label>
                                 <select id="kmColorTheme">
-                                    <option value="default">Default</option>
-                                    <option value="pastel">Pastel</option>
-                                    <option value="vivid">Vivid</option>
-                                    <option value="colorblind">Colorblind-safe</option>
-                                    <option value="earth">Earth</option>
-                                    <option value="ocean">Ocean</option>
-                                    <option value="neon">Neon</option>
-                                    <option value="contrast">Contrast</option>
+                                    <optgroup label="General">
+                                        <option value="default">Default</option>
+                                        <option value="pastel">Pastel</option>
+                                        <option value="vivid">Vivid</option>
+                                        <option value="grayscale">Grayscale</option>
+                                        <option value="tableau">Tableau</option>
+                                    </optgroup>
+                                    <optgroup label="Colorblind-safe">
+                                        <option value="okabe-ito">Okabe-Ito</option>
+                                        <option value="tol-bright">Tol Bright</option>
+                                        <option value="tol-muted">Tol Muted</option>
+                                    </optgroup>
+                                    <optgroup label="Journal">
+                                        <option value="nature">Nature (NPG)</option>
+                                        <option value="science">Science (AAAS)</option>
+                                        <option value="lancet">Lancet</option>
+                                        <option value="nejm">NEJM</option>
+                                        <option value="jama">JAMA</option>
+                                        <option value="jco">JCO</option>
+                                    </optgroup>
+                                    <optgroup label="Classic">
+                                        <option value="set1">Set 1</option>
+                                        <option value="set2">Set 2</option>
+                                        <option value="dark2">Dark 2</option>
+                                        <option value="paired">Paired</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="control-group"><label>Line Width:</label><input type="number" id="kmLineWidth" value="2" min="0.5" max="6" step="0.5"></div>
@@ -687,15 +796,32 @@
                             <div class="control-group column-only">
                                 <label>Palette:</label>
                                 <select id="colorTheme">
-                                    <option value="default">Default</option>
-                                    <option value="pastel">Pastel</option>
-                                    <option value="vivid">Vivid</option>
-                                    <option value="grayscale">Grayscale</option>
-                                    <option value="colorblind">Colorblind-safe</option>
-                                    <option value="earth">Earth</option>
-                                    <option value="ocean">Ocean</option>
-                                    <option value="neon">Neon</option>
-                                    <option value="contrast">Contrast</option>
+                                    <optgroup label="General">
+                                        <option value="default">Default</option>
+                                        <option value="pastel">Pastel</option>
+                                        <option value="vivid">Vivid</option>
+                                        <option value="grayscale">Grayscale</option>
+                                        <option value="tableau">Tableau</option>
+                                    </optgroup>
+                                    <optgroup label="Colorblind-safe">
+                                        <option value="okabe-ito">Okabe-Ito</option>
+                                        <option value="tol-bright">Tol Bright</option>
+                                        <option value="tol-muted">Tol Muted</option>
+                                    </optgroup>
+                                    <optgroup label="Journal">
+                                        <option value="nature">Nature (NPG)</option>
+                                        <option value="science">Science (AAAS)</option>
+                                        <option value="lancet">Lancet</option>
+                                        <option value="nejm">NEJM</option>
+                                        <option value="jama">JAMA</option>
+                                        <option value="jco">JCO</option>
+                                    </optgroup>
+                                    <optgroup label="Classic">
+                                        <option value="set1">Set 1</option>
+                                        <option value="set2">Set 2</option>
+                                        <option value="dark2">Dark 2</option>
+                                        <option value="paired">Paired</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div class="control-group column-only">

@@ -1795,7 +1795,7 @@ class App {
         // Hide controls from bottom panels that are now in the gear popout
         const hideMap = {
             column: ['graphWidth','graphHeight','pointSize','centerLineWidth','errorBarWidth',
-                'colorTheme','orientation','pointSpread','xTickAngle','errorBarDirection',
+                'orientation','pointSpread','xTickAngle','errorBarDirection',
                 'yAxisMin','yAxisMax','yAxisTickStep','yAxisScaleType'],
             growth: ['growthWidth','growthHeight','growthSymbolSize','growthMeanLineWidth','growthCapWidth',
                 'growthColorTheme','growthXMin','growthXMax','growthYMin','growthYMax','growthXTickStep','growthYTickStep'],

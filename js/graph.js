@@ -1531,12 +1531,9 @@ class GraphRenderer {
                 return;
             }
 
-            const h = this._silvermanBandwidth(group.values);
-            const pts = this._kdePoints(group.values);
-            const kde = this._kernelDensityEstimator(this._epanechnikovKernel(h), pts);
-            const density = kde(group.values);
+            const density = this._computeViolin(group.values);
             const maxDensity = d3.max(density, d => d[1]);
-            const violinWidth = bw * 0.45;
+            const violinWidth = bw * 0.42;
 
             if (isH) {
                 const cy = groupScale(group.label) + bw / 2;
@@ -1545,17 +1542,11 @@ class GraphRenderer {
                     .y0(d => cy - yDensityScale(d[1]))
                     .y1(d => cy + yDensityScale(d[1]))
                     .x(d => valueScale(d[0]))
-                    .curve(d3.curveCatmullRom);
+                    .curve(d3.curveBasis);
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('fill', color).attr('stroke', color)
                     .attr('stroke-width', 1).attr('opacity', 0.7);
-                const medianVal = Statistics.median(group.values);
-                const medianDensity = this._interpolateDensity(density, medianVal);
-                const medianHalfWidth = yDensityScale(medianDensity);
-                g.append('line')
-                    .attr('x1', valueScale(medianVal)).attr('x2', valueScale(medianVal))
-                    .attr('y1', cy - medianHalfWidth).attr('y2', cy + medianHalfWidth)
-                    .attr('stroke', '#fff').attr('stroke-width', 2);
+                this._drawViolinMedianQ(g, group.values, density, yDensityScale, cy, null, valueScale, true);
             } else {
                 const cx = groupScale(group.label) + bw / 2;
                 const xDensityScale = d3.scaleLinear().domain([0, maxDensity]).range([0, violinWidth]);
@@ -1563,17 +1554,11 @@ class GraphRenderer {
                     .x0(d => cx - xDensityScale(d[1]))
                     .x1(d => cx + xDensityScale(d[1]))
                     .y(d => valueScale(d[0]))
-                    .curve(d3.curveCatmullRom);
+                    .curve(d3.curveBasis);
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('fill', color).attr('stroke', color)
                     .attr('stroke-width', 1).attr('opacity', 0.7);
-                const medianVal = Statistics.median(group.values);
-                const medianDensity = this._interpolateDensity(density, medianVal);
-                const medianHalfWidth = xDensityScale(medianDensity);
-                g.append('line')
-                    .attr('x1', cx - medianHalfWidth).attr('x2', cx + medianHalfWidth)
-                    .attr('y1', valueScale(medianVal)).attr('y2', valueScale(medianVal))
-                    .attr('stroke', '#fff').attr('stroke-width', 2);
+                this._drawViolinMedianQ(g, group.values, density, xDensityScale, null, cx, valueScale, false);
             }
         });
     }
@@ -1589,12 +1574,9 @@ class GraphRenderer {
                 return;
             }
 
-            const h = this._silvermanBandwidth(group.values);
-            const pts = this._kdePoints(group.values);
-            const kde = this._kernelDensityEstimator(this._epanechnikovKernel(h), pts);
-            const density = kde(group.values);
+            const density = this._computeViolin(group.values);
             const maxDensity = d3.max(density, d => d[1]);
-            const violinWidth = bw * 0.45;
+            const violinWidth = bw * 0.42;
 
             if (isH) {
                 const cy = groupScale(group.label) + bw / 2;
@@ -1604,20 +1586,13 @@ class GraphRenderer {
                     .y0(d => cy - yDensityScale(d[1]))
                     .y1(d => cy + yDensityScale(d[1]))
                     .x(d => valueScale(d[0]))
-                    .curve(d3.curveCatmullRom);
+                    .curve(d3.curveBasis);
 
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('fill', color).attr('stroke', color)
                     .attr('stroke-width', 1).attr('opacity', 0.7);
 
-                const medianVal = Statistics.median(group.values);
-                const medianDensity = this._interpolateDensity(density, medianVal);
-                const medianHalfWidth = yDensityScale(medianDensity);
-
-                g.append('line')
-                    .attr('x1', valueScale(medianVal)).attr('x2', valueScale(medianVal))
-                    .attr('y1', cy - medianHalfWidth).attr('y2', cy + medianHalfWidth)
-                    .attr('stroke', '#fff').attr('stroke-width', 2);
+                this._drawViolinMedianQ(g, group.values, density, yDensityScale, cy, null, valueScale, true);
 
                 const jitterWidth = Math.min(violinWidth * 0.3, 10);
                 const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
@@ -1633,20 +1608,13 @@ class GraphRenderer {
                     .x0(d => cx - xDensityScale(d[1]))
                     .x1(d => cx + xDensityScale(d[1]))
                     .y(d => valueScale(d[0]))
-                    .curve(d3.curveCatmullRom);
+                    .curve(d3.curveBasis);
 
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('fill', color).attr('stroke', color)
                     .attr('stroke-width', 1).attr('opacity', 0.7);
 
-                const medianVal = Statistics.median(group.values);
-                const medianDensity = this._interpolateDensity(density, medianVal);
-                const medianHalfWidth = xDensityScale(medianDensity);
-
-                g.append('line')
-                    .attr('x1', cx - medianHalfWidth).attr('x2', cx + medianHalfWidth)
-                    .attr('y1', valueScale(medianVal)).attr('y2', valueScale(medianVal))
-                    .attr('stroke', '#fff').attr('stroke-width', 2);
+                this._drawViolinMedianQ(g, group.values, density, xDensityScale, null, cx, valueScale, false);
 
                 const jitterWidth = Math.min(violinWidth * 0.3, 10);
                 const jitters = this._pointOffsets(group.values, jitterWidth, valueScale);
@@ -1893,12 +1861,9 @@ class GraphRenderer {
                 return;
             }
 
-            const h = this._silvermanBandwidth(group.values);
-            const pts = this._kdePoints(group.values);
-            const kde = this._kernelDensityEstimator(this._epanechnikovKernel(h), pts);
-            const density = kde(group.values);
+            const density = this._computeViolin(group.values);
             const maxDensity = d3.max(density, d => d[1]);
-            const violinWidth = bw * 0.45;
+            const violinWidth = bw * 0.42;
 
             const q = Statistics.quartiles(group.values);
             const iqr = q.q3 - q.q1;
@@ -1915,10 +1880,10 @@ class GraphRenderer {
                     .y0(d => cy - yDensityScale(d[1]))
                     .y1(d => cy + yDensityScale(d[1]))
                     .x(d => valueScale(d[0]))
-                    .curve(d3.curveCatmullRom);
+                    .curve(d3.curveBasis);
 
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('fill', color).attr('stroke', color)
                     .attr('stroke-width', 1).attr('opacity', 0.7);
 
                 g.append('rect')
@@ -1948,10 +1913,10 @@ class GraphRenderer {
                     .x0(d => cx - xDensityScale(d[1]))
                     .x1(d => cx + xDensityScale(d[1]))
                     .y(d => valueScale(d[0]))
-                    .curve(d3.curveCatmullRom);
+                    .curve(d3.curveBasis);
 
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('fill', color).attr('stroke', color)
                     .attr('stroke-width', 1).attr('opacity', 0.7);
 
                 g.append('rect')
@@ -2797,13 +2762,15 @@ class GraphRenderer {
         const q = Statistics.quartiles(values);
         const iqr = q.q3 - q.q1;
         const spread = Math.min(std, iqr / 1.34);
-        return 1.06 * (spread || std || 1) * Math.pow(n, -0.2);
+        // Scott's rule with Silverman adjustment — slightly wider for smoother shapes
+        return 0.9 * (spread || std || 1) * Math.pow(n, -0.2);
     }
 
-    _kdePoints(values, nPoints = 60) {
+    _kdePoints(values, nPoints = 120) {
         const min = d3.min(values);
         const max = d3.max(values);
-        const pad = (max - min) * 0.15 || 1;
+        const range = max - min || 1;
+        const pad = range * 0.25;
         const lo = min - pad;
         const hi = max + pad;
         const step = (hi - lo) / (nPoints - 1);
@@ -2816,11 +2783,72 @@ class GraphRenderer {
         };
     }
 
-    _epanechnikovKernel(bandwidth) {
+    _gaussianKernel(bandwidth) {
+        const factor = 1 / (bandwidth * Math.sqrt(2 * Math.PI));
         return function (v) {
-            v = v / bandwidth;
-            return Math.abs(v) <= 1 ? (0.75 * (1 - v * v)) / bandwidth : 0;
+            const u = v / bandwidth;
+            return factor * Math.exp(-0.5 * u * u);
         };
+    }
+
+    _computeViolin(values) {
+        const h = this._silvermanBandwidth(values);
+        const pts = this._kdePoints(values);
+        const kde = this._kernelDensityEstimator(this._gaussianKernel(h), pts);
+        return kde(values);
+    }
+
+    _drawViolinMedianQ(g, values, density, densityScale, cy, cx, valueScale, isH) {
+        const medianVal = Statistics.median(values);
+        const sorted = [...values].sort((a, b) => a - b);
+        const q1 = Statistics.quartiles(values).q1;
+        const q3 = Statistics.quartiles(values).q3;
+
+        const medDens = this._interpolateDensity(density, medianVal);
+        const q1Dens = this._interpolateDensity(density, q1);
+        const q3Dens = this._interpolateDensity(density, q3);
+
+        if (isH) {
+            const mhw = densityScale(medDens);
+            g.append('line')
+                .attr('x1', valueScale(medianVal)).attr('x2', valueScale(medianVal))
+                .attr('y1', cy - mhw).attr('y2', cy + mhw)
+                .attr('stroke', '#fff').attr('stroke-width', 2);
+            // Q1 line
+            const q1hw = densityScale(q1Dens);
+            g.append('line')
+                .attr('x1', valueScale(q1)).attr('x2', valueScale(q1))
+                .attr('y1', cy - q1hw).attr('y2', cy + q1hw)
+                .attr('stroke', '#fff').attr('stroke-width', 1)
+                .attr('stroke-dasharray', '3,3');
+            // Q3 line
+            const q3hw = densityScale(q3Dens);
+            g.append('line')
+                .attr('x1', valueScale(q3)).attr('x2', valueScale(q3))
+                .attr('y1', cy - q3hw).attr('y2', cy + q3hw)
+                .attr('stroke', '#fff').attr('stroke-width', 1)
+                .attr('stroke-dasharray', '3,3');
+        } else {
+            const mhw = densityScale(medDens);
+            g.append('line')
+                .attr('x1', cx - mhw).attr('x2', cx + mhw)
+                .attr('y1', valueScale(medianVal)).attr('y2', valueScale(medianVal))
+                .attr('stroke', '#fff').attr('stroke-width', 2);
+            // Q1 line
+            const q1hw = densityScale(q1Dens);
+            g.append('line')
+                .attr('x1', cx - q1hw).attr('x2', cx + q1hw)
+                .attr('y1', valueScale(q1)).attr('y2', valueScale(q1))
+                .attr('stroke', '#fff').attr('stroke-width', 1)
+                .attr('stroke-dasharray', '3,3');
+            // Q3 line
+            const q3hw = densityScale(q3Dens);
+            g.append('line')
+                .attr('x1', cx - q3hw).attr('x2', cx + q3hw)
+                .attr('y1', valueScale(q3)).attr('y2', valueScale(q3))
+                .attr('stroke', '#fff').attr('stroke-width', 1)
+                .attr('stroke-dasharray', '3,3');
+        }
     }
 
     _interpolateDensity(density, value) {

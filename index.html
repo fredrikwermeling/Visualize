@@ -935,7 +935,7 @@
                 <button id="statsGuideClose" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666;padding:0 4px">&times;</button>
             </div>
             <div class="stats-guide-body">
-                <div class="sg-section" data-mode="column,growth">
+                <div class="sg-section" data-mode="column">
                     <h3>How to choose a test</h3>
                     <table class="sg-decision-table">
                         <thead><tr><th>Groups</th><th>Paired?</th><th>Normal data?</th><th>Recommended test</th></tr></thead>
@@ -947,7 +947,6 @@
                             <tr><td>3+</td><td>No</td><td>Yes</td><td>One-way ANOVA</td></tr>
                             <tr><td>3+</td><td>No</td><td>No / unsure</td><td>Kruskal-Wallis</td></tr>
                             <tr><td>3+</td><td>Yes</td><td>No / unsure</td><td>Friedman</td></tr>
-                            <tr><td>Time series</td><td>Yes (repeated)</td><td>Yes</td><td>Two-way RM ANOVA</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -976,10 +975,10 @@
                     </dl>
                 </div>
                 <div class="sg-section" data-mode="growth">
-                    <h3>Time series / longitudinal</h3>
+                    <h3>Time Series</h3>
                     <dl>
-                        <dt>Two-way RM ANOVA</dt>
-                        <dd>Tests Group effect (between-subjects), Time effect (within-subjects), and Group&times;Time interaction. Use for longitudinal data with repeated measurements at multiple time points.</dd>
+                        <dt>Two-way RM ANOVA (Group &times; Time)</dt>
+                        <dd>The standard test for time series data with groups. Tests three effects: Group (do groups differ overall?), Time (does the measurement change over time?), and Interaction (do groups change differently over time?). Post-hoc comparisons use per-timepoint ANOVA as a gatekeeper, followed by pairwise t-tests with multiple comparison correction.</dd>
                     </dl>
                 </div>
                 <div class="sg-section" data-mode="correlation">
@@ -992,12 +991,11 @@
                     </dl>
                 </div>
                 <div class="sg-section" data-mode="kaplan-meier">
-                    <h3>Survival analysis</h3>
+                    <h3>Kaplan-Meier Survival Analysis</h3>
+                    <p style="font-size:11px;color:#555;margin-bottom:8px">Kaplan-Meier curves estimate survival probability over time. When you have two or more groups, the <strong>log-rank test</strong> is automatically computed to test whether the survival curves differ significantly.</p>
                     <dl>
                         <dt>Log-rank test</dt>
-                        <dd>Compares survival distributions between two or more groups. Tests whether survival curves differ significantly. Non-parametric; makes no assumption about the shape of the survival curve. Most commonly used in clinical research for time-to-event data.</dd>
-                        <dt>Kaplan-Meier estimator</dt>
-                        <dd>Non-parametric method for estimating survival probability over time. Handles right-censored data (subjects lost to follow-up or study end). Produces step-function survival curves.</dd>
+                        <dd>Compares survival distributions between groups. Non-parametric; makes no assumption about the shape of the survival curve. The test statistic (&chi;&sup2;) and p-value are shown on the graph when "Log-rank test" is checked in settings. This is the only test available for Kaplan-Meier data &mdash; it is the standard method used in clinical research.</dd>
                     </dl>
                 </div>
                 <div class="sg-section" data-mode="heatmap">
@@ -1011,7 +1009,7 @@
                         <dd>Clips extreme values to reduce the impact of outliers on the color scale, improving visual contrast for the majority of data.</dd>
                     </dl>
                 </div>
-                <div class="sg-section" data-mode="column,growth">
+                <div class="sg-section" data-mode="column">
                     <h3>Post-hoc corrections</h3>
                     <dl>
                         <dt>Tukey HSD</dt>
@@ -1024,7 +1022,27 @@
                         <dd>Compares each group to a single control group only. More powerful than all-pairwise methods when only control comparisons are needed.</dd>
                     </dl>
                 </div>
-                <div class="sg-section sg-tip" data-mode="column,growth">
+                <div class="sg-section" data-mode="growth">
+                    <h3>Post-hoc corrections</h3>
+                    <dl>
+                        <dt>Holm-Bonferroni</dt>
+                        <dd>Step-down method applied across all per-timepoint pairwise comparisons. Less conservative than Bonferroni, more powerful. Generally the recommended choice.</dd>
+                        <dt>Bonferroni</dt>
+                        <dd>Most conservative. Multiplies each p-value by the total number of comparisons.</dd>
+                        <dt>&Scaron;id&aacute;k</dt>
+                        <dd>Similar to Bonferroni but slightly less conservative. Uses the formula 1&minus;(1&minus;p)<sup>m</sup>.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section" data-mode="column">
+                    <h3>Normality &amp; outlier checks</h3>
+                    <dl>
+                        <dt>Anderson-Darling normality test</dt>
+                        <dd>Tests whether data follows a normal distribution. If p &lt; 0.05, the data is likely non-normal and you should consider non-parametric tests. Use the "Check Normality" button below the test selector.</dd>
+                        <dt>IQR outlier detection</dt>
+                        <dd>Identifies values beyond 1.5&times; the interquartile range from Q1 or Q3. These are the same bounds shown in box plots. Use the "Check Outliers" button to see per-group results.</dd>
+                    </dl>
+                </div>
+                <div class="sg-section sg-tip" data-mode="column">
                     <strong>Tip:</strong> If unsure about normality with small samples (n &lt; 30), non-parametric tests are a safe choice. They are slightly less powerful but make fewer assumptions. Use the "Check Normality" button to run an Anderson-Darling test on your data.
                 </div>
             </div>

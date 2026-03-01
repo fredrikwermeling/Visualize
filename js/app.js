@@ -441,7 +441,10 @@ class App {
 
         // Methods export
         const methodsBtn = document.getElementById('exportMethods');
-        if (methodsBtn) methodsBtn.addEventListener('click', () => this._exportMethodsText());
+        if (methodsBtn) {
+            methodsBtn.addEventListener('click', () => this._exportMethodsText());
+            methodsBtn.addEventListener('mouseenter', () => { methodsBtn.title = this._getMethodsPreview(); });
+        }
 
         // Normality and outlier check buttons
         const normBtn = document.getElementById('checkNormality');
@@ -2856,6 +2859,7 @@ class App {
         const corrMethods = document.getElementById('corrExportMethods');
         if (corrMethods) {
             corrMethods.addEventListener('click', () => this._exportCorrelationMethods());
+            corrMethods.addEventListener('mouseenter', () => { corrMethods.title = this._getCorrelationMethodsPreview(); });
         }
     }
 
@@ -3007,6 +3011,7 @@ class App {
         const kmMethods = document.getElementById('kmExportMethods');
         if (kmMethods) {
             kmMethods.addEventListener('click', () => this._exportKaplanMeierMethods());
+            kmMethods.addEventListener('mouseenter', () => { kmMethods.title = this._getKaplanMeierMethodsPreview(); });
         }
     }
 
@@ -4602,6 +4607,39 @@ class App {
         this._showModePopout();
     }
 
+    _getMethodsPreview() {
+        const testType = document.getElementById('testType')?.value;
+        if (!testType || testType === 'none') return 'Run a test first, then click to copy methods text';
+        const testNames = {
+            'one-way-anova': 'one-way ANOVA',
+            'kruskal-wallis': 'Kruskal-Wallis H test',
+            'friedman': 'Friedman test',
+            't-test-unpaired': "Welch's unpaired t-test",
+            't-test-paired': 'paired t-test',
+            'mann-whitney': 'Mann-Whitney U test',
+            'wilcoxon': 'Wilcoxon signed-rank test',
+            'two-way-rm-anova': 'two-way RM ANOVA (Group \u00d7 Time)',
+            'pearson': 'Pearson correlation',
+            'spearman': 'Spearman rank correlation',
+            'linear-regression': 'linear regression'
+        };
+        return 'Click to copy: "...assessed using ' + (testNames[testType] || testType) + '..."';
+    }
+
+    _getCorrelationMethodsPreview() {
+        const reg = document.getElementById('corrRegressionType')?.value || 'none';
+        let preview = 'Click to copy: "...Pearson correlation';
+        if (reg !== 'none') preview += ' + regression';
+        return preview + '..."';
+    }
+
+    _getKaplanMeierMethodsPreview() {
+        const lr = document.getElementById('kmShowLogRank')?.checked;
+        let preview = 'Click to copy: "...Kaplan-Meier method';
+        if (lr) preview += ' + log-rank test';
+        return preview + '..."';
+    }
+
     _showToast(message, duration = 3000) {
         const el = document.createElement('div');
         el.className = 'toast-notification';
@@ -4622,10 +4660,18 @@ class App {
     }
 
     _runNormalityCheck() {
-        const data = this.dataTable.getData();
-        const filledGroups = data.filter(d => d.values.length >= 3);
         const container = document.getElementById('normalityResults');
         if (!container) return;
+
+        // Toggle off if already visible
+        if (container.style.display !== 'none' && container.innerHTML !== '') {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+
+        const data = this.dataTable.getData();
+        const filledGroups = data.filter(d => d.values.length >= 3);
 
         if (filledGroups.length === 0) {
             container.innerHTML = '<div class="normality-panel"><em>Need at least one group with 3+ values.</em></div>';
@@ -4660,10 +4706,18 @@ class App {
     }
 
     _runOutlierCheck() {
-        const data = this.dataTable.getData();
-        const filledGroups = data.filter(d => d.values.length >= 4);
         const container = document.getElementById('outlierResults');
         if (!container) return;
+
+        // Toggle off if already visible
+        if (container.style.display !== 'none' && container.innerHTML !== '') {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+
+        const data = this.dataTable.getData();
+        const filledGroups = data.filter(d => d.values.length >= 4);
 
         if (filledGroups.length === 0) {
             container.innerHTML = '<div class="outlier-panel"><em>Need at least one group with 4+ values.</em></div>';

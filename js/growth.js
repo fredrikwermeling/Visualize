@@ -336,7 +336,7 @@ class GrowthCurveRenderer {
         }
 
         // Stats legend
-        if (this.settings.showStatsLegend && this.significanceMarkers.length > 0) {
+        if (this.settings.showStatsLegend && (this.significanceMarkers.length > 0 || this.settings.statsTestName)) {
             this._drawStatsLegend(g, innerW, innerH);
         }
 

@@ -743,7 +743,7 @@ class KaplanMeierRenderer {
         const rowH = Math.max(14, lf.size + 6);
         const groups = this._lastGroups || [];
         const vGroups = groups.filter(gn => !(s.hiddenGroups || []).includes(gn));
-        const baseY = vGroups.length * rowH + 10;
+        const baseY = vGroups.length * rowH + 24;
 
         const lrG = g.append('g')
             .attr('class', 'km-logrank')

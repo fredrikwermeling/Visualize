@@ -507,6 +507,9 @@ class GraphRenderer {
             case 'box-plot':
                 this._drawBoxPlot(g, filteredData, groupScale, valueScale, isHorizontal);
                 break;
+            case 'violin-only':
+                this._drawViolinOnly(g, filteredData, groupScale, valueScale, isHorizontal);
+                break;
             case 'violin-plot':
                 this._drawViolinPlot(g, filteredData, groupScale, valueScale, isHorizontal);
                 break;
@@ -556,6 +559,7 @@ class GraphRenderer {
                         case 'scatter-bar-mean-sd': this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sd', isHorizontal); break;
                         case 'scatter-bar-mean-sem': this._drawScatterBar(g, filteredData, groupScale, valueScale, 'sem', isHorizontal); break;
                         case 'box-plot': this._drawBoxPlot(g, filteredData, groupScale, valueScale, isHorizontal); break;
+                        case 'violin-only': this._drawViolinOnly(g, filteredData, groupScale, valueScale, isHorizontal); break;
                         case 'violin-plot': this._drawViolinPlot(g, filteredData, groupScale, valueScale, isHorizontal); break;
                         case 'violin-box': this._drawViolinBox(g, filteredData, groupScale, valueScale, isHorizontal); break;
                         case 'before-after': this._drawBeforeAfter(g, filteredData, groupScale, valueScale, isHorizontal); break;
@@ -1485,6 +1489,64 @@ class GraphRenderer {
         });
     }
 
+    _drawViolinOnly(g, data, groupScale, valueScale, isH) {
+        data.forEach((group, i) => {
+            if (group.values.length === 0) return;
+            const color = this._getGroupColor(i);
+            const bw = groupScale.bandwidth();
+
+            if (group.values.length < 4) {
+                this._drawBoxPlot(g, [group], groupScale, valueScale, isH);
+                return;
+            }
+
+            const h = this._silvermanBandwidth(group.values);
+            const pts = this._kdePoints(group.values);
+            const kde = this._kernelDensityEstimator(this._epanechnikovKernel(h), pts);
+            const density = kde(group.values);
+            const maxDensity = d3.max(density, d => d[1]);
+            const violinWidth = bw * 0.45;
+
+            if (isH) {
+                const cy = groupScale(group.label) + bw / 2;
+                const yDensityScale = d3.scaleLinear().domain([0, maxDensity]).range([0, violinWidth]);
+                const area = d3.area()
+                    .y0(d => cy - yDensityScale(d[1]))
+                    .y1(d => cy + yDensityScale(d[1]))
+                    .x(d => valueScale(d[0]))
+                    .curve(d3.curveCatmullRom);
+                g.append('path').datum(density).attr('d', area)
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 1).attr('opacity', 0.7);
+                const medianVal = Statistics.median(group.values);
+                const medianDensity = this._interpolateDensity(density, medianVal);
+                const medianHalfWidth = yDensityScale(medianDensity);
+                g.append('line')
+                    .attr('x1', valueScale(medianVal)).attr('x2', valueScale(medianVal))
+                    .attr('y1', cy - medianHalfWidth).attr('y2', cy + medianHalfWidth)
+                    .attr('stroke', '#fff').attr('stroke-width', 2);
+            } else {
+                const cx = groupScale(group.label) + bw / 2;
+                const xDensityScale = d3.scaleLinear().domain([0, maxDensity]).range([0, violinWidth]);
+                const area = d3.area()
+                    .x0(d => cx - xDensityScale(d[1]))
+                    .x1(d => cx + xDensityScale(d[1]))
+                    .y(d => valueScale(d[0]))
+                    .curve(d3.curveCatmullRom);
+                g.append('path').datum(density).attr('d', area)
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 1).attr('opacity', 0.7);
+                const medianVal = Statistics.median(group.values);
+                const medianDensity = this._interpolateDensity(density, medianVal);
+                const medianHalfWidth = xDensityScale(medianDensity);
+                g.append('line')
+                    .attr('x1', cx - medianHalfWidth).attr('x2', cx + medianHalfWidth)
+                    .attr('y1', valueScale(medianVal)).attr('y2', valueScale(medianVal))
+                    .attr('stroke', '#fff').attr('stroke-width', 2);
+            }
+        });
+    }
+
     _drawViolinPlot(g, data, groupScale, valueScale, isH) {
         data.forEach((group, i) => {
             if (group.values.length === 0) return;
@@ -1958,7 +2020,7 @@ class GraphRenderer {
             } else if (graphType === 'column-bar-median') {
                 const q = Statistics.quartiles(vals);
                 topValue = Math.max(topValue, q.q3);
-            } else if (graphType === 'box-plot' || graphType === 'violin-box') {
+            } else if (graphType === 'box-plot' || graphType === 'violin-box' || graphType === 'violin-only' || graphType === 'violin-plot') {
                 const q = Statistics.quartiles(vals);
                 const iqr = q.q3 - q.q1;
                 const sorted = [...vals].sort((a, b) => a - b);

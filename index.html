@@ -763,6 +763,32 @@
                                 <input type="number" id="graphHeight" value="200" min="50" step="10">
                             </div>
                             <div class="control-group column-only">
+                                <label>Palette:</label>
+                                <select id="colorTheme">
+                                    <option value="default">Default</option>
+                                    <option value="pastel">Pastel</option>
+                                    <option value="vivid">Vivid</option>
+                                    <option value="grayscale">Grayscale</option>
+                                    <option value="tableau">Tableau</option>
+                                    <option disabled>── Colorblind-safe ──</option>
+                                    <option value="okabe-ito">Okabe-Ito</option>
+                                    <option value="tol-bright">Tol Bright</option>
+                                    <option value="tol-muted">Tol Muted</option>
+                                    <option disabled>── Journal ──</option>
+                                    <option value="nature">Nature (NPG)</option>
+                                    <option value="science">Science (AAAS)</option>
+                                    <option value="lancet">Lancet</option>
+                                    <option value="nejm">NEJM</option>
+                                    <option value="jama">JAMA</option>
+                                    <option value="jco">JCO</option>
+                                    <option disabled>── Classic ──</option>
+                                    <option value="set1">Set 1</option>
+                                    <option value="set2">Set 2</option>
+                                    <option value="dark2">Dark 2</option>
+                                    <option value="paired">Paired</option>
+                                </select>
+                            </div>
+                            <div class="control-group column-only">
                                 <label>Y-Min:</label>
                                 <input type="number" id="yAxisMin" placeholder="Auto" step="any">
                             </div>
@@ -791,37 +817,6 @@
                                 <select id="errorBarDirection">
                                     <option value="both">Both</option>
                                     <option value="above">Above only</option>
-                                </select>
-                            </div>
-                            <div class="control-group column-only">
-                                <label>Palette:</label>
-                                <select id="colorTheme">
-                                    <optgroup label="General">
-                                        <option value="default">Default</option>
-                                        <option value="pastel">Pastel</option>
-                                        <option value="vivid">Vivid</option>
-                                        <option value="grayscale">Grayscale</option>
-                                        <option value="tableau">Tableau</option>
-                                    </optgroup>
-                                    <optgroup label="Colorblind-safe">
-                                        <option value="okabe-ito">Okabe-Ito</option>
-                                        <option value="tol-bright">Tol Bright</option>
-                                        <option value="tol-muted">Tol Muted</option>
-                                    </optgroup>
-                                    <optgroup label="Journal">
-                                        <option value="nature">Nature (NPG)</option>
-                                        <option value="science">Science (AAAS)</option>
-                                        <option value="lancet">Lancet</option>
-                                        <option value="nejm">NEJM</option>
-                                        <option value="jama">JAMA</option>
-                                        <option value="jco">JCO</option>
-                                    </optgroup>
-                                    <optgroup label="Classic">
-                                        <option value="set1">Set 1</option>
-                                        <option value="set2">Set 2</option>
-                                        <option value="dark2">Dark 2</option>
-                                        <option value="paired">Paired</option>
-                                    </optgroup>
                                 </select>
                             </div>
                             <div class="control-group column-only">

@@ -1544,8 +1544,8 @@ class GraphRenderer {
                     .x(d => valueScale(d[0]))
                     .curve(d3.curveBasis);
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', color)
-                    .attr('stroke-width', 1).attr('opacity', 0.7);
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 1).attr('opacity', 0.75);
                 this._drawViolinMedianQ(g, group.values, density, yDensityScale, cy, null, valueScale, true);
             } else {
                 const cx = groupScale(group.label) + bw / 2;
@@ -1556,8 +1556,8 @@ class GraphRenderer {
                     .y(d => valueScale(d[0]))
                     .curve(d3.curveBasis);
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', color)
-                    .attr('stroke-width', 1).attr('opacity', 0.7);
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 1).attr('opacity', 0.75);
                 this._drawViolinMedianQ(g, group.values, density, xDensityScale, null, cx, valueScale, false);
             }
         });
@@ -1589,8 +1589,8 @@ class GraphRenderer {
                     .curve(d3.curveBasis);
 
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', color)
-                    .attr('stroke-width', 1).attr('opacity', 0.7);
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 1).attr('opacity', 0.75);
 
                 this._drawViolinMedianQ(g, group.values, density, yDensityScale, cy, null, valueScale, true);
 
@@ -1611,8 +1611,8 @@ class GraphRenderer {
                     .curve(d3.curveBasis);
 
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', color)
-                    .attr('stroke-width', 1).attr('opacity', 0.7);
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 1).attr('opacity', 0.75);
 
                 this._drawViolinMedianQ(g, group.values, density, xDensityScale, null, cx, valueScale, false);
 
@@ -1883,8 +1883,8 @@ class GraphRenderer {
                     .curve(d3.curveBasis);
 
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', color)
-                    .attr('stroke-width', 1).attr('opacity', 0.7);
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 1).attr('opacity', 0.75);
 
                 g.append('rect')
                     .attr('x', valueScale(q.q1)).attr('y', cy - boxWidth / 2)
@@ -1916,8 +1916,8 @@ class GraphRenderer {
                     .curve(d3.curveBasis);
 
                 g.append('path').datum(density).attr('d', area)
-                    .attr('fill', color).attr('stroke', color)
-                    .attr('stroke-width', 1).attr('opacity', 0.7);
+                    .attr('fill', color).attr('stroke', '#333')
+                    .attr('stroke-width', 1).attr('opacity', 0.75);
 
                 g.append('rect')
                     .attr('x', cx - boxWidth / 2).attr('y', valueScale(q.q3))
@@ -2813,40 +2813,36 @@ class GraphRenderer {
             g.append('line')
                 .attr('x1', valueScale(medianVal)).attr('x2', valueScale(medianVal))
                 .attr('y1', cy - mhw).attr('y2', cy + mhw)
-                .attr('stroke', '#fff').attr('stroke-width', 2);
-            // Q1 line
+                .attr('stroke', '#333').attr('stroke-width', 2);
             const q1hw = densityScale(q1Dens);
             g.append('line')
                 .attr('x1', valueScale(q1)).attr('x2', valueScale(q1))
                 .attr('y1', cy - q1hw).attr('y2', cy + q1hw)
-                .attr('stroke', '#fff').attr('stroke-width', 1)
+                .attr('stroke', '#333').attr('stroke-width', 1)
                 .attr('stroke-dasharray', '3,3');
-            // Q3 line
             const q3hw = densityScale(q3Dens);
             g.append('line')
                 .attr('x1', valueScale(q3)).attr('x2', valueScale(q3))
                 .attr('y1', cy - q3hw).attr('y2', cy + q3hw)
-                .attr('stroke', '#fff').attr('stroke-width', 1)
+                .attr('stroke', '#333').attr('stroke-width', 1)
                 .attr('stroke-dasharray', '3,3');
         } else {
             const mhw = densityScale(medDens);
             g.append('line')
                 .attr('x1', cx - mhw).attr('x2', cx + mhw)
                 .attr('y1', valueScale(medianVal)).attr('y2', valueScale(medianVal))
-                .attr('stroke', '#fff').attr('stroke-width', 2);
-            // Q1 line
+                .attr('stroke', '#333').attr('stroke-width', 2);
             const q1hw = densityScale(q1Dens);
             g.append('line')
                 .attr('x1', cx - q1hw).attr('x2', cx + q1hw)
                 .attr('y1', valueScale(q1)).attr('y2', valueScale(q1))
-                .attr('stroke', '#fff').attr('stroke-width', 1)
+                .attr('stroke', '#333').attr('stroke-width', 1)
                 .attr('stroke-dasharray', '3,3');
-            // Q3 line
             const q3hw = densityScale(q3Dens);
             g.append('line')
                 .attr('x1', cx - q3hw).attr('x2', cx + q3hw)
                 .attr('y1', valueScale(q3)).attr('y2', valueScale(q3))
-                .attr('stroke', '#fff').attr('stroke-width', 1)
+                .attr('stroke', '#333').attr('stroke-width', 1)
                 .attr('stroke-dasharray', '3,3');
         }
     }

@@ -684,9 +684,10 @@
                                     <option value="above">Above only</option>
                                 </select>
                             </div>
-                            <div class="control-group column-only">
-                                <label>Colors:</label>
-                                <select id="colorTheme">
+                            <div class="control-group column-only span-2">
+                                <label>Palette:</label>
+                                <div id="colorPalettePicker" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
+                                <select id="colorTheme" style="display:none">
                                     <option value="default">Default</option>
                                     <option value="pastel">Pastel</option>
                                     <option value="vivid">Vivid</option>
@@ -755,7 +756,7 @@
                             </div>
                             <div class="control-group column-only">
                                 <label>Legend:</label>
-                                <label style="font-size:12px;display:flex;align-items:center;gap:2px;flex:1"><input type="checkbox" id="showGroupLegend"> Color</label>
+                                <label style="font-size:12px;display:flex;align-items:center;gap:2px;flex:1"><input type="checkbox" id="showGroupLegend"> Show Legend</label>
                             </div>
                             <div class="control-group column-only span-2" style="display:none">
                                 <label>Show:</label>

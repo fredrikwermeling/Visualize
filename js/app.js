@@ -552,7 +552,15 @@ class App {
             'linear-regression': '<b>Linear regression</b> — Fits y = a + bx. Reports slope, intercept, R\u00b2, and F-test p-value. Assumes linearity and normal residuals.'
         };
 
-        const desc = descriptions[testType];
+        let desc = descriptions[testType];
+        // Warn if graph type is before-after but test is unpaired
+        const graphType = document.getElementById('graphType')?.value;
+        if (graphType === 'before-after' && desc) {
+            const unpaired = ['t-test-unpaired', 'mann-whitney', 'one-way-anova', 'kruskal-wallis'];
+            if (unpaired.includes(testType)) {
+                desc += '<br><span style="color:#c0392b"><b>Note:</b> Before\u2013After graph implies paired data. Consider a paired test instead.</span>';
+            }
+        }
         if (desc) {
             descEl.innerHTML = desc;
             descEl.style.display = '';
@@ -4518,8 +4526,12 @@ class App {
             const data = this.dataTable.getData();
             const filled = data.filter(d => d.values.length > 0);
             const graphType = document.getElementById('graphType')?.value;
-            if (graphType === 'before-after' && filled.length === 2) {
+            const isPaired = graphType === 'before-after';
+
+            if (isPaired && filled.length === 2) {
                 testSel.value = 't-test-paired';
+            } else if (isPaired && filled.length > 2) {
+                testSel.value = 'friedman';
             } else if (filled.length === 2) {
                 testSel.value = 't-test-unpaired';
             } else if (filled.length > 2) {
